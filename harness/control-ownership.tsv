@@ -13,6 +13,8 @@ wave-evidence	exact	docs/artifacts/wave-01-evidence.md	wave-integrator	independe
 wave-grant-amendment	exact	docs/artifacts/wave-01-grant-ladder-amendment.md	wave-integrator	independent-readonly	separate-security-decision
 wave-module-decision	exact	docs/artifacts/wave-01-module-identity-decision.md	wave-integrator	owner-review	owner+module-decision
 wave-specification	exact	docs/artifacts/wave-01-specification.md	wave-integrator	owner-review	owner+design
+requirements-source	exact	docs/artifacts/requirements.md	requirements-owner	owner-review	owner+requirements-decision
+release-allocation	exact	docs/artifacts/feature-backlog.md	backlog-owner	owner-review	owner+impact-decision
 harness-data	prefix	harness/	harness-integrator	independent-readonly	owner+scope-audit
 harness-scripts	prefix	scripts/harness/	harness-integrator	independent-readonly	owner+scope-audit
 harness-code	prefix	internal/harness/buildcontrol/	harness-integrator	independent-readonly	owner+scope-audit
@@ -24,9 +26,18 @@ marketplace	exact	marketplace.json	protected-prototype-owner	wave-10-owner	wave-
 workflow-reference	exact	references/WORKFLOW.md	protected-prototype-owner	wave-07-owner	wave-07-cutover
 semantic-source	prefix	semantic/	semantic-owner	independent-readonly	future-wave
 schema-source	prefix	schemas/	state-owner	independent-readonly	future-wave
+safety-policy	prefix	internal/policy/	safety-owner	independent-readonly	future-wave
+context-safety	prefix	internal/context/	context-owner	independent-readonly	future-wave
+transaction-plane	prefix	internal/transaction/	effect-plane-owner	independent-readonly	future-wave
+executor-plane	prefix	internal/executor/	effect-plane-owner	independent-readonly	future-wave
+receipt-plane	prefix	internal/receipt/	effect-plane-owner	independent-readonly	future-wave
+conductor-source	prefix	internal/conductor/	conductor-owner	independent-readonly	future-wave
+codex-adapter	prefix	internal/adapter/codex/	codex-owner	independent-readonly	future-wave
+claude-adapter	prefix	internal/adapter/claude/	claude-owner	independent-readonly	future-wave
 public-fixtures	prefix	fixtures/	feature-owner	evaluator-owner	future-wave
 public-evaluator	prefix	internal/evaluator/	evaluator-owner	independent-readonly	future-wave
 generated-build	prefix	build/generated/	generator-owner	independent-readonly	future-wave
 generated-packages	prefix	packages/	generator-owner	independent-readonly	wave-10-cutover
+distribution-source	prefix	internal/distribution/	distribution-owner	independent-readonly	future-wave
 updater	prefix	cmd/l7up/	updater-owner	independent-readonly	wave-10-cutover
 protected-controls	prefix	protected/	external-denied	external-denied	external-governance

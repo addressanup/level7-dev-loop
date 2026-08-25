@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCurrentOwnershipContract(t *testing.T) {
 	t.Parallel()
@@ -63,5 +66,55 @@ func TestOwnershipRejectsCandidateWriterForProtectedControls(t *testing.T) {
 	_, findings := validateOwnershipRows(rows)
 	if rules := findingRules(findings); rules["OWN-405"] == 0 {
 		t.Fatalf("candidate protected-control ownership was accepted: %+v", findings)
+	}
+}
+
+func TestOwnershipIsCrossCheckedAgainstAuthoritativeOrchestrationSource(t *testing.T) {
+	t.Parallel()
+	root := repositoryRoot(t)
+	rows, loadFindings := loadTSV(root, "harness/control-ownership.tsv", []string{"control", "path_kind", "path", "writer", "reviewer", "change_gate"})
+	if len(loadFindings) != 0 {
+		t.Fatalf("load ownership: %+v", loadFindings)
+	}
+	rules, validationFindings := validateOwnershipRows(rows)
+	if len(validationFindings) != 0 {
+		t.Fatalf("validate ownership: %+v", validationFindings)
+	}
+	data, readFindings := readStrictFile(root, "docs/artifacts/orchestration-plan.md")
+	if len(readFindings) != 0 {
+		t.Fatalf("read orchestration plan: %+v", readFindings)
+	}
+	if findings := crossCheckOrchestrationOwnership(string(data), rules); len(findings) != 0 {
+		t.Fatalf("approved source cross-check findings: %+v", findings)
+	}
+
+	changed := strings.Replace(string(data), expectedOrchestrationOwnership["codex-adapter"].owner, "candidate author", 1)
+	if findings := crossCheckOrchestrationOwnership(changed, rules); findingRules(findings)["OWN-421"] == 0 {
+		t.Fatalf("authoritative owner drift was accepted: %+v", findings)
+	}
+
+	incomplete := make(map[string]ownershipExpectation)
+	for control, rule := range rules {
+		if orchestrationClassForControl[control] != "codex-adapter" {
+			incomplete[control] = rule
+		}
+	}
+	if findings := crossCheckOrchestrationOwnership(string(data), incomplete); findingRules(findings)["OWN-424"] == 0 {
+		t.Fatalf("missing source-class coverage was accepted: %+v", findings)
+	}
+}
+
+func TestRequirementAndAllocationSourcesHaveDistinctOwners(t *testing.T) {
+	t.Parallel()
+	for control, want := range map[string]ownershipExpectation{
+		"requirements-source": {"exact", "docs/artifacts/requirements.md", "requirements-owner", "owner-review", "owner+requirements-decision"},
+		"release-allocation":  {"exact", "docs/artifacts/feature-backlog.md", "backlog-owner", "owner-review", "owner+impact-decision"},
+	} {
+		if got := expectedOwnership[control]; got != want {
+			t.Fatalf("%s ownership: got %+v, want %+v", control, got, want)
+		}
+	}
+	if len(orchestrationClassForControl) != len(expectedOwnership) {
+		t.Fatalf("source mapping count: got %d, want %d", len(orchestrationClassForControl), len(expectedOwnership))
 	}
 }

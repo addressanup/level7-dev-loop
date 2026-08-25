@@ -13,6 +13,11 @@ type ownershipExpectation struct {
 	changeGate string
 }
 
+type orchestrationOwnershipExpectation struct {
+	scope string
+	owner string
+}
+
 var expectedOwnership = map[string]ownershipExpectation{
 	"ci-workflow":           {"exact", ".github/workflows/harness.yml", "harness-integrator", "independent-readonly", "owner+scope-audit"},
 	"makefile":              {"exact", "Makefile", "harness-integrator", "independent-readonly", "owner+scope-audit"},
@@ -28,6 +33,8 @@ var expectedOwnership = map[string]ownershipExpectation{
 	"wave-grant-amendment":  {"exact", "docs/artifacts/wave-01-grant-ladder-amendment.md", "wave-integrator", "independent-readonly", "separate-security-decision"},
 	"wave-module-decision":  {"exact", "docs/artifacts/wave-01-module-identity-decision.md", "wave-integrator", "owner-review", "owner+module-decision"},
 	"wave-specification":    {"exact", "docs/artifacts/wave-01-specification.md", "wave-integrator", "owner-review", "owner+design"},
+	"requirements-source":   {"exact", "docs/artifacts/requirements.md", "requirements-owner", "owner-review", "owner+requirements-decision"},
+	"release-allocation":    {"exact", "docs/artifacts/feature-backlog.md", "backlog-owner", "owner-review", "owner+impact-decision"},
 	"harness-data":          {"prefix", "harness/", "harness-integrator", "independent-readonly", "owner+scope-audit"},
 	"harness-scripts":       {"prefix", "scripts/harness/", "harness-integrator", "independent-readonly", "owner+scope-audit"},
 	"harness-code":          {"prefix", "internal/harness/buildcontrol/", "harness-integrator", "independent-readonly", "owner+scope-audit"},
@@ -39,12 +46,52 @@ var expectedOwnership = map[string]ownershipExpectation{
 	"workflow-reference":    {"exact", "references/WORKFLOW.md", "protected-prototype-owner", "wave-07-owner", "wave-07-cutover"},
 	"semantic-source":       {"prefix", "semantic/", "semantic-owner", "independent-readonly", "future-wave"},
 	"schema-source":         {"prefix", "schemas/", "state-owner", "independent-readonly", "future-wave"},
+	"safety-policy":         {"prefix", "internal/policy/", "safety-owner", "independent-readonly", "future-wave"},
+	"context-safety":        {"prefix", "internal/context/", "context-owner", "independent-readonly", "future-wave"},
+	"transaction-plane":     {"prefix", "internal/transaction/", "effect-plane-owner", "independent-readonly", "future-wave"},
+	"executor-plane":        {"prefix", "internal/executor/", "effect-plane-owner", "independent-readonly", "future-wave"},
+	"receipt-plane":         {"prefix", "internal/receipt/", "effect-plane-owner", "independent-readonly", "future-wave"},
+	"conductor-source":      {"prefix", "internal/conductor/", "conductor-owner", "independent-readonly", "future-wave"},
+	"codex-adapter":         {"prefix", "internal/adapter/codex/", "codex-owner", "independent-readonly", "future-wave"},
+	"claude-adapter":        {"prefix", "internal/adapter/claude/", "claude-owner", "independent-readonly", "future-wave"},
 	"public-fixtures":       {"prefix", "fixtures/", "feature-owner", "evaluator-owner", "future-wave"},
 	"public-evaluator":      {"prefix", "internal/evaluator/", "evaluator-owner", "independent-readonly", "future-wave"},
 	"generated-build":       {"prefix", "build/generated/", "generator-owner", "independent-readonly", "future-wave"},
 	"generated-packages":    {"prefix", "packages/", "generator-owner", "independent-readonly", "wave-10-cutover"},
+	"distribution-source":   {"prefix", "internal/distribution/", "distribution-owner", "independent-readonly", "future-wave"},
 	"updater":               {"prefix", "cmd/l7up/", "updater-owner", "independent-readonly", "wave-10-cutover"},
 	"protected-controls":    {"prefix", "protected/", "external-denied", "external-denied", "external-governance"},
+}
+
+var expectedOrchestrationOwnership = map[string]orchestrationOwnershipExpectation{
+	"harness-build":        {"`go.mod`, `go.sum`, `vendor/`, `Makefile`, `.github/`, `harness/`, tool/dependency locks", "Harness/build integrator"},
+	"semantic-contract":    {"Taxonomy, lifecycle, workflow/profile schema, obligation registry, prompt contract", "`BL-002` semantic owner"},
+	"evaluator-governance": {"Evaluator protocol, truth schema, oracles, thresholds, coverage index", "`BL-003` evaluator-governance owner"},
+	"feature-fixtures":     {"Feature public fixtures", "Feature owner in a disjoint backlog-ID directory; evaluator owner integrates frozen indexes"},
+	"state-contract":       {"Canonical record schemas, migrations, digests, reducer/state contracts", "`BL-004` state owner"},
+	"safety-contract":      {"Risk, effect, AP, policy, waiver, capability, grant, and guardrail contracts", "`BL-005` safety owner"},
+	"context-safety":       {"Context/source/sink safety rules", "Safety/context owner; intake/presentation cannot redefine them"},
+	"effect-plane":         {"Rooted transactions, executor, receipt, recovery", "Effect-plane owner under safety interfaces"},
+	"conductor":            {"Conductor routing and prototype cutover", "`BL-007` conductor owner"},
+	"codex-adapter":        {"Codex adapter/overlay", "`BL-012` Codex owner"},
+	"claude-adapter":       {"Claude adapter/overlay", "`BL-013` Claude owner"},
+	"generated":            {"Generated packages/indexes", "Generator/integration owner only"},
+	"distribution":         {"Version/changelog/inventory/package lifecycle", "`BL-014` distribution owner"},
+	"updater":              {"Privileged updater module, updater-owned channel code, locks, dependency graph, and separate CI", "`BL-014` updater owner; no root/core import and no shared core-module dependency lock"},
+	"wave-records":         {"`docs/artifacts/` wave record and current status index", "Wave integration owner"},
+	"prototype-assets":     {"Existing skills/manifests/`WORKFLOW.md`", "Protected until their approved cutover owner acts"},
+	"protected-controls":   {"Protected cases, signing/promotion, AP2/AP3 roots, capability-grant issuers", "Outside candidate repository/agent authority"},
+}
+
+var orchestrationClassForControl = map[string]string{
+	"ci-workflow": "harness-build", "makefile": "harness-build", "module": "harness-build", "harness-data": "harness-build", "harness-scripts": "harness-build", "harness-code": "harness-build",
+	"requirements-source": "semantic-contract", "semantic-source": "semantic-contract",
+	"public-evaluator": "evaluator-governance", "public-fixtures": "feature-fixtures", "schema-source": "state-contract", "safety-policy": "safety-contract", "context-safety": "context-safety",
+	"transaction-plane": "effect-plane", "executor-plane": "effect-plane", "receipt-plane": "effect-plane", "conductor-source": "conductor", "codex-adapter": "codex-adapter", "claude-adapter": "claude-adapter",
+	"generated-build": "generated", "generated-packages": "generated", "distribution-source": "distribution", "updater": "updater",
+	"readme": "wave-records", "release-allocation": "wave-records", "wave-approval": "wave-records", "wave-audit": "wave-records", "wave-candidate": "wave-records", "wave-contract": "wave-records", "wave-design": "wave-records", "wave-design-amendment": "wave-records", "wave-evidence": "wave-records", "wave-grant-amendment": "wave-records", "wave-module-decision": "wave-records", "wave-specification": "wave-records",
+	"prototype-skills": "prototype-assets", "codex-manifest": "prototype-assets", "claude-manifest": "prototype-assets", "root-plugin": "prototype-assets", "marketplace": "prototype-assets", "workflow-reference": "prototype-assets",
+	"protected-controls": "protected-controls",
 }
 
 func checkOwnership(root string) (int, []finding) {
@@ -54,7 +101,75 @@ func checkOwnership(root string) (int, []finding) {
 	pathRows, pathFindings := loadTSV(root, "harness/wave-01-paths.tsv", []string{"change", "path", "owner", "rule"})
 	findings = appendFindings(findings, pathFindings...)
 	findings = appendFindings(findings, crossCheckPathOwnership(pathRows, rules)...)
+	orchestrationData, orchestrationFindings := readStrictFile(root, "docs/artifacts/orchestration-plan.md")
+	findings = appendFindings(findings, orchestrationFindings...)
+	if len(orchestrationFindings) == 0 {
+		findings = appendFindings(findings, crossCheckOrchestrationOwnership(string(orchestrationData), rules)...)
+	}
 	return len(rules), findings
+}
+
+func crossCheckOrchestrationOwnership(document string, rules map[string]ownershipExpectation) []finding {
+	actual := make(map[string]orchestrationOwnershipExpectation)
+	inOwnershipSection := false
+	for _, line := range strings.Split(document, "\n") {
+		if line == "## 10. Shared-file ownership" {
+			inOwnershipSection = true
+			continue
+		}
+		if inOwnershipSection && strings.HasPrefix(line, "## 11. ") {
+			break
+		}
+		if !inOwnershipSection {
+			continue
+		}
+		cells, ok := splitMarkdownRow(line)
+		if !ok || len(cells) != 2 || cells[0] == "Scope" || strings.HasPrefix(cells[0], "---") {
+			continue
+		}
+		matchedClass := ""
+		for class, expected := range expectedOrchestrationOwnership {
+			if cells[0] == expected.scope {
+				matchedClass = class
+				break
+			}
+		}
+		if matchedClass == "" {
+			actual["unknown:"+cells[0]] = orchestrationOwnershipExpectation{cells[0], cells[1]}
+			continue
+		}
+		actual[matchedClass] = orchestrationOwnershipExpectation{cells[0], cells[1]}
+	}
+
+	var findings []finding
+	if !inOwnershipSection {
+		findings = appendFindings(findings, newFinding("OWN-420", "orchestration-plan.md", "shared-file ownership section is missing", "restore the authoritative ownership table"))
+	}
+	for class, expected := range expectedOrchestrationOwnership {
+		if actual[class] != expected {
+			findings = appendFindings(findings, newFinding("OWN-421", class, "authoritative orchestration ownership differs from the approved source", "restore or approve the source ownership rule"))
+		}
+	}
+	for class := range actual {
+		if strings.HasPrefix(class, "unknown:") {
+			findings = appendFindings(findings, newFinding("OWN-422", class, "authoritative orchestration table contains an unmapped ownership class", "map the new class through an approved ownership change"))
+		}
+	}
+	covered := make(map[string]bool)
+	for control := range rules {
+		class, ok := orchestrationClassForControl[control]
+		if !ok {
+			findings = appendFindings(findings, newFinding("OWN-423", control, "control has no authoritative orchestration ownership class", "bind the control to one source ownership class"))
+			continue
+		}
+		covered[class] = true
+	}
+	for class := range expectedOrchestrationOwnership {
+		if !covered[class] {
+			findings = appendFindings(findings, newFinding("OWN-424", class, "authoritative orchestration ownership class has no local control", "add one disjoint local ownership mapping"))
+		}
+	}
+	return findings
 }
 
 func validateOwnershipRows(rows []tsvRow) (map[string]ownershipExpectation, []finding) {
