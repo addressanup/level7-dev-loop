@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var summaryAllocationPattern = regexp.MustCompile(`^\*\*V1\.0 ([0-9]+) / V1\.x ([0-9]+) / Later ([0-9]+)\*\*$`)
 
 type ownership struct {
 	owner      string
@@ -77,6 +80,8 @@ func parseRequirementOwnership(document string) (map[string]ownership, []finding
 	var findings []finding
 	inOwnershipRegion := false
 	expandedCount := 0
+	summarySeen := false
+	declaredSummary := traceResult{allocations: map[string]int{}}
 	for lineIndex, line := range strings.Split(document, "\n") {
 		if strings.HasPrefix(line, "## 8. Normative requirement ownership and release allocation") {
 			inOwnershipRegion = true
@@ -89,7 +94,25 @@ func parseRequirementOwnership(document string) (map[string]ownership, []finding
 			continue
 		}
 		cells, ok := splitMarkdownRow(line)
-		if !ok || len(cells) == 0 || cells[0] == "Requirement IDs" || strings.HasPrefix(cells[0], "---") || strings.Contains(cells[0], "**Total**") {
+		if !ok || len(cells) == 0 || cells[0] == "Requirement IDs" || strings.HasPrefix(cells[0], "---") {
+			continue
+		}
+		if cells[0] == "**Total**" {
+			summarySeen = true
+			if len(cells) != 4 {
+				findings = appendFindings(findings, newFinding("TRACE-125", "feature-backlog.md", "summary row must contain exactly four cells", "restore the source-derived summary row"))
+				continue
+			}
+			match := summaryAllocationPattern.FindStringSubmatch(cells[2])
+			declaredTotal, totalErr := strconv.Atoi(strings.Trim(cells[3], "*"))
+			if match == nil || totalErr != nil {
+				findings = appendFindings(findings, newFinding("TRACE-125", "feature-backlog.md", "summary row is malformed", "restore the source-derived allocation and total summary"))
+				continue
+			}
+			declaredSummary.allocations["V1.0"], _ = strconv.Atoi(match[1])
+			declaredSummary.allocations["V1.x"], _ = strconv.Atoi(match[2])
+			declaredSummary.allocations["Later"], _ = strconv.Atoi(match[3])
+			declaredSummary.total = declaredTotal
 			continue
 		}
 		if !strings.Contains(cells[0], "L7-") {
@@ -129,6 +152,20 @@ func parseRequirementOwnership(document string) (map[string]ownership, []finding
 	}
 	if !inOwnershipRegion {
 		findings = appendFindings(findings, newFinding("TRACE-119", "feature-backlog.md", "ownership section is missing", "restore the approved section heading"))
+	}
+	if !summarySeen {
+		findings = appendFindings(findings, newFinding("TRACE-125", "feature-backlog.md", "ownership summary row is missing", "restore the source-derived summary row"))
+	} else if declaredSummary.total != len(owners) {
+		findings = appendFindings(findings, newFinding("TRACE-125", "total", fmt.Sprintf("displayed summary is %d, derived total is %d", declaredSummary.total, len(owners)), "correct the displayed source summary"))
+	}
+	derivedAllocations := map[string]int{"V1.0": 0, "V1.x": 0, "Later": 0}
+	for _, owner := range owners {
+		derivedAllocations[owner.allocation]++
+	}
+	for allocation, derived := range derivedAllocations {
+		if declaredSummary.allocations[allocation] != derived {
+			findings = appendFindings(findings, newFinding("TRACE-125", allocation, fmt.Sprintf("displayed summary is %d, derived allocation is %d", declaredSummary.allocations[allocation], derived), "correct the displayed source summary"))
+		}
 	}
 	return owners, findings
 }

@@ -124,3 +124,78 @@ func TestTraceRejectsMalformedDefinitionAndDuplicateOwner(t *testing.T) {
 		t.Fatalf("duplicate owner findings: %+v", ownerFindings)
 	}
 }
+
+func TestTracePermanentAdversarialMatrix(t *testing.T) {
+	t.Parallel()
+	root := repositoryRoot(t)
+	requirementsData, requirementFindings := readStrictFile(root, "docs/artifacts/requirements.md")
+	backlogData, backlogFindings := readStrictFile(root, "docs/artifacts/feature-backlog.md")
+	if len(requirementFindings)+len(backlogFindings) != 0 {
+		t.Fatalf("read authoritative fixtures: %+v %+v", requirementFindings, backlogFindings)
+	}
+	definitions, definitionFindings := parseRequirementDefinitions(string(requirementsData))
+	owners, ownerFindings := parseRequirementOwnership(string(backlogData))
+	if len(definitionFindings)+len(ownerFindings) != 0 {
+		t.Fatalf("parse authoritative fixtures: %+v %+v", definitionFindings, ownerFindings)
+	}
+
+	missingDefinition := ""
+	for _, line := range strings.Split(string(requirementsData), "\n") {
+		if strings.Contains(line, "`L7-INTAKE-001`") {
+			missingDefinition = strings.Replace(string(requirementsData), line+"\n", "", 1)
+			break
+		}
+	}
+	if missingDefinition == "" {
+		t.Fatal("missing-definition fixture source was not found")
+	}
+	missingDefinitions, findings := parseRequirementDefinitions(missingDefinition)
+	if _, validation := validateTrace(missingDefinitions, owners); findingRules(validation)["TRACE-131"] == 0 {
+		t.Fatalf("missing definition was accepted: parse=%+v validation=%+v", findings, validation)
+	}
+
+	withoutOwner := make(map[string]ownership, len(owners))
+	for id, owner := range owners {
+		withoutOwner[id] = owner
+	}
+	delete(withoutOwner, "L7-INTAKE-001")
+	if _, findings := validateTrace(definitions, withoutOwner); findingRules(findings)["TRACE-130"] == 0 {
+		t.Fatalf("zero-owner fixture was accepted: %+v", findings)
+	}
+
+	overlap := "# Test\n\n## 8. Normative requirement ownership and release allocation\n\n" +
+		"| Requirement IDs | Accountable backlog owner | Allocation | Count |\n|---|---|---|---|\n" +
+		"| `L7-FLOW-001`–`003`, `003` | `L7-BL-002` | V1.0 | 4 |\n" +
+		"| **Total** |  | **V1.0 3 / V1.x 0 / Later 0** | **3** |\n\n## 9. Stop\n"
+	if _, findings := parseRequirementOwnership(overlap); findingRules(findings)["TRACE-124"] == 0 {
+		t.Fatalf("overlapping ownership expression was accepted: %+v", findings)
+	}
+
+	allocationNext := map[string]string{"V1.0": "V1.x", "V1.x": "Later", "Later": "V1.0"}
+	for allocation, replacement := range allocationNext {
+		changed := make(map[string]ownership, len(owners))
+		changedID := ""
+		for id, owner := range owners {
+			changed[id] = owner
+			if changedID == "" && owner.allocation == allocation {
+				changedID = id
+			}
+		}
+		owner := changed[changedID]
+		owner.allocation = replacement
+		changed[changedID] = owner
+		_, findings := validateTrace(definitions, changed)
+		found := false
+		for _, finding := range findings {
+			found = found || (finding.rule == "TRACE-133" && finding.subject == allocation)
+		}
+		if !found {
+			t.Fatalf("%s allocation-total drift was accepted: %+v", allocation, findings)
+		}
+	}
+
+	tamperedSummary := strings.Replace(string(backlogData), "**163**", "**164**", 1)
+	if _, findings := parseRequirementOwnership(tamperedSummary); findingRules(findings)["TRACE-125"] == 0 {
+		t.Fatalf("summary-total tampering was accepted: %+v", findings)
+	}
+}

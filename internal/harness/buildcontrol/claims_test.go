@@ -64,6 +64,46 @@ func TestSupportMatrixRejectsEveryRequiredBoundaryDrift(t *testing.T) {
 	}
 }
 
+func TestPermanentFalseClaimMatrix(t *testing.T) {
+	t.Parallel()
+	for _, testCase := range []struct {
+		name  string
+		id    string
+		field string
+		value string
+	}{
+		{"plugin-implies-mutation", "plugin-authority", "v1_ceiling", "mutation-authority"},
+		{"codex-inherits-claude", "codex-advisory", "current_state", "promoted-by-Claude-evidence"},
+		{"claude-inherits-codex", "claude-advisory", "current_state", "promoted-by-Codex-evidence"},
+		{"a3-execution", "a3-a4-handoff", "v1_ceiling", "A3-execution"},
+		{"a4-execution", "a3-a4-handoff", "v1_ceiling", "A4-execution"},
+		{"a5-execution", "a5-autonomy", "v1_ceiling", "A5-execution"},
+		{"stable-promotion", "stable-version-1.0", "claim_state", "supported"},
+		{"dual-host-promotion", "dual-host-support", "claim_state", "supported"},
+		{"enforcement-promotion", "enforcement-claim", "claim_state", "enforced"},
+		{"generic-for-specialist", "proof-generic", "claim_state", "substitutes-specialist"},
+	} {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			var rows []tsvRow
+			for id, expected := range expectedSupport {
+				row := tsvRow{
+					"record_version": expected.recordVersion, "id": id, "surface": expected.surface, "current_state": expected.currentState,
+					"v1_ceiling": expected.v1Ceiling, "claim_state": expected.claimState, "owner": expected.owner,
+				}
+				if id == testCase.id {
+					row[testCase.field] = testCase.value
+				}
+				rows = append(rows, row)
+			}
+			if findings := validateSupportRows(rows); findingRules(findings)["CLAIM-203"] == 0 {
+				t.Fatalf("false claim %s was accepted: %+v", testCase.name, findings)
+			}
+		})
+	}
+}
+
 func TestPriorityContractIsSourceBound(t *testing.T) {
 	t.Parallel()
 	data, findings := readStrictFile(repositoryRoot(t), "docs/artifacts/feature-backlog.md")
@@ -109,6 +149,31 @@ func TestPrototypeDispositionsRejectMissingDuplicateUnknownAndChangedRows(t *tes
 	}
 }
 
+func TestPrototypeInventoryRejectsMissingDuplicateAndUnknownSkills(t *testing.T) {
+	t.Parallel()
+	valid := []string{
+		"l7-build", "l7-change", "l7-constitution", "l7-deploy", "l7-experience", "l7-geometry",
+		"l7-greenfield", "l7-next", "l7-ops", "l7-release", "l7-review", "l7-storybook",
+	}
+	var rows []tsvRow
+	for skill, expected := range expectedDispositions {
+		rows = append(rows, tsvRow{"skill": skill, "disposition": expected.disposition, "target_owner": expected.targetOwner, "cutover": expected.cutover})
+	}
+	duplicate := append(append([]string(nil), valid...), "l7-build")
+	if findings := validateDispositionRows(rows, duplicate); findingRules(findings)["CLAIM-226"] == 0 {
+		t.Fatalf("duplicate prototype skill was accepted: %+v", findings)
+	}
+	missing := append([]string(nil), valid[:len(valid)-1]...)
+	if findings := validateDispositionRows(rows, missing); findingRules(findings)["CLAIM-221"] == 0 {
+		t.Fatalf("missing prototype skill was accepted: %+v", findings)
+	}
+	unknown := append([]string(nil), valid...)
+	unknown[len(unknown)-1] = "l7-unknown"
+	if findings := validateDispositionRows(rows, unknown); findingRules(findings)["CLAIM-224"] == 0 {
+		t.Fatalf("unknown prototype skill was accepted: %+v", findings)
+	}
+}
+
 func TestStrictTSVRejectsHeaderBlankAndPaddedFields(t *testing.T) {
 	t.Parallel()
 	for _, testCase := range []struct {
@@ -141,6 +206,9 @@ func TestStrictTSVAcceptsExactCommentHeader(t *testing.T) {
 func TestStrictInputBoundsAreEnforcedBeforeParsing(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
+	if _, findings := readStrictFile(root, "missing"); findingRules(findings)["BCTL-010"] == 0 {
+		t.Fatalf("missing required input was accepted: %+v", findings)
+	}
 	if err := os.WriteFile(filepath.Join(root, "oversize"), bytes.Repeat([]byte{'x'}, maxInputBytes+1), 0o600); err != nil {
 		t.Fatal(err)
 	}

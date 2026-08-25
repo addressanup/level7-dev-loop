@@ -41,6 +41,7 @@ var expectedSupport = map[string]supportExpectation{
 	"plugin-authority":        {"wave-01-v1", "plugin-installation", "insufficient", "no-mutation-authority", "withheld", "L7-BL-005"},
 	"development-evidence":    {"wave-01-v1", "same-user-local-development-evidence", "available", "non-promoting", "unqualified", "L7-BL-010"},
 	"release-blocking-proof":  {"wave-01-v1", "release-blocking-proof", "absent", "required-before-release", "withheld", "L7-BL-042"},
+	"enforcement-claim":       {"wave-01-v1", "policy-enforcement", "absent", "none", "withheld", "L7-BL-005"},
 	"priority-p0":             {"wave-01-v1", "P0-v1.0-scope", "approved", "release-blocking", "source-bound", "L7-BL-001"},
 	"priority-p1":             {"wave-01-v1", "P1-v1.x-scope", "approved", "post-v1.0", "source-bound", "L7-BL-001"},
 	"priority-p2":             {"wave-01-v1", "P2-later-scope", "approved", "no-commitment", "source-bound", "L7-BL-001"},
@@ -232,6 +233,9 @@ func parseSkillFrontmatter(name, document string) (string, bool, []finding) {
 func validateDispositionRows(rows []tsvRow, inventory []string) []finding {
 	inventorySet := make(map[string]bool, len(inventory))
 	for _, skill := range inventory {
+		if inventorySet[skill] {
+			return []finding{newFinding("CLAIM-226", skill, "prototype inventory contains a duplicate skill name", "retain one protected invocable skill identity")}
+		}
 		inventorySet[skill] = true
 	}
 	seen := make(map[string]bool)

@@ -90,6 +90,10 @@ var approvedWaveInputs = map[string]string{
 	"docs/artifacts/wave-01-specification.md":    "8715388fbe0185a3ae24d4c13d30704305a2393526fefcc71a82fce9bba119cc",
 }
 
+var forbiddenWaveProductPaths = []string{
+	"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/render", "internal/evaluator", "semantic", "schemas", "fixtures", "packages", "build/generated",
+}
+
 func checkPolicy(root string) (policyResult, []finding) {
 	phaseRows, findings := loadTSV(root, "harness/phases.tsv", []string{"phase", "state", "base_commit", "base_tree", "base_manifest", "path_policy"})
 	phase, phaseFindings := validatePhaseRows(phaseRows)
@@ -403,11 +407,7 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 			findings = appendFindings(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in Wave 1", "remove it through an authorized recovery action"))
 		}
 	}
-	for _, relative := range []string{"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/render", "internal/evaluator", "semantic", "schemas", "fixtures", "packages", "build/generated"} {
-		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
-		}
-	}
+	findings = appendFindings(findings, checkForbiddenProductPaths(root)...)
 	workflow := read(".github/workflows/harness.yml")
 	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify Wave 1 build controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
 		if !strings.Contains(workflow, required) {
@@ -439,6 +439,16 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 	} {
 		if !strings.Contains(read(relative), required) {
 			findings = appendFindings(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
+		}
+	}
+	return findings
+}
+
+func checkForbiddenProductPaths(root string) []finding {
+	var findings []finding
+	for _, relative := range forbiddenWaveProductPaths {
+		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
+			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
 		}
 	}
 	return findings

@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func TestCurrentPolicyContract(t *testing.T) {
@@ -35,6 +38,14 @@ func TestPhaseRowsRejectMissingDuplicateAndChangedBindings(t *testing.T) {
 	changed["base_tree"] = strings.Repeat("0", 40)
 	if _, findings := validatePhaseRows([]tsvRow{changed}); findingRules(findings)["SCOPE-301"] == 0 {
 		t.Fatalf("changed phase findings: %+v", findings)
+	}
+	unknown := tsvRow{}
+	for key, value := range valid {
+		unknown[key] = value
+	}
+	unknown["phase"] = "wave-unknown"
+	if _, findings := validatePhaseRows([]tsvRow{unknown}); findingRules(findings)["SCOPE-301"] == 0 {
+		t.Fatalf("unknown phase findings: %+v", findings)
 	}
 }
 
@@ -201,5 +212,116 @@ func TestRepositoryFileReadHonorsByteBoundary(t *testing.T) {
 	}
 	if _, _, findings := readRepositoryFile(name, "fixture", info, 3); findingRules(findings)["SCOPE-347"] == 0 {
 		t.Fatalf("over-limit repository read was accepted: %+v", findings)
+	}
+}
+
+func TestCandidateManifestRejectsWrongAndExcludedRows(t *testing.T) {
+	t.Parallel()
+	manifestPath := "docs/artifacts/wave-01-candidate.sha256"
+	root := materializeMapFS(t, fstest.MapFS{
+		manifestPath: {Data: []byte(strings.Repeat("b", 64) + "  changed\n" + strings.Repeat("c", 64) + "  docs/artifacts/wave-01-audit.md\n")},
+	})
+	base := map[string]string{}
+	current := map[string]snapshotFile{
+		"changed":    {digest: strings.Repeat("a", 64), regular: true, links: 1},
+		manifestPath: {regular: true, links: 1},
+	}
+	rules := map[string]pathExpectation{
+		"changed":    {change: "add", owner: "wave-integrator", rule: "SCOPE-321"},
+		manifestPath: {change: "add", owner: "wave-integrator", rule: "SCOPE-321"},
+	}
+	findings := validateCandidateManifest(root, base, current, rules)
+	for _, rule := range []string{"SCOPE-390", "SCOPE-391"} {
+		if findingRules(findings)[rule] == 0 {
+			t.Fatalf("candidate-manifest fixture lacks %s: %+v", rule, findings)
+		}
+	}
+}
+
+func TestUpdaterPathAndNonASCIIPolicyFailForIntendedRules(t *testing.T) {
+	t.Parallel()
+	root := materializeMapFS(t, fstest.MapFS{"cmd/l7up/main.go": {Data: []byte("package main\n")}})
+	if findings := checkForbiddenProductPaths(root); findingRules(findings)["SCOPE-379"] == 0 {
+		t.Fatalf("reserved updater path was accepted: %+v", findings)
+	}
+	rows := []tsvRow{{"change": "add", "path": "unicodé/file", "owner": "wave-integrator", "rule": "SCOPE-321"}}
+	if _, findings := validatePathRows(rows); findingRules(findings)["SCOPE-310"] == 0 {
+		t.Fatalf("non-ASCII path was accepted: %+v", findings)
+	}
+}
+
+func TestImportBoundaryBrokenPackageGraphs(t *testing.T) {
+	script, err := os.ReadFile(filepath.Join(repositoryRoot(t), "scripts/harness/check-import-boundaries.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, testCase := range []struct {
+		name       string
+		policy     string
+		files      map[string]string
+		expected   string
+		moduleTail string
+	}{
+		{
+			name: "external-module-detour", policy: "effect\tinternal/kernel\tos\tBND-004\n", expected: "BND-006",
+			moduleTail: "require example.test/external v0.0.0\nreplace example.test/external => ./thirdparty\n",
+			files: map[string]string{
+				"internal/kernel/kernel.go": "package kernel\nimport _ \"example.test/external/ext\"\n",
+				"thirdparty/go.mod":         "module example.test/external\n\ngo 1.26.0\n",
+				"thirdparty/ext/ext.go":     "package ext\n",
+			},
+		},
+		{
+			name: "harness-import", expected: "BND-005",
+			files: map[string]string{
+				"internal/harness/helper/helper.go": "package helper\n",
+				"internal/product/product.go":       "package product\nimport _ \"example.test/fixture/internal/harness/helper\"\n",
+			},
+		},
+		{
+			name: "unsafe-import", expected: "BND-007",
+			files: map[string]string{
+				"internal/product/product.go": "package product\nimport \"unsafe\"\nvar _ unsafe.Pointer\n",
+			},
+		},
+		{
+			name: "forbidden-transitive-import", policy: "transitive\tinternal/executor\tinternal/render\tBND-001\n", expected: "BND-001",
+			files: map[string]string{
+				"internal/executor/executor.go": "package executor\nimport _ \"example.test/fixture/internal/render\"\n",
+				"internal/render/render.go":     "package render\n",
+			},
+		},
+	} {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			fixture := fstest.MapFS{
+				"go.mod":                                     {Data: []byte("module example.test/fixture\n\ngo 1.26.0\n\n" + testCase.moduleTail)},
+				"harness/modules.lock.tsv":                   {Data: []byte("# role\tstate\tdirectory\tmodule_path\ncore\tactive\t.\texample.test/fixture\nupdater\treserved\tcmd/l7up\tUNSET\n")},
+				"harness/import-boundaries.tsv":              {Data: []byte("# mode\tsource_prefix\tforbidden_prefix\trule\n" + testCase.policy)},
+				"scripts/harness/check-import-boundaries.sh": {Data: script},
+			}
+			for name, data := range testCase.files {
+				fixture[name] = &fstest.MapFile{Data: []byte(data)}
+			}
+			root := materializeMapFS(t, fixture)
+			cache := t.TempDir()
+			for _, directory := range []string{"go-cache", "mod-cache", "go-path", "go-tmp"} {
+				if err := os.Mkdir(filepath.Join(cache, directory), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			goBinary := filepath.Join(runtime.GOROOT(), "bin", "go")
+			command := exec.Command("/bin/sh", filepath.Join(root, "scripts/harness/check-import-boundaries.sh"), goBinary)
+			command.Dir = root
+			command.Env = append(os.Environ(),
+				"GOENV=off", "GOTOOLCHAIN=local", "GOWORK=off", "GO111MODULE=on", "GOFLAGS=-mod=readonly", "CGO_ENABLED=0",
+				"GOPROXY=off", "GOSUMDB=off", "GOCACHE="+filepath.Join(cache, "go-cache"), "GOMODCACHE="+filepath.Join(cache, "mod-cache"),
+				"GOPATH="+filepath.Join(cache, "go-path"), "GOTMPDIR="+filepath.Join(cache, "go-tmp"),
+			)
+			output, err := command.CombinedOutput()
+			if err == nil || !strings.Contains(string(output), testCase.expected) {
+				t.Fatalf("broken graph did not fail for %s: err=%v output=%s", testCase.expected, err, output)
+			}
+		})
 	}
 }

@@ -13,6 +13,7 @@ wave-01-v1	workspace-boundary	one-local-repository-worktree	development-only	one
 wave-01-v1	plugin-authority	plugin-installation	insufficient	no-mutation-authority	withheld	L7-BL-005
 wave-01-v1	development-evidence	same-user-local-development-evidence	available	non-promoting	unqualified	L7-BL-010
 wave-01-v1	release-blocking-proof	release-blocking-proof	absent	required-before-release	withheld	L7-BL-042
+wave-01-v1	enforcement-claim	policy-enforcement	absent	none	withheld	L7-BL-005
 wave-01-v1	priority-p0	P0-v1.0-scope	approved	release-blocking	source-bound	L7-BL-001
 wave-01-v1	priority-p1	P1-v1.x-scope	approved	post-v1.0	source-bound	L7-BL-001
 wave-01-v1	priority-p2	P2-later-scope	approved	no-commitment	source-bound	L7-BL-001
