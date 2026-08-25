@@ -50,6 +50,7 @@ var expectedWavePaths = map[string]pathExpectation{
 	"README.md":                                          {"modify", "wave-integrator", "SCOPE-320"},
 	"docs/artifacts/wave-01-approval.md":                 {"add", "wave-integrator", "SCOPE-321"},
 	"docs/artifacts/wave-01-audit.md":                    {"audit-only", "independent-reviewer", "SCOPE-322"},
+	"docs/artifacts/wave-01-audit-remediation.md":        {"add", "wave-integrator", "SCOPE-321"},
 	"docs/artifacts/wave-01-candidate.sha256":            {"add", "wave-integrator", "SCOPE-321"},
 	"docs/artifacts/wave-01-change-contract.md":          {"add", "wave-integrator", "SCOPE-321"},
 	"docs/artifacts/wave-01-design.md":                   {"add", "wave-integrator", "SCOPE-321"},

@@ -4,6 +4,7 @@ modify	Makefile	harness-integrator	SCOPE-320
 modify	README.md	wave-integrator	SCOPE-320
 add	docs/artifacts/wave-01-approval.md	wave-integrator	SCOPE-321
 audit-only	docs/artifacts/wave-01-audit.md	independent-reviewer	SCOPE-322
+add	docs/artifacts/wave-01-audit-remediation.md	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-candidate.sha256	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-change-contract.md	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-design.md	wave-integrator	SCOPE-321

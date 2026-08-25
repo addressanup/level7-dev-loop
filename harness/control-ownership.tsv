@@ -5,6 +5,7 @@ readme	exact	README.md	wave-integrator	owner-review	owner+design
 module	exact	go.mod	harness-integrator	independent-readonly	owner+module-decision
 wave-approval	exact	docs/artifacts/wave-01-approval.md	wave-integrator	owner-review	owner+design
 wave-audit	exact	docs/artifacts/wave-01-audit.md	independent-reviewer	owner-review	separate-audit
+wave-audit-remediation	exact	docs/artifacts/wave-01-audit-remediation.md	wave-integrator	independent-readonly	fresh-independent-audit
 wave-candidate	exact	docs/artifacts/wave-01-candidate.sha256	wave-integrator	independent-readonly	owner+scope-audit
 wave-contract	exact	docs/artifacts/wave-01-change-contract.md	wave-integrator	owner-review	owner+design
 wave-design	exact	docs/artifacts/wave-01-design.md	wave-integrator	owner-review	owner+design
