@@ -1,0 +1,11 @@
+id	surface	current_state	v1_ceiling	claim_state	owner
+codex-advisory	Codex-advisory-package	prototype	A0	withheld	L7-BL-012
+claude-advisory	Claude-advisory-package	prototype	A0	withheld	L7-BL-013
+controlled-client	Level-7-Controlled-Client	planned	A0-A2-gated	withheld	L7-BL-005
+proof-generic	generic-change-profile	planned	A0-A2-gated	withheld	L7-BL-009
+proof-feature	feature-behavior-change-profile	planned	A0-A2-gated	withheld	L7-BL-009
+proof-refactor	behavior-preserving-refactor-profile	planned	A0-A2-gated	withheld	L7-BL-009
+a3-a4-handoff	Package-Deploy-Expose-handoff	planned	plan-handoff-only	withheld	L7-BL-011
+a5-autonomy	background-self-modifying-remediation	absent	none	excluded	L7-BL-035
+dual-host-support	Codex-and-Claude-support	unproved	none	withheld	L7-BL-014
+stable-version-1.0	stable-1.0-release	unproved	none	withheld	L7-BL-042
