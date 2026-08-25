@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 )
@@ -80,6 +78,10 @@ var expectedDispositions = map[string]dispositionExpectation{
 }
 
 func checkClaims(root string) (int, []finding) {
+	return checkClaimsWithSkillInventoryHook(root, nil)
+}
+
+func checkClaimsWithSkillInventoryHook(root string, beforeInventoryRead func()) (int, []finding) {
 	supportRows, findings := loadTSV(root, "harness/support-matrix.tsv", []string{"record_version", "id", "surface", "current_state", "v1_ceiling", "claim_state", "owner"})
 	dispositionRows, dispositionLoadFindings := loadTSV(root, "harness/prototype-dispositions.tsv", []string{"skill", "disposition", "target_owner", "cutover"})
 	findings = appendFindings(findings, dispositionLoadFindings...)
@@ -92,7 +94,7 @@ func checkClaims(root string) (int, []finding) {
 	if len(backlogFindings) == 0 {
 		findings = appendFindings(findings, validatePriorityContract(string(backlogData))...)
 	}
-	inventory, inventoryFindings := loadSkillInventory(root)
+	inventory, inventoryFindings := loadSkillInventoryWithHook(root, beforeInventoryRead)
 	findings = appendFindings(findings, inventoryFindings...)
 	findings = appendFindings(findings, validateDispositionRows(dispositionRows, inventory)...)
 	return len(inventory), findings
@@ -167,17 +169,13 @@ func validatePriorityContract(document string) []finding {
 }
 
 func loadSkillInventory(root string) ([]string, []finding) {
-	directory, err := os.Open(filepath.Join(root, "skills"))
-	if err != nil {
-		return nil, []finding{newFinding("CLAIM-210", "skills", err.Error(), "restore the protected skill inventory")}
-	}
-	entries, readErr := directory.ReadDir(maxSkillEntries + 1)
-	closeErr := directory.Close()
-	if readErr != nil && readErr != io.EOF {
-		return nil, []finding{newFinding("CLAIM-210", "skills", readErr.Error(), "restore the protected skill inventory")}
-	}
-	if closeErr != nil {
-		return nil, []finding{newFinding("CLAIM-210", "skills", closeErr.Error(), "restore the protected skill inventory")}
+	return loadSkillInventoryWithHook(root, nil)
+}
+
+func loadSkillInventoryWithHook(root string, beforeRead func()) ([]string, []finding) {
+	entries, directoryFindings := readStrictDirectoryWithHook(root, "skills", maxSkillEntries+1, beforeRead)
+	if len(directoryFindings) != 0 {
+		return nil, directoryFindings
 	}
 	if len(entries) > maxSkillEntries {
 		return nil, []finding{newFinding("CLAIM-213", "skills", "skill directory exceeds the entry limit", "narrow the protected skill inventory")}
@@ -188,7 +186,7 @@ func loadSkillInventory(root string) ([]string, []finding) {
 		if !entry.IsDir() {
 			continue
 		}
-		relative := filepath.ToSlash(filepath.Join("skills", entry.Name(), "SKILL.md"))
+		relative := path.Join("skills", entry.Name(), "SKILL.md")
 		data, readFindings := readStrictFile(root, relative)
 		if len(readFindings) != 0 {
 			findings = appendFindings(findings, readFindings...)

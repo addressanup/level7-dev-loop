@@ -59,6 +59,44 @@ func materializeMapFS(t *testing.T, fixture fstest.MapFS) string {
 	return root
 }
 
+func copyRepositoryFixture(t *testing.T) string {
+	t.Helper()
+	source := repositoryRoot(t)
+	target := t.TempDir()
+	err := filepath.WalkDir(source, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(source, name)
+		if err != nil {
+			return err
+		}
+		if relative == "." {
+			return nil
+		}
+		if entry.IsDir() && (relative == ".git" || relative == ".cache") {
+			return filepath.SkipDir
+		}
+		destination := filepath.Join(target, relative)
+		if entry.IsDir() {
+			return os.Mkdir(destination, 0o700)
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(destination, data, info.Mode().Perm())
+	})
+	if err != nil {
+		t.Fatalf("copy repository fixture: %v", err)
+	}
+	return target
+}
+
 func TestFindingNormalizationAndOrderAreDeterministic(t *testing.T) {
 	t.Parallel()
 	findings := []finding{

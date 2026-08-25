@@ -39,8 +39,22 @@ func main() {
 		printFindings(findings)
 		os.Exit(1)
 	}
+	output, findings := runController(root)
+	if len(findings) != 0 {
+		printFindings(findings)
+		os.Exit(1)
+	}
+	fmt.Println(output)
+}
+
+func runController(root string) (string, []finding) {
+	return runControllerWithSkillInventoryHook(root, nil)
+}
+
+func runControllerWithSkillInventoryHook(root string, beforeInventoryRead func()) (string, []finding) {
+	var findings []finding
 	trace, traceFindings := checkTrace(root)
-	prototypeCount, claimFindings := checkClaims(root)
+	prototypeCount, claimFindings := checkClaimsWithSkillInventoryHook(root, beforeInventoryRead)
 	policy, policyFindings := checkPolicy(root)
 	ownershipCount, ownershipFindings := checkOwnership(root)
 	findings = appendFindings(findings, traceFindings...)
@@ -50,10 +64,9 @@ func main() {
 	sourceDigests, sourceFindings := loadSuccessSourceDigests(root)
 	findings = appendFindings(findings, sourceFindings...)
 	if len(findings) != 0 {
-		printFindings(findings)
-		os.Exit(1)
+		return "", findings
 	}
-	fmt.Println(formatSuccess(trace, prototypeCount, policy, ownershipCount, sourceDigests))
+	return formatSuccess(trace, prototypeCount, policy, ownershipCount, sourceDigests), nil
 }
 
 func formatSuccess(trace traceResult, prototypeCount int, policy policyResult, ownershipCount int, sourceDigests string) string {

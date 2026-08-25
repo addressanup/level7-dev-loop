@@ -312,3 +312,85 @@ func TestSkillInventoryRejectsEntryOverflowBeforeReadingSkills(t *testing.T) {
 		t.Fatalf("skill-entry overflow was accepted: %+v", findings)
 	}
 }
+
+func TestSkillInventoryRejectsSymlinkFIFOAndReplacementWithoutBlocking(t *testing.T) {
+	for _, testCase := range []struct{ name, rule string }{{"symlink", "BCTL-022"}, {"fifo", "BCTL-022"}, {"replacement", "BCTL-023"}} {
+		t.Run(testCase.name, func(t *testing.T) {
+			root := t.TempDir()
+			hook := installSkillInventoryAdversary(t, root, testCase.name)
+			findings := completeFindingsWithin(t, func() []finding {
+				_, findings := loadSkillInventoryWithHook(root, hook)
+				return findings
+			})
+			if findingRules(findings)[testCase.rule] == 0 {
+				t.Fatalf("inventory %s did not fail with %s: %+v", testCase.name, testCase.rule, findings)
+			}
+		})
+	}
+}
+
+func TestControllerRejectsSkillInventorySymlinkFIFOAndReplacementWithoutBlocking(t *testing.T) {
+	for _, testCase := range []struct{ name, rule string }{{"symlink", "BCTL-022"}, {"fifo", "BCTL-022"}, {"replacement", "BCTL-023"}} {
+		t.Run(testCase.name, func(t *testing.T) {
+			root := copyRepositoryFixture(t)
+			if err := os.RemoveAll(filepath.Join(root, "skills")); err != nil {
+				t.Fatal(err)
+			}
+			hook := installSkillInventoryAdversary(t, root, testCase.name)
+			findings := completeFindingsWithin(t, func() []finding {
+				_, findings := runControllerWithSkillInventoryHook(root, hook)
+				return findings
+			})
+			if findingRules(findings)[testCase.rule] == 0 {
+				t.Fatalf("controller %s did not fail with %s: %+v", testCase.name, testCase.rule, findings)
+			}
+		})
+	}
+}
+
+func installSkillInventoryAdversary(t *testing.T, root, kind string) func() {
+	t.Helper()
+	skills := filepath.Join(root, "skills")
+	switch kind {
+	case "symlink":
+		if err := os.Symlink(t.TempDir(), skills); err != nil {
+			t.Fatal(err)
+		}
+		return nil
+	case "fifo":
+		if err := syscall.Mkfifo(skills, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return nil
+	case "replacement":
+		if err := os.Mkdir(skills, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return func() {
+			if err := os.Rename(skills, filepath.Join(root, "skills-before")); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(skills, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+	default:
+		t.Fatalf("unknown inventory adversary %q", kind)
+		return nil
+	}
+}
+
+func completeFindingsWithin(t *testing.T, action func() []finding) []finding {
+	t.Helper()
+	completed := make(chan []finding, 1)
+	go func() {
+		completed <- action()
+	}()
+	select {
+	case findings := <-completed:
+		return findings
+	case <-time.After(time.Second):
+		t.Fatal("bounded controller operation did not complete within one second")
+		return nil
+	}
+}
