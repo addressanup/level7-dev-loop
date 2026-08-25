@@ -1,0 +1,13 @@
+{
+  "name": "level7-engineering",
+  "owner": {
+    "name": "Level 7 Engineering"
+  },
+  "plugins": [
+    {
+      "name": "level7-dev-loop",
+      "source": ".",
+      "description": "Level 7 continuous development loop: spec-first engineering, release audit, live change, experience quality, and product storybook."
+    }
+  ]
+}

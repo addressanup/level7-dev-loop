@@ -1,0 +1,28 @@
+{
+  "name": "level7-dev-loop",
+  "version": "1.0.0",
+  "description": "Level 7 continuous development loop: spec-first engineering, release audit, live change, experience quality, and product storybook.",
+  "author": {
+    "name": "Level 7 Engineering"
+  },
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "architecture",
+    "release",
+    "audit",
+    "ux",
+    "multi-tenant"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Level 7 Dev Loop",
+    "shortDescription": "Continuous spec-first build, audit, ship, and improve loop",
+    "category": "Developer Tools",
+    "defaultPrompt": [
+      "Run l7-next and tell me the current project phase",
+      "Start a post-launch feature through l7-change",
+      "Audit the current release candidate with l7-release"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+name: Harness
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Go ${{ matrix.go-version }} (${{ matrix.role }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - role: baseline
+            go-version: 1.26.7
+            experimental: false
+          - role: shadow
+            go-version: 1.27.0
+            experimental: true
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Bootstrap authenticated Go archive
+        run: make bootstrap GO_VERSION=${{ matrix.go-version }}
+
+      - name: Verify inert harness offline
+        run: make ci GO_VERSION=${{ matrix.go-version }}

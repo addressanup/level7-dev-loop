@@ -1,0 +1,3 @@
+# role	state	directory	module_path
+core	active	.	continuallabs.ltd/level7-dev-loop
+updater	reserved	cmd/l7up	UNSET

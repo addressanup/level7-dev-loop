@@ -1,0 +1,15 @@
+# Repository-scoped harness state
+.cache/
+build/
+*.test
+*.out
+
+# Local environment files; the example is intentionally tracked
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system residue
+.DS_Store
+*.swp
+*.swo

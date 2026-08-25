@@ -1,0 +1,6 @@
+# L7-ORC-001 transitive input freeze. Verify harness/foundation-inputs.sha256 separately to bind its listed approved artifacts and prototype files.
+428100ade80a848c2ae5aaa4d1d93876f0c4322cdd56ba2b19a9196593ca31ca  harness/foundation-inputs.sha256
+64bba1fcfe347d27a2b05df545b753bf7dc181383d99630493db4d7a47233592  docs/artifacts/harness-candidate.sha256
+d56c8f6880e1bcfe5466d103cc338b087d77c973c30cb656c574971ecce3a53c  docs/artifacts/harness.md
+ff1616af337a8101fb2df53b026c65ff342a6d6587897f00973ccd476e99c445  docs/artifacts/harness-audit.md
+50d1386870f105b68da9d370ee7d951e07a24766b2a2fa84852c96987b5986ad  docs/artifacts/harness-approval.md

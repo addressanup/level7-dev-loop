@@ -1,0 +1,77 @@
+# Level 7 Dev Loop
+
+> Foundation prototype. This repository is not a released, supported, security-qualified, or self-healing product.
+
+Level 7 Dev Loop is being designed as a dual-host development-governance system for Codex and Claude Code. Its intended scope spans greenfield, brownfield, and legacy work while preserving evidence, explicit approval, small changes, and safe degraded behavior.
+
+The current host manifests and skills are prototype inputs. They provide an advisory workflow only; they do not enforce filesystem isolation, trusted approval, mutation control, provider privacy, deployment safety, or release readiness. The approved architecture separates future advisory host packages from a separately installed controlled client. Neither controlled mode nor product behavior exists in this harness.
+
+## Foundation status
+
+Requirements, backlog, architecture, and technology selection are recorded under `docs/artifacts/`. Foundation Step 5 adds only an inert developer harness:
+
+- exact Go 1.26.7 baseline and Go 1.27.0 shadow archive locks;
+- official archive digest and detached-signature verification;
+- repository-scoped toolchain and Go caches—never a system install;
+- formatting, built-in lint, type/compile, test, import-boundary, and same-machine repeat-build checks;
+- one in-memory structured-logging proving test with no product effect;
+- a digest guard over approved foundation inputs and protected prototype files; and
+- a no-secret, no-authority `.env.example` that is never auto-loaded.
+
+The module registry marks the separately required updater module `reserved`. Creating `cmd/l7up` fails the harness until a later approved wave assigns its module identity and adds module-specific dependency enforcement; the root-module boundary check cannot silently treat a nested module as covered.
+
+There are intentionally no production dependencies, `go.sum`, vendored modules, product commands, runtime packages, generated host packages, provider calls, host experiments, release jobs, or deployment paths.
+
+## Verify the harness
+
+Prerequisites are a POSIX shell plus `make`, `curl`, `tar`, `awk`, `gpg`, and `gpgv`. Bootstrap downloads only a lock-matched official Go archive and verifies its size, SHA-256 digest, archive paths, Google signing-key fingerprints, and detached signature using an isolated repository-scoped GnuPG home. The signing identity is Google's shared Linux Packages Signing Authority, not a Go-exclusive release key. A fresh run extracts under ignored `.cache/toolchains/`; a later run reauthenticates the cached archive and signature but only checks the extracted toolchain's writable receipt and reported version. The extracted cache is not a trust root and must be discarded to force fresh extraction.
+
+```sh
+make bootstrap
+make install
+make lint
+make typecheck
+make test
+make reproducible
+```
+
+Or run all blocking local gates:
+
+```sh
+make verify
+```
+
+The exact shadow toolchain can be checked separately:
+
+```sh
+make bootstrap GO_VERSION=1.27.0
+make verify GO_VERSION=1.27.0
+```
+
+`make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
+
+The offline settings close Go module and VCS resolution for these commands; they are not an operating-system network sandbox. The sole proving test has no network import or call. Go telemetry is redirected into the ignored repository cache and pinned `off`; verification fails if either exact compiler no longer exposes that tested isolation mechanism. The `continuallabs.ltd/level7-dev-loop` Go module name is a provisional development namespace based on the owner-supplied product site; domain control and vanity-module resolution must be confirmed before product packages or publication.
+
+The GitHub workflow is configured but remains `NOT_RUN` until this folder becomes a Git repository with a remote workflow run. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity.
+
+## Prototype skill entry point
+
+In an advisory host session, start with the Level 7 next-step skill:
+
+```text
+/l7-next
+```
+
+Codex may expose the same skill as `$l7-next`. Installation and host-lifecycle claims remain future C−1 experiments; copying or installing the prototype does not create a controlled environment.
+
+## Working contract
+
+- Spec before code.
+- One approved Level 7 phase at a time.
+- Evidence must distinguish `PASS`, `FAIL`, `BLOCKED`, and `NOT_RUN`.
+- High-risk changes require an independent read-only audit.
+- User-visible production behavior defaults OFF behind an approved feature flag.
+- Phase completion updates `docs/artifacts/`.
+- No prompt, skill, hook, or model self-claim is an authority boundary.
+
+The approved future source/output layout and every unresolved acceptance spike remain in `docs/artifacts/technology-selection.md`; directories are created only when an approved build wave needs them.

@@ -1,0 +1,2 @@
+# purpose	primary_fingerprint	signing_fingerprint	key_url	identity_scope
+go-archive	EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796	0E225917414670F4442C250DFD533C07C264648F	https://dl.google.com/linux/linux_signing_key.pub	shared-google-linux-packages-authority

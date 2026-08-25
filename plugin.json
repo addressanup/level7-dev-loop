@@ -1,0 +1,18 @@
+{
+  "name": "level7-dev-loop",
+  "version": "1.0.0",
+  "description": "Level 7 continuous development loop: spec-first engineering, release audit, live change, experience quality, and product storybook.",
+  "author": {
+    "name": "Level 7 Engineering"
+  },
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "architecture",
+    "release",
+    "audit",
+    "ux",
+    "multi-tenant"
+  ],
+  "skills": "./skills/"
+}

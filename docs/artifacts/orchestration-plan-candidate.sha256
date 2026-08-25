@@ -1,0 +1,4 @@
+# L7-ORC-001 Step 6 exact audit candidate. Verify orchestration-inputs.sha256 separately for transitive approved inputs.
+a45cb13b7ce68029c23736188531e0379cad0ff5d71409ddf6bfc850c1872968  docs/artifacts/orchestration-plan.md
+ef17c49d7ceae115b476c2945fba4149f63094beade4cf8c0ba2d4cf652d2b16  docs/artifacts/orchestration-inputs.sha256
+50d1386870f105b68da9d370ee7d951e07a24766b2a2fa84852c96987b5986ad  docs/artifacts/harness-approval.md
