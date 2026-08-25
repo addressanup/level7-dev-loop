@@ -7,6 +7,7 @@ audit-only	docs/artifacts/wave-01-audit.md	independent-reviewer	SCOPE-322
 add	docs/artifacts/wave-01-candidate.sha256	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-change-contract.md	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-design.md	wave-integrator	SCOPE-321
+add	docs/artifacts/wave-01-design-amendment.md	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-evidence.md	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-grant-ladder-amendment.md	wave-integrator	SCOPE-321
 add	docs/artifacts/wave-01-module-identity-decision.md	wave-integrator	SCOPE-321
