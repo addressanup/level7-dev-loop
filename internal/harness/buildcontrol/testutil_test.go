@@ -53,3 +53,38 @@ func TestFindingCollectionIsBoundedBeforeAppend(t *testing.T) {
 		t.Fatalf("finding collection size: got %d, want %d", len(findings), maxCollectedFindings)
 	}
 }
+
+func TestSuccessOutputBindsVersionAndExactSourceDigests(t *testing.T) {
+	t.Parallel()
+	root := repositoryRoot(t)
+	first, findings := loadSuccessSourceDigests(root)
+	if len(findings) != 0 {
+		t.Fatalf("source digest findings: %+v", findings)
+	}
+	second, findings := loadSuccessSourceDigests(root)
+	if len(findings) != 0 || second != first {
+		t.Fatalf("source digests are not deterministic: first=%q second=%q findings=%+v", first, second, findings)
+	}
+	for _, source := range successSources {
+		data, readFindings := readStrictFile(root, source.path)
+		if len(readFindings) != 0 {
+			t.Fatalf("read %s: %+v", source.path, readFindings)
+		}
+		want := source.id + ":" + fileSHA256(data)
+		if !strings.Contains(first, want) {
+			t.Fatalf("source digest %q is absent from %q", want, first)
+		}
+	}
+	line := formatSuccess(
+		traceResult{total: 163, allocations: map[string]int{"V1.0": 140, "V1.x": 18, "Later": 5}},
+		12,
+		policyResult{phase: "wave-01", files: 100, changed: 36},
+		42,
+		first,
+	)
+	for _, required := range []string{"gate_version=" + buildControlVersion, "source_sha256=" + first, "phase=wave-01", "requirements=163"} {
+		if !strings.Contains(line, required) {
+			t.Fatalf("success output %q does not contain %q", line, required)
+		}
+	}
+}

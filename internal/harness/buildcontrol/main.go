@@ -4,7 +4,30 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+const buildControlVersion = "wave-01-v1"
+
+type successSource struct {
+	id   string
+	path string
+}
+
+var successSources = []successSource{
+	{"requirements", "docs/artifacts/requirements.md"},
+	{"backlog", "docs/artifacts/feature-backlog.md"},
+	{"support", "harness/support-matrix.tsv"},
+	{"dispositions", "harness/prototype-dispositions.tsv"},
+	{"phase", "harness/phases.tsv"},
+	{"paths", "harness/wave-01-paths.tsv"},
+	{"base", "harness/wave-01-base.sha256"},
+	{"candidate", "docs/artifacts/wave-01-candidate.sha256"},
+	{"ownership", "harness/control-ownership.tsv"},
+	{"orchestration", "docs/artifacts/orchestration-plan.md"},
+	{"modules", "harness/modules.lock.tsv"},
+	{"imports", "harness/import-boundaries.tsv"},
+}
 
 func main() {
 	if len(os.Args) != 1 {
@@ -24,11 +47,19 @@ func main() {
 	findings = appendFindings(findings, claimFindings...)
 	findings = appendFindings(findings, policyFindings...)
 	findings = appendFindings(findings, ownershipFindings...)
+	sourceDigests, sourceFindings := loadSuccessSourceDigests(root)
+	findings = appendFindings(findings, sourceFindings...)
 	if len(findings) != 0 {
 		printFindings(findings)
 		os.Exit(1)
 	}
-	fmt.Printf("PASS rule=BCTL-000 phase=%s requirements=%d allocation=v1.0:%d,v1.x:%d,later:%d prototypes=%d ownership=%d files=%d changed=%d\n",
+	fmt.Println(formatSuccess(trace, prototypeCount, policy, ownershipCount, sourceDigests))
+}
+
+func formatSuccess(trace traceResult, prototypeCount int, policy policyResult, ownershipCount int, sourceDigests string) string {
+	return fmt.Sprintf("PASS rule=BCTL-000 gate_version=%s source_sha256=%s phase=%s requirements=%d allocation=v1.0:%d,v1.x:%d,later:%d prototypes=%d ownership=%d files=%d changed=%d",
+		buildControlVersion,
+		sourceDigests,
 		policy.phase,
 		trace.total,
 		trace.allocations["V1.0"],
@@ -39,6 +70,19 @@ func main() {
 		policy.files,
 		policy.changed,
 	)
+}
+
+func loadSuccessSourceDigests(root string) (string, []finding) {
+	parts := make([]string, 0, len(successSources))
+	var findings []finding
+	for _, source := range successSources {
+		data, readFindings := readStrictFile(root, source.path)
+		findings = appendFindings(findings, readFindings...)
+		if len(readFindings) == 0 {
+			parts = append(parts, source.id+":"+fileSHA256(data))
+		}
+	}
+	return strings.Join(parts, ","), findings
 }
 
 func resolveRoot() (string, []finding) {
