@@ -1,22 +1,22 @@
-# Level 7 Dev Loop — Wave 1 Remediation Successor Evidence
+# Level 7 Dev Loop — Wave 1 Second Remediation Successor Evidence
 
 | Field | Value |
 |---|---|
-| Artifact ID | `L7-EVD-W01-002` |
-| Artifact type | Local development evidence-only child for the remediated successor candidate |
-| Version | 0.2.0 |
-| Date | 2026-08-25 |
-| Status | **SUCCESSOR VERIFIED LOCALLY — FRESH INDEPENDENT AUDIT REQUIRED** |
-| Supersedes | `L7-EVD-W01-001` only for successor-candidate evidence; original bytes remain at commit `ce62a1f` |
-| Producer | Wave 1 remediator using `level7-dev-loop:l7-release` Mode C under fresh accountable-owner authorization |
+| Artifact ID | `L7-EVD-W01-003` |
+| Artifact type | Local development evidence-only child for the second remediated successor candidate |
+| Version | 0.3.0 |
+| Date | 2026-08-26 |
+| Status | **SECOND SUCCESSOR VERIFIED LOCALLY — FRESH INDEPENDENT AUDIT REQUIRED** |
+| Supersedes | `L7-EVD-W01-002` only for second-successor evidence; prior bytes remain at commit `c0f834f` |
+| Producer | Wave 1 remediator using `level7-dev-loop:l7-release` Mode C under accountable-owner authorization |
 | Evidence state | Same-user local development evidence; not independent, hosted, protected, security-qualified, release, or support evidence |
-| Successor candidate commit | `808fc16b1c13c96e30c66f08a97dd2a014b31db0` |
-| Successor candidate tree | `bd914fdcb88aad54be5acf19c60dbcbb35f2d709` |
-| Successor candidate parent | `f8788906a17a525c47435a69876171f21daef545` |
+| Second successor candidate commit | `64eee794519e381a69d284c32cc35ac58897aa2f` |
+| Second successor candidate tree | `5829f97b1ef9e29a9c61d5872ed725920be65f84` |
+| Second successor candidate parent | `f5f197cd76db474f3c3e8085ea611255b54585fb` |
 | Approved base | Commit `ee181b759c346055b0fb5b2fa1b3b1e676dd83e4`; tree `2f23a0810660995b6f562c361ab38cd4faafa3b3` |
-| Candidate manifest | `docs/artifacts/wave-01-candidate.sha256`, SHA-256 `d8fcfbd3d78fa104449c7edcc9d68444fdd8a1a776e844993a41b60527f0acb0` |
-| Remediation record | `docs/artifacts/wave-01-audit-remediation.md`, SHA-256 `0a5f3895b263f8f7acf82611d066d35f8f8093257f9baf9b61c3349766f5be28` |
-| Source NO-GO audit | `docs/artifacts/wave-01-audit.md`, SHA-256 `54e03a8a20ced5a944b8e2506dd424581f9fbf009bf2711955cb07535d8a1224` |
+| Candidate manifest | `docs/artifacts/wave-01-candidate.sha256`, SHA-256 `60212b7bf49bc8a1435dd723ed72c45b110798317d602418f8a2f570abc44bdd` |
+| Remediation record | `docs/artifacts/wave-01-audit-remediation.md`, SHA-256 `49ce412bd29791c3fde86cac0a1084ad19ff0d1c85187a51001ab1c949c406d2` |
+| Source successor NO-GO audit | `docs/artifacts/wave-01-audit.md`, SHA-256 `bc58479c7626dd88ad4937eabfa0482b8c1e11a95f2a9c95ded114b379a1ef1b` |
 | Branch | Local `feat/wave-01-build-control`; clean at exact candidate verification |
 | Module | `github.com/addressanup/level7-dev-loop`; GitHub location/ownership remains `USER_ASSERTED`, remote-absent, and unpublished |
 | Next gate | Fresh structurally separate Mode B audit of this exact candidate and evidence-only child |
@@ -27,41 +27,39 @@ The reproduced chain is:
 
 ```text
 approved base ee181b7
-  -> original implementation candidate 4bf4850
-  -> original evidence child ce62a1f
-  -> preserved NO-GO audit record 42ea8ea
-  -> finding-specific remediation commits
-  -> successor candidate 808fc16 + self-excluded candidate manifest
+  -> original candidate/evidence 4bf4850 / ce62a1f
+  -> first preserved NO-GO audit 42ea8ea
+  -> first remediation commits and successor candidate/evidence 808fc16 / c0f834f
+  -> second preserved NO-GO audit 4a0685a
+  -> finding-specific remediation commits 86a0a47 / f5f197c
+  -> second successor candidate 64eee79 + self-excluded candidate manifest
   -> this evidence-only child
   -> later fresh independent audit record
 ```
 
-The successor candidate manifest contains 34 bytewise-sorted records. Relative to the approved base, the candidate changes 37 paths. The manifest excludes exactly its own path, this evidence path, and the independent audit path, leaving an exact 34-row path and digest match. The remediation record is included in the manifest.
+The second-successor manifest contains 34 bytewise-sorted records. Relative to the approved base, the candidate changes exactly 37 registered paths. The manifest excludes exactly its own path, this evidence path, and the independent audit path, leaving an exact 34-row path and digest match. The current remediation record is included in the manifest.
 
-At candidate commit `808fc16`:
+At candidate commit `64eee79`:
 
-- tracked non-`.git`/non-`.cache` inventory: 103 regular files and 1,241,419 bytes;
-- base-to-candidate delta: 37 files, 4,977 insertions, and 16 deletions, with no deleted base path;
+- tracked inventory: 103 regular Git blobs and 1,245,127 bytes;
+- base-to-candidate delta: 37 files, 5,167 insertions, and 16 deletions, with no deleted base path;
 - controller result: 163 requirements, allocations `140/18/5`, 12 prototype skills, 43 ownership controls, 103 files, and 37 changes;
 - dependency/product state: no `go.sum`, `vendor/`, product command, updater, product runtime, or grant activation;
-- candidate manifest SHA-256: `d8fcfbd3d78fa104449c7edcc9d68444fdd8a1a776e844993a41b60527f0acb0`; and
-- worktree/index state before verification and before this evidence edit: clean.
+- candidate manifest SHA-256: `60212b7bf49bc8a1435dd723ed72c45b110798317d602418f8a2f570abc44bdd`; and
+- worktree/index state before both exact-candidate verification runs and before this evidence edit: clean.
 
-This evidence file is intentionally excluded from the candidate manifest and does not embed its own digest or containing commit. The completion handoff reports the evidence SHA-256 and evidence-only commit/tree/parent. Any candidate or evidence byte change invalidates a later audit.
+This evidence file is excluded from the candidate manifest and does not embed its own digest or containing commit. The completion handoff reports the evidence SHA-256 and evidence-only commit/tree/parent. Any candidate or evidence byte change invalidates a later audit.
 
-## 2. Remediation lineage
+## 2. Second remediation lineage
 
 | Commit | Purpose |
 |---|---|
-| `42ea8ea` | Preserve the independent NO-GO audit before candidate mutation |
-| `b92003f` | `fix(audit-AUD-W01-002): bound controller resource use` |
-| `f0a9491` | `fix(audit-AUD-W01-003): complete claim boundary record` |
-| `2a58891` | `fix(audit-AUD-W01-004): bind ownership to source` |
-| `916602a` | `fix(audit-AUD-W01-005): bind success output sources` |
-| `f878890` | `fix(audit-AUD-W01-001): complete adversarial matrix` |
-| `808fc16` | Bind the remediation record, registered path/ownership controls, and final candidate manifest |
+| `4a0685a` | Preserve `L7-AUD-W01-002`, the independent second NO-GO audit, before candidate mutation |
+| `86a0a47` | `fix(audit-AUD-W01-008): stabilize capped diagnostics` |
+| `f5f197c` | `fix(audit-AUD-W01-009): harden fixed input reads` |
+| `64eee79` | Bind `L7-REM-W01-002` and the regenerated self-excluded candidate manifest |
 
-The source audit's one `HIGH`, three `MEDIUM`, and one `LOW` actionable findings are addressed in separate finding commits with regression proof. This statement is the remediator's evidence, not independent closure. The old audit remains NO-GO for the old candidate.
+The source audit's two `MEDIUM` actionable findings are addressed in separate commits with regression proof. This is the remediator's evidence, not independent closure. Both prior NO-GO audits remain correct for their exact candidates.
 
 ## 3. Environment and effects
 
@@ -76,11 +74,11 @@ The source audit's one `HIGH`, three `MEDIUM`, and one `LOW` actionable findings
 | Permitted writes | Ignored repository `.cache/go/`, `.cache/repro/`, and existing `.cache/toolchains/` only |
 | External effects | None observed or authorized; no remote, network fetch, hosted workflow, provider, host plugin, publication, release, deployment, or exposure action |
 
-The permanent package-boundary fixtures build and inspect isolated local modules with the pinned Go binary, local replacement modules where needed, offline module settings, and test-owned temporary/cache roots. They do not create product packages in the repository or contact external systems.
+The permanent process fixture executes only the current local test binary in a child process. Filesystem fixtures use test-owned temporary roots. The package-boundary fixtures use pinned local Go binaries, offline module settings, local replacement modules where required, and test-owned cache roots.
 
 ## 4. Exact candidate verification
 
-The following commands ran after candidate commit `808fc16` with a clean worktree.
+The following commands ran after candidate commit `64eee79` with a clean worktree.
 
 ### 4.1 Baseline — Go 1.26.7
 
@@ -93,6 +91,7 @@ Result: `PASS`.
 ```text
 no module dependencies; modules verified
 gate_version=wave-01-v1; 12 exact source digests reported
+candidate-manifest source digest=60212b7bf49bc8a1435dd723ed72c45b110798317d602418f8a2f570abc44bdd
 phase=wave-01; requirements=163; allocation=140/18/5
 prototypes=12; ownership=43; files=103; changed=37
 import boundaries: PASS (2-package current graph)
@@ -112,6 +111,7 @@ Result: `PASS` as local shadow development evidence.
 ```text
 no module dependencies; modules verified
 gate_version=wave-01-v1; 12 exact source digests reported
+candidate-manifest source digest=60212b7bf49bc8a1435dd723ed72c45b110798317d602418f8a2f570abc44bdd
 phase=wave-01; requirements=163; allocation=140/18/5
 prototypes=12; ownership=43; files=103; changed=37
 import boundaries: PASS (2-package current graph)
@@ -120,41 +120,38 @@ repeat-build comparison: PASS
 reproducible test-binary SHA-256: da0ff13d148e68a648a4ee23fa35c4e173f8145bd97a5d1beddcc9422000f85a
 ```
 
-### 4.3 Remediation closure checks
+### 4.3 Second-remediation closure checks
 
 | Check | Local evidence | Result |
 |---|---|---|
-| Resource bounds | Limited reads; bounded skill entries, directory/file/byte traversal, expansion, and finding collection; at/over tests | `PASS` |
-| Trace matrix | Missing/duplicate/malformed/unknown/reversed/overlap, zero/two owners, all allocation drifts, and displayed-summary tampering | `PASS` |
-| Claim matrix | Plugin authority, both cross-host directions, A3/A4/A5, stable, dual, enforcement, generic/specialist, P0/P1/P2, and prototype inventory/dispositions | `PASS` |
-| Scope/file matrix | Missing/unknown/duplicate phase, stale base, manifest drift, add/modify/delete, aliases, symlink/special/hardlink, protected bytes, updater reservation | `PASS` |
-| Import matrix | Real isolated broken graphs for external detour, harness import, `unsafe`, and forbidden transitive import | `PASS` |
-| Ownership | Requirement/allocation sources, 43 disjoint controls, and all 17 orchestration §10 classes source-crosschecked | `PASS` |
-| Process semantics | Stable nonzero failure, zero success, bounded ordered output, cap, no repair, environment non-authority, repeated-run determinism | `PASS` |
-| Success schema | Gate version plus exact digests for requirements, backlog, support, dispositions, phase, paths, base, candidate, ownership, orchestration, modules, and imports | `PASS` |
+| Deterministic capped failure | Bounded collection retains the lexicographically smallest 51 findings regardless of arrival order | `PASS` |
+| Separate-process repeat failure | Two independent child processes generate 163 unordered missing-owner findings, exit nonzero, and emit byte-identical capped output | `PASS` |
+| Fixed-input shape before consumption | Real final/intermediate symlink, FIFO, and hardlink fixtures return stable findings without consuming or blocking | `PASS` |
+| Fixed-input rooted stability | `os.Root`, no-follow/nonblocking open, opened/path identity, mode, link, modification-time, and size checks surround the bounded read | `PASS` |
+| Change in read window | Deterministic in-window mutation returns `BCTL-023` and no bytes | `PASS` |
 | Candidate manifest | Exact 34-row path/digest reproduction with three non-circular exclusions | `PASS` |
 | Deletion/whitespace | No base deletion; `git diff --check` | `PASS` |
 
-These results remain same-user local development evidence. They do not self-clear the audit.
+The prior trace, claim, ownership, scope, import, source-digest, no-repair, environment-isolation, and process suites also remain green. These results are same-user local development evidence and do not self-clear the audit.
 
 ## 5. Acceptance and audit disposition
 
 | Acceptance | Remediation evidence disposition |
 |---|---|
-| `W01-AC-002`, `005`, `006`, `007`, `010` | Remediation and local regression evidence present; independent adequacy decision pending |
+| `W01-AC-006`, `W01-AC-007` | Targeted remediation and permanent regression evidence present; independent adequacy decision pending |
 | `W01-AC-011` | Baseline and shadow local matrices green; hosted CI remains `NOT_RUN` |
-| `W01-AC-012` | **NOT CLEARED** — fresh independent Mode B audit of the exact successor/evidence tuple is mandatory |
-| Other Wave 1 acceptance | Prior local evidence remains subject to fresh audit and unchanged later gates |
+| `W01-AC-012` | **NOT CLEARED** — fresh independent Mode B audit of the exact second-successor/evidence tuple is mandatory |
+| Other Wave 1 acceptance | Prior independent dispositions remain subject to the fresh exact-candidate audit and unchanged later gates |
 
 No aggregate passing result overrides `W01-AC-012`. This writer does not issue `GO`, `CONDITIONAL GO`, release approval, support, security qualification, AP2/AP3, or deployment authority.
 
 ## 6. `NOT_RUN` and residual boundaries
 
-- Fresh independent Mode B successor audit: `NOT_RUN`.
+- Fresh independent Mode B second-successor audit: `NOT_RUN`.
 - Hosted GitHub Actions on Ubuntu 24.04: `NOT_RUN`; configuration inspected locally only.
 - GitHub repository/account/remote authentication and publication identity: `NOT_RUN`; no remote exists.
 - Actual Codex/Claude package discovery, compatibility, lifecycle, and cross-host conformance: `NOT_RUN`.
-- Controlled-client qualification, provider/model/host/platform evaluation, protected holdout, pilot, and stable grant gates: `NOT_RUN` or absent.
+- Controlled Client qualification, provider/model/host/platform evaluation, protected holdout, pilot, and stable grant gates: `NOT_RUN` or absent.
 - Grant security/boundary review and normative adoption: `NOT_RUN`; the proposal remains inert.
 - AP2/AP3, signing, TUF, promotion, release, deployment, exposure, and monitoring: `NOT_RUN` or absent.
 - Local Git/filesystem evidence remains same-user mutable and creates no external trust or production claim.
@@ -163,11 +160,11 @@ No aggregate passing result overrides `W01-AC-012`. This writer does not issue `
 
 The next structurally separate reviewer receives:
 
-1. successor candidate commit `808fc16b1c13c96e30c66f08a97dd2a014b31db0`, tree `bd914fdcb88aad54be5acf19c60dbcbb35f2d709`, parent `f8788906a17a525c47435a69876171f21daef545`;
-2. candidate manifest SHA-256 `d8fcfbd3d78fa104449c7edcc9d68444fdd8a1a776e844993a41b60527f0acb0`;
-3. remediation record SHA-256 `0a5f3895b263f8f7acf82611d066d35f8f8093257f9baf9b61c3349766f5be28`;
+1. candidate commit `64eee794519e381a69d284c32cc35ac58897aa2f`, tree `5829f97b1ef9e29a9c61d5872ed725920be65f84`, parent `f5f197cd76db474f3c3e8085ea611255b54585fb`;
+2. candidate manifest SHA-256 `60212b7bf49bc8a1435dd723ed72c45b110798317d602418f8a2f570abc44bdd`;
+3. remediation record SHA-256 `49ce412bd29791c3fde86cac0a1084ad19ff0d1c85187a51001ab1c949c406d2`;
 4. this evidence file's final SHA-256 and evidence-only commit/tree/parent from the completion handoff;
-5. source audit SHA-256 `54e03a8a20ced5a944b8e2506dd424581f9fbf009bf2711955cb07535d8a1224`; and
+5. source audit commit `4a0685a` and SHA-256 `bc58479c7626dd88ad4937eabfa0482b8c1e11a95f2a9c95ded114b379a1ef1b`; and
 6. read-only authority only, with no candidate remediation, merge, publication, release, deployment, or external effect.
 
-The reviewer must reproduce identities, inspect each finding disposition and regression proof, and issue a new verdict without inheriting the remediator's conclusion.
+The reviewer must reproduce identities, inspect both finding dispositions and regression proofs, and issue a new verdict without inheriting the remediator's conclusion.
