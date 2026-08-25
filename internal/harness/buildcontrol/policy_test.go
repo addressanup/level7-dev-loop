@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 func TestCurrentPolicyContract(t *testing.T) {
@@ -196,6 +197,57 @@ func TestRepositoryScanStopsAtDirectoryAndFileBounds(t *testing.T) {
 	})
 }
 
+func TestRepositoryScanCapsSingleDirectoryReadBeforeEnumeration(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	for index := 0; index < maxRepositoryReadBatch+200; index++ {
+		name := filepath.Join(root, fmt.Sprintf("f-%04d", index))
+		if err := os.WriteFile(name, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	maximumRequested := 0
+	reader := func(rooted *os.Root, relative string, entryLimit int) ([]os.DirEntry, []finding) {
+		if entryLimit > maximumRequested {
+			maximumRequested = entryLimit
+		}
+		return readRepositoryDirectory(rooted, relative, entryLimit)
+	}
+	fixedNow := func() time.Time { return time.Unix(0, 0) }
+	current, findings := scanRepositoryWithDependencies(root, fixedNow, reader)
+	if findingRules(findings)["SCOPE-346"] == 0 {
+		t.Fatalf("oversized single directory did not fail closed: %+v", findings)
+	}
+	if maximumRequested > maxRepositoryReadBatch {
+		t.Fatalf("directory read requested %d entries, limit %d", maximumRequested, maxRepositoryReadBatch)
+	}
+	if len(current) > maxRepositoryFiles {
+		t.Fatalf("scan retained %d files, limit %d", len(current), maxRepositoryFiles)
+	}
+}
+
+func TestRepositoryScanDeadlineFailsClosedBeforeFurtherIO(t *testing.T) {
+	t.Parallel()
+	base := time.Unix(0, 0)
+	clockCalls := 0
+	now := func() time.Time {
+		clockCalls++
+		if clockCalls == 1 {
+			return base
+		}
+		return base.Add(maxRepositoryScanTime + time.Nanosecond)
+	}
+	readCalls := 0
+	reader := func(*os.Root, string, int) ([]os.DirEntry, []finding) {
+		readCalls++
+		return nil, nil
+	}
+	_, findings := scanRepositoryWithDependencies(t.TempDir(), now, reader)
+	if findingRules(findings)["SCOPE-339"] == 0 || readCalls != 0 {
+		t.Fatalf("deadline did not fail closed before directory I/O: reads=%d findings=%+v", readCalls, findings)
+	}
+}
+
 func TestRepositoryFileReadHonorsByteBoundary(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -207,10 +259,15 @@ func TestRepositoryFileReadHonorsByteBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, size, findings := readRepositoryFile(name, "fixture", info, 4); len(findings) != 0 || size != 4 {
+	rooted, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rooted.Close()
+	if _, size, findings := readRepositoryFile(rooted, "fixture", info, 4); len(findings) != 0 || size != 4 {
 		t.Fatalf("at-limit repository read failed: size=%d findings=%+v", size, findings)
 	}
-	if _, _, findings := readRepositoryFile(name, "fixture", info, 3); findingRules(findings)["SCOPE-347"] == 0 {
+	if _, _, findings := readRepositoryFile(rooted, "fixture", info, 3); findingRules(findings)["SCOPE-347"] == 0 {
 		t.Fatalf("over-limit repository read was accepted: %+v", findings)
 	}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -11,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 )
 
 const (
@@ -21,10 +22,13 @@ const (
 	maxRepositoryDirectories = 512
 	maxRepositoryFiles       = 512
 	maxRepositoryBytes       = int64(8 << 20)
+	maxRepositoryScanTime    = 5 * time.Second
+	maxRepositoryReadBatch   = maxRepositoryDirectories + maxRepositoryFiles + 3
 )
 
 var sha256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
-var errRepositoryBound = errors.New("repository scan bound reached")
+
+type repositoryDirectoryReader func(*os.Root, string, int) ([]os.DirEntry, []finding)
 
 type pathExpectation struct {
 	change string
@@ -197,96 +201,187 @@ func parseSHA256Manifest(name string, data []byte, requireSorted bool) (map[stri
 }
 
 func scanRepository(root string) (map[string]snapshotFile, []finding) {
+	return scanRepositoryWithDependencies(root, time.Now, readRepositoryDirectory)
+}
+
+func scanRepositoryWithDependencies(root string, now func() time.Time, readDirectory repositoryDirectoryReader) (map[string]snapshotFile, []finding) {
 	current := make(map[string]snapshotFile)
 	var findings []finding
 	directoriesSeen := 0
 	filesSeen := 0
 	totalBytes := int64(0)
-	err := filepath.WalkDir(root, func(fullPath string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			findings = appendFindings(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), walkErr.Error(), "restore readable bounded repository state"))
-			return errRepositoryBound
+	rooted, err := os.OpenRoot(root)
+	if err != nil {
+		return current, []finding{newFinding("SCOPE-340", root, err.Error(), "restore a readable repository tree")}
+	}
+	deadline := now().Add(maxRepositoryScanTime)
+	pending := []string{"."}
+	for len(pending) != 0 {
+		directory := pending[0]
+		pending = pending[1:]
+		if now().After(deadline) {
+			findings = appendFindings(findings, repositoryDeadlineFinding(directory))
+			break
 		}
-		if fullPath == root {
-			return nil
+		remaining := (maxRepositoryDirectories - directoriesSeen) + (maxRepositoryFiles - filesSeen)
+		entryLimit := remaining + 1
+		if directory == "." {
+			entryLimit += 2
 		}
-		relativeOS, err := filepath.Rel(root, fullPath)
-		if err != nil {
-			findings = appendFindings(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), err.Error(), "restore canonical repository paths"))
-			return errRepositoryBound
+		if entryLimit > maxRepositoryReadBatch {
+			entryLimit = maxRepositoryReadBatch
 		}
-		relative := filepath.ToSlash(relativeOS)
-		if entry.IsDir() && (relative == ".git" || relative == ".cache") {
-			return filepath.SkipDir
+		entries, directoryFindings := readDirectory(rooted, directory, entryLimit)
+		findings = appendFindings(findings, directoryFindings...)
+		if len(directoryFindings) != 0 {
+			break
 		}
-		if entry.IsDir() {
-			directoriesSeen++
-			if directoriesSeen > maxRepositoryDirectories {
-				findings = appendFindings(findings, newFinding("SCOPE-348", relative, "repository directory count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
-				return errRepositoryBound
+		if now().After(deadline) {
+			findings = appendFindings(findings, repositoryDeadlineFinding(directory))
+			break
+		}
+		sort.Slice(entries, func(left, right int) bool { return entries[left].Name() < entries[right].Name() })
+		var children []string
+		bounded := false
+		for _, entry := range entries {
+			if now().After(deadline) {
+				findings = appendFindings(findings, repositoryDeadlineFinding(directory))
+				bounded = true
+				break
 			}
-			return nil
+			relative := entry.Name()
+			if directory != "." {
+				relative = path.Join(directory, entry.Name())
+			}
+			if !safeRelativeASCIIPath(relative) {
+				findings = appendFindings(findings, newFinding("SCOPE-341", relative, "noncanonical or non-ASCII repository path", "remove or rename the unapproved path"))
+				continue
+			}
+			info, infoErr := entry.Info()
+			if infoErr != nil {
+				findings = appendFindings(findings, newFinding("SCOPE-342", relative, infoErr.Error(), "restore readable regular-file state"))
+				bounded = true
+				break
+			}
+			if now().After(deadline) {
+				findings = appendFindings(findings, repositoryDeadlineFinding(relative))
+				bounded = true
+				break
+			}
+			if info.IsDir() {
+				if directory == "." && (relative == ".git" || relative == ".cache") {
+					continue
+				}
+				directoriesSeen++
+				if directoriesSeen > maxRepositoryDirectories {
+					findings = appendFindings(findings, newFinding("SCOPE-348", relative, "repository directory count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
+					bounded = true
+					break
+				}
+				children = append(children, relative)
+				continue
+			}
+			filesSeen++
+			if filesSeen > maxRepositoryFiles {
+				findings = appendFindings(findings, newFinding("SCOPE-346", relative, "repository file count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
+				bounded = true
+				break
+			}
+			links := uint64(0)
+			linkCountKnown := false
+			if info.Mode().IsRegular() {
+				links, linkCountKnown = regularFileLinkCount(info)
+			}
+			shapeFindings := validateFileShape(relative, info.Mode(), links, linkCountKnown)
+			findings = appendFindings(findings, shapeFindings...)
+			if !info.Mode().IsRegular() {
+				current[relative] = snapshotFile{}
+				continue
+			}
+			if info.Size() > maxRepositoryBytes-totalBytes {
+				findings = appendFindings(findings, newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor"))
+				bounded = true
+				break
+			}
+			file, bytesRead, readFindings := readRepositoryFile(rooted, relative, info, maxRepositoryBytes-totalBytes)
+			findings = appendFindings(findings, readFindings...)
+			if len(readFindings) != 0 {
+				bounded = true
+				break
+			}
+			if now().After(deadline) {
+				findings = appendFindings(findings, repositoryDeadlineFinding(relative))
+				bounded = true
+				break
+			}
+			totalBytes += bytesRead
+			current[relative] = file
 		}
-		filesSeen++
-		if filesSeen > maxRepositoryFiles {
-			findings = appendFindings(findings, newFinding("SCOPE-346", relative, "repository file count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
-			return errRepositoryBound
+		if bounded {
+			break
 		}
-		if !safeRelativeASCIIPath(relative) {
-			findings = appendFindings(findings, newFinding("SCOPE-341", relative, "noncanonical or non-ASCII repository path", "remove or rename the unapproved path"))
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			findings = appendFindings(findings, newFinding("SCOPE-342", relative, err.Error(), "restore readable regular-file state"))
-			return errRepositoryBound
-		}
-		links := uint64(0)
-		linkCountKnown := false
-		if info.Mode().IsRegular() {
-			links, linkCountKnown = regularFileLinkCount(info)
-		}
-		shapeFindings := validateFileShape(relative, info.Mode(), links, linkCountKnown)
-		findings = appendFindings(findings, shapeFindings...)
-		if !info.Mode().IsRegular() {
-			current[relative] = snapshotFile{}
-			return nil
-		}
-		if info.Size() > maxRepositoryBytes-totalBytes {
-			findings = appendFindings(findings, newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor"))
-			return errRepositoryBound
-		}
-		file, bytesRead, readFindings := readRepositoryFile(fullPath, relative, info, maxRepositoryBytes-totalBytes)
-		findings = appendFindings(findings, readFindings...)
-		if len(readFindings) != 0 {
-			return errRepositoryBound
-		}
-		totalBytes += bytesRead
-		current[relative] = file
-		return nil
-	})
-	if err != nil && !errors.Is(err, errRepositoryBound) {
-		findings = appendFindings(findings, newFinding("SCOPE-340", root, err.Error(), "restore a readable repository tree"))
+		pending = append(pending, children...)
+	}
+	if closeErr := rooted.Close(); closeErr != nil {
+		findings = appendFindings(findings, newFinding("SCOPE-340", root, closeErr.Error(), "restore a readable repository tree"))
 	}
 	return current, findings
 }
 
-func readRepositoryFile(fullPath, relative string, walkInfo fs.FileInfo, byteLimit int64) (snapshotFile, int64, []finding) {
-	file, err := os.Open(fullPath)
+func readRepositoryDirectory(rooted *os.Root, relative string, entryLimit int) ([]os.DirEntry, []finding) {
+	expected, err := rooted.Lstat(relative)
 	if err != nil {
-		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, err.Error(), "restore readable candidate bytes")}
+		return nil, []finding{newFinding("SCOPE-340", relative, err.Error(), "restore readable bounded repository state")}
+	}
+	if !expected.IsDir() || expected.Mode()&os.ModeSymlink != 0 {
+		return nil, []finding{newFinding("SCOPE-349", relative, "repository directory changed during inspection", "retry from a stable canonical worktree")}
+	}
+	directory, err := rooted.OpenFile(relative, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW|syscall.O_DIRECTORY, 0)
+	if err != nil {
+		return nil, []finding{newFinding("SCOPE-349", relative, "repository directory changed during inspection", "retry from a stable canonical worktree")}
+	}
+	opened, statErr := directory.Stat()
+	if statErr != nil {
+		_ = directory.Close()
+		return nil, []finding{newFinding("SCOPE-340", relative, statErr.Error(), "restore readable bounded repository state")}
+	}
+	if !sameStrictDirectoryState(expected, opened) {
+		_ = directory.Close()
+		return nil, []finding{newFinding("SCOPE-349", relative, "repository directory changed during inspection", "retry from a stable canonical worktree")}
+	}
+	entries, readErr := directory.ReadDir(entryLimit)
+	final, finalStatErr := directory.Stat()
+	pathFinal, pathStatErr := rooted.Lstat(relative)
+	closeErr := directory.Close()
+	if readErr != nil && readErr != io.EOF {
+		return nil, []finding{newFinding("SCOPE-340", relative, readErr.Error(), "restore readable bounded repository state")}
+	}
+	if finalStatErr != nil || pathStatErr != nil || closeErr != nil {
+		return nil, []finding{newFinding("SCOPE-340", relative, "repository directory state became unreadable", "restore readable bounded repository state")}
+	}
+	if !sameStrictDirectoryState(expected, final) || !sameStrictDirectoryState(final, pathFinal) {
+		return nil, []finding{newFinding("SCOPE-349", relative, "repository directory changed during inspection", "retry from a stable canonical worktree")}
+	}
+	return entries, nil
+}
+
+func readRepositoryFile(rooted *os.Root, relative string, expected fs.FileInfo, byteLimit int64) (snapshotFile, int64, []finding) {
+	file, err := rooted.OpenFile(relative, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-349", relative, "repository file changed during inspection", "retry from a stable canonical worktree")}
 	}
 	openedInfo, statErr := file.Stat()
 	if statErr != nil {
 		_ = file.Close()
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, statErr.Error(), "restore readable candidate bytes")}
 	}
-	if !os.SameFile(walkInfo, openedInfo) || !openedInfo.Mode().IsRegular() {
+	if !sameRepositoryFileState(expected, openedInfo) {
 		_ = file.Close()
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-349", relative, "repository file changed during inspection", "retry from a stable canonical worktree")}
 	}
 	data, readErr := io.ReadAll(io.LimitReader(file, byteLimit+1))
 	closedInfo, finalStatErr := file.Stat()
+	pathFinal, pathStatErr := rooted.Lstat(relative)
 	closeErr := file.Close()
 	if readErr != nil {
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, readErr.Error(), "restore readable candidate bytes")}
@@ -294,13 +389,16 @@ func readRepositoryFile(fullPath, relative string, walkInfo fs.FileInfo, byteLim
 	if finalStatErr != nil {
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, finalStatErr.Error(), "restore readable candidate bytes")}
 	}
+	if pathStatErr != nil {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-349", relative, "repository file changed during inspection", "retry from a stable canonical worktree")}
+	}
 	if closeErr != nil {
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, closeErr.Error(), "restore readable candidate bytes")}
 	}
 	if int64(len(data)) > byteLimit {
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor")}
 	}
-	if !os.SameFile(openedInfo, closedInfo) || openedInfo.Size() != closedInfo.Size() || closedInfo.Size() != int64(len(data)) {
+	if !sameRepositoryFileState(expected, closedInfo) || !sameRepositoryFileState(closedInfo, pathFinal) || closedInfo.Size() != int64(len(data)) {
 		return snapshotFile{}, 0, []finding{newFinding("SCOPE-349", relative, "repository file changed during inspection", "retry from a stable canonical worktree")}
 	}
 	links, linkCountKnown := regularFileLinkCount(closedInfo)
@@ -308,6 +406,20 @@ func readRepositoryFile(fullPath, relative string, walkInfo fs.FileInfo, byteLim
 		return snapshotFile{}, 0, shapeFindings
 	}
 	return snapshotFile{digest: fileSHA256(data), regular: true, links: links}, int64(len(data)), nil
+}
+
+func sameRepositoryFileState(left, right fs.FileInfo) bool {
+	leftLinks, leftKnown := regularFileLinkCount(left)
+	rightLinks, rightKnown := regularFileLinkCount(right)
+	return os.SameFile(left, right) &&
+		left.Mode() == right.Mode() &&
+		left.Size() == right.Size() &&
+		left.ModTime().Equal(right.ModTime()) &&
+		leftKnown && rightKnown && leftLinks == 1 && rightLinks == 1
+}
+
+func repositoryDeadlineFinding(subject string) finding {
+	return newFinding("SCOPE-339", subject, "repository scan exceeded the five-second Wave 1 deadline", "restore bounded local repository state and rerun the gate")
 }
 
 func validateFileShape(relative string, mode fs.FileMode, links uint64, linkCountKnown bool) []finding {
