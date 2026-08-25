@@ -1,0 +1,2 @@
+phase	state	base_commit	base_tree	base_manifest	path_policy
+wave-01	active	ee181b759c346055b0fb5b2fa1b3b1e676dd83e4	2f23a0810660995b6f562c361ab38cd4faafa3b3	harness/wave-01-base.sha256	harness/wave-01-paths.tsv
