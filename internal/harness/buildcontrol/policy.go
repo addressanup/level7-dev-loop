@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -12,15 +14,17 @@ import (
 )
 
 const (
-	waveBaseCommit     = "ee181b759c346055b0fb5b2fa1b3b1e676dd83e4"
-	waveBaseTree       = "2f23a0810660995b6f562c361ab38cd4faafa3b3"
-	selectedModule     = "github.com/addressanup/level7-dev-loop"
-	legacyModule       = "continuallabs.ltd/level7-dev-loop"
-	maxRepositoryFiles = 512
-	maxRepositoryBytes = int64(8 << 20)
+	waveBaseCommit           = "ee181b759c346055b0fb5b2fa1b3b1e676dd83e4"
+	waveBaseTree             = "2f23a0810660995b6f562c361ab38cd4faafa3b3"
+	selectedModule           = "github.com/addressanup/level7-dev-loop"
+	legacyModule             = "continuallabs.ltd/level7-dev-loop"
+	maxRepositoryDirectories = 512
+	maxRepositoryFiles       = 512
+	maxRepositoryBytes       = int64(8 << 20)
 )
 
 var sha256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+var errRepositoryBound = errors.New("repository scan bound reached")
 
 type pathExpectation struct {
 	change string
@@ -89,25 +93,25 @@ var approvedWaveInputs = map[string]string{
 func checkPolicy(root string) (policyResult, []finding) {
 	phaseRows, findings := loadTSV(root, "harness/phases.tsv", []string{"phase", "state", "base_commit", "base_tree", "base_manifest", "path_policy"})
 	phase, phaseFindings := validatePhaseRows(phaseRows)
-	findings = append(findings, phaseFindings...)
+	findings = appendFindings(findings, phaseFindings...)
 	pathRows, pathFindings := loadTSV(root, "harness/wave-01-paths.tsv", []string{"change", "path", "owner", "rule"})
 	rules, validationFindings := validatePathRows(pathRows)
-	findings = append(findings, pathFindings...)
-	findings = append(findings, validationFindings...)
+	findings = appendFindings(findings, pathFindings...)
+	findings = appendFindings(findings, validationFindings...)
 	baseData, baseReadFindings := readStrictFile(root, "harness/wave-01-base.sha256")
-	findings = append(findings, baseReadFindings...)
+	findings = appendFindings(findings, baseReadFindings...)
 	base, baseFindings := parseSHA256Manifest("harness/wave-01-base.sha256", baseData, true)
-	findings = append(findings, baseFindings...)
+	findings = appendFindings(findings, baseFindings...)
 	current, walkFindings := scanRepository(root)
-	findings = append(findings, walkFindings...)
+	findings = appendFindings(findings, walkFindings...)
 	changed, snapshotFindings := validateSnapshot(base, current, rules)
-	findings = append(findings, snapshotFindings...)
-	findings = append(findings, checkProtectedInputs(root)...)
-	findings = append(findings, checkApprovedWaveInputs(root)...)
+	findings = appendFindings(findings, snapshotFindings...)
+	findings = appendFindings(findings, checkProtectedInputs(root)...)
+	findings = appendFindings(findings, checkApprovedWaveInputs(root)...)
 	finalCandidate := current["docs/artifacts/wave-01-candidate.sha256"].regular
-	findings = append(findings, checkHarnessInvariants(root, finalCandidate)...)
+	findings = appendFindings(findings, checkHarnessInvariants(root, finalCandidate)...)
 	if finalCandidate {
-		findings = append(findings, validateCandidateManifest(root, base, current, rules)...)
+		findings = appendFindings(findings, validateCandidateManifest(root, base, current, rules)...)
 	}
 	return policyResult{phase: phase, files: len(current), changed: changed}, findings
 }
@@ -129,15 +133,15 @@ func validatePathRows(rows []tsvRow) (map[string]pathExpectation, []finding) {
 	for _, row := range rows {
 		relative := row["path"]
 		if !safeRelativeASCIIPath(relative) {
-			findings = append(findings, newFinding("SCOPE-310", relative, "path is not a canonical ASCII repository-relative path", "restore an exact approved path"))
+			findings = appendFindings(findings, newFinding("SCOPE-310", relative, "path is not a canonical ASCII repository-relative path", "restore an exact approved path"))
 			continue
 		}
 		if row["change"] != "add" && row["change"] != "modify" && row["change"] != "conditional" && row["change"] != "audit-only" {
-			findings = append(findings, newFinding("SCOPE-311", relative, "unknown path change class", "use an approved change class"))
+			findings = appendFindings(findings, newFinding("SCOPE-311", relative, "unknown path change class", "use an approved change class"))
 			continue
 		}
 		if _, duplicate := rules[relative]; duplicate {
-			findings = append(findings, newFinding("SCOPE-312", relative, "duplicate path-policy row", "retain exactly one path rule"))
+			findings = appendFindings(findings, newFinding("SCOPE-312", relative, "duplicate path-policy row", "retain exactly one path rule"))
 			continue
 		}
 		rules[relative] = pathExpectation{row["change"], row["owner"], row["rule"]}
@@ -145,14 +149,14 @@ func validatePathRows(rows []tsvRow) (map[string]pathExpectation, []finding) {
 	for relative, expected := range expectedWavePaths {
 		actual, ok := rules[relative]
 		if !ok {
-			findings = append(findings, newFinding("SCOPE-313", relative, "approved path is missing from the path policy", "restore the approved path rule"))
+			findings = appendFindings(findings, newFinding("SCOPE-313", relative, "approved path is missing from the path policy", "restore the approved path rule"))
 		} else if actual != expected {
-			findings = append(findings, newFinding("SCOPE-314", relative, "path rule differs from the approved design", "restore the approved change, owner, and rule"))
+			findings = appendFindings(findings, newFinding("SCOPE-314", relative, "path rule differs from the approved design", "restore the approved change, owner, and rule"))
 		}
 	}
 	for relative := range rules {
 		if _, ok := expectedWavePaths[relative]; !ok {
-			findings = append(findings, newFinding("SCOPE-315", relative, "path policy contains an unapproved path", "remove it or obtain a new exact design approval"))
+			findings = appendFindings(findings, newFinding("SCOPE-315", relative, "path policy contains an unapproved path", "remove it or obtain a new exact design approval"))
 		}
 	}
 	return rules, findings
@@ -168,21 +172,21 @@ func parseSHA256Manifest(name string, data []byte, requireSorted bool) (map[stri
 		}
 		parts := strings.SplitN(line, "  ", 2)
 		if len(parts) != 2 || !sha256Pattern.MatchString(parts[0]) || !safeRelativeASCIIPath(parts[1]) {
-			findings = append(findings, newFinding("SCOPE-330", fmt.Sprintf("%s:%d", name, lineIndex+1), "malformed SHA-256 manifest row", "restore lowercase SHA-256 and an exact relative path"))
+			findings = appendFindings(findings, newFinding("SCOPE-330", fmt.Sprintf("%s:%d", name, lineIndex+1), "malformed SHA-256 manifest row", "restore lowercase SHA-256 and an exact relative path"))
 			continue
 		}
 		if requireSorted && previous != "" && parts[1] <= previous {
-			findings = append(findings, newFinding("SCOPE-331", parts[1], "candidate manifest paths are not bytewise sorted", "sort candidate paths bytewise"))
+			findings = appendFindings(findings, newFinding("SCOPE-331", parts[1], "candidate manifest paths are not bytewise sorted", "sort candidate paths bytewise"))
 		}
 		previous = parts[1]
 		if _, duplicate := manifest[parts[1]]; duplicate {
-			findings = append(findings, newFinding("SCOPE-332", parts[1], "duplicate manifest path", "retain one digest per path"))
+			findings = appendFindings(findings, newFinding("SCOPE-332", parts[1], "duplicate manifest path", "retain one digest per path"))
 			continue
 		}
 		manifest[parts[1]] = parts[0]
 	}
 	if len(manifest) == 0 {
-		findings = append(findings, newFinding("SCOPE-333", name, "manifest contains no records", "restore the approved manifest"))
+		findings = appendFindings(findings, newFinding("SCOPE-333", name, "manifest contains no records", "restore the approved manifest"))
 	}
 	return manifest, findings
 }
@@ -190,69 +194,115 @@ func parseSHA256Manifest(name string, data []byte, requireSorted bool) (map[stri
 func scanRepository(root string) (map[string]snapshotFile, []finding) {
 	current := make(map[string]snapshotFile)
 	var findings []finding
+	directoriesSeen := 0
 	filesSeen := 0
 	totalBytes := int64(0)
 	err := filepath.WalkDir(root, func(fullPath string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			findings = append(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), walkErr.Error(), "restore readable bounded repository state"))
-			return nil
+			findings = appendFindings(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), walkErr.Error(), "restore readable bounded repository state"))
+			return errRepositoryBound
 		}
 		if fullPath == root {
 			return nil
 		}
 		relativeOS, err := filepath.Rel(root, fullPath)
 		if err != nil {
-			findings = append(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), err.Error(), "restore canonical repository paths"))
-			return nil
+			findings = appendFindings(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), err.Error(), "restore canonical repository paths"))
+			return errRepositoryBound
 		}
 		relative := filepath.ToSlash(relativeOS)
 		if entry.IsDir() && (relative == ".git" || relative == ".cache") {
 			return filepath.SkipDir
 		}
 		if entry.IsDir() {
+			directoriesSeen++
+			if directoriesSeen > maxRepositoryDirectories {
+				findings = appendFindings(findings, newFinding("SCOPE-348", relative, "repository directory count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
+				return errRepositoryBound
+			}
 			return nil
 		}
 		filesSeen++
 		if filesSeen > maxRepositoryFiles {
-			findings = append(findings, newFinding("SCOPE-346", relative, "repository file count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
-			return nil
+			findings = appendFindings(findings, newFinding("SCOPE-346", relative, "repository file count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
+			return errRepositoryBound
 		}
 		if !safeRelativeASCIIPath(relative) {
-			findings = append(findings, newFinding("SCOPE-341", relative, "noncanonical or non-ASCII repository path", "remove or rename the unapproved path"))
+			findings = appendFindings(findings, newFinding("SCOPE-341", relative, "noncanonical or non-ASCII repository path", "remove or rename the unapproved path"))
 			return nil
 		}
 		info, err := entry.Info()
 		if err != nil {
-			findings = append(findings, newFinding("SCOPE-342", relative, err.Error(), "restore readable regular-file state"))
-			return nil
+			findings = appendFindings(findings, newFinding("SCOPE-342", relative, err.Error(), "restore readable regular-file state"))
+			return errRepositoryBound
 		}
 		links := uint64(0)
 		linkCountKnown := false
 		if info.Mode().IsRegular() {
 			links, linkCountKnown = regularFileLinkCount(info)
 		}
-		findings = append(findings, validateFileShape(relative, info.Mode(), links, linkCountKnown)...)
+		shapeFindings := validateFileShape(relative, info.Mode(), links, linkCountKnown)
+		findings = appendFindings(findings, shapeFindings...)
 		if !info.Mode().IsRegular() {
 			current[relative] = snapshotFile{}
 			return nil
 		}
 		if info.Size() > maxRepositoryBytes-totalBytes {
-			findings = append(findings, newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor"))
-			return nil
+			findings = appendFindings(findings, newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor"))
+			return errRepositoryBound
 		}
-		totalBytes += info.Size()
-		data, err := os.ReadFile(fullPath)
-		if err != nil {
-			findings = append(findings, newFinding("SCOPE-345", relative, err.Error(), "restore readable candidate bytes"))
-			return nil
+		file, bytesRead, readFindings := readRepositoryFile(fullPath, relative, info, maxRepositoryBytes-totalBytes)
+		findings = appendFindings(findings, readFindings...)
+		if len(readFindings) != 0 {
+			return errRepositoryBound
 		}
-		current[relative] = snapshotFile{digest: fileSHA256(data), regular: true, links: links}
+		totalBytes += bytesRead
+		current[relative] = file
 		return nil
 	})
-	if err != nil {
-		findings = append(findings, newFinding("SCOPE-340", root, err.Error(), "restore a readable repository tree"))
+	if err != nil && !errors.Is(err, errRepositoryBound) {
+		findings = appendFindings(findings, newFinding("SCOPE-340", root, err.Error(), "restore a readable repository tree"))
 	}
 	return current, findings
+}
+
+func readRepositoryFile(fullPath, relative string, walkInfo fs.FileInfo, byteLimit int64) (snapshotFile, int64, []finding) {
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, err.Error(), "restore readable candidate bytes")}
+	}
+	openedInfo, statErr := file.Stat()
+	if statErr != nil {
+		_ = file.Close()
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, statErr.Error(), "restore readable candidate bytes")}
+	}
+	if !os.SameFile(walkInfo, openedInfo) || !openedInfo.Mode().IsRegular() {
+		_ = file.Close()
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-349", relative, "repository file changed during inspection", "retry from a stable canonical worktree")}
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, byteLimit+1))
+	closedInfo, finalStatErr := file.Stat()
+	closeErr := file.Close()
+	if readErr != nil {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, readErr.Error(), "restore readable candidate bytes")}
+	}
+	if finalStatErr != nil {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, finalStatErr.Error(), "restore readable candidate bytes")}
+	}
+	if closeErr != nil {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-345", relative, closeErr.Error(), "restore readable candidate bytes")}
+	}
+	if int64(len(data)) > byteLimit {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor")}
+	}
+	if !os.SameFile(openedInfo, closedInfo) || openedInfo.Size() != closedInfo.Size() || closedInfo.Size() != int64(len(data)) {
+		return snapshotFile{}, 0, []finding{newFinding("SCOPE-349", relative, "repository file changed during inspection", "retry from a stable canonical worktree")}
+	}
+	links, linkCountKnown := regularFileLinkCount(closedInfo)
+	if shapeFindings := validateFileShape(relative, closedInfo.Mode(), links, linkCountKnown); len(shapeFindings) != 0 {
+		return snapshotFile{}, 0, shapeFindings
+	}
+	return snapshotFile{digest: fileSHA256(data), regular: true, links: links}, int64(len(data)), nil
 }
 
 func validateFileShape(relative string, mode fs.FileMode, links uint64, linkCountKnown bool) []finding {
@@ -271,23 +321,23 @@ func validateSnapshot(base map[string]string, current map[string]snapshotFile, r
 	for relative, rule := range rules {
 		_, inBase := base[relative]
 		if (rule.change == "add" || rule.change == "audit-only") && inBase {
-			findings = append(findings, newFinding("SCOPE-350", relative, "add-only path already exists in the approved base", "restore the approved base/path class"))
+			findings = appendFindings(findings, newFinding("SCOPE-350", relative, "add-only path already exists in the approved base", "restore the approved base/path class"))
 		}
 		if (rule.change == "modify" || rule.change == "conditional") && !inBase {
-			findings = append(findings, newFinding("SCOPE-351", relative, "modify path is absent from the approved base", "restore the approved base/path class"))
+			findings = appendFindings(findings, newFinding("SCOPE-351", relative, "modify path is absent from the approved base", "restore the approved base/path class"))
 		}
 	}
 	for relative, digest := range base {
 		file, ok := current[relative]
 		if !ok {
-			findings = append(findings, newFinding("SCOPE-352", relative, "approved base path is missing", "restore the exact base path"))
+			findings = appendFindings(findings, newFinding("SCOPE-352", relative, "approved base path is missing", "restore the exact base path"))
 			continue
 		}
 		rule, mutable := rules[relative]
 		if file.digest != digest {
 			changed++
 			if !mutable || (rule.change != "modify" && rule.change != "conditional") {
-				findings = append(findings, newFinding("SCOPE-353", relative, "protected base bytes changed outside an approved modify rule", "restore the exact base bytes"))
+				findings = appendFindings(findings, newFinding("SCOPE-353", relative, "protected base bytes changed outside an approved modify rule", "restore the exact base bytes"))
 			}
 		}
 	}
@@ -298,7 +348,7 @@ func validateSnapshot(base map[string]string, current map[string]snapshotFile, r
 		changed++
 		rule, ok := rules[relative]
 		if !ok || (rule.change != "add" && rule.change != "audit-only") {
-			findings = append(findings, newFinding("SCOPE-354", relative, "repository contains an unapproved added path", "remove it or obtain a new exact path approval"))
+			findings = appendFindings(findings, newFinding("SCOPE-354", relative, "repository contains an unapproved added path", "remove it or obtain a new exact path approval"))
 		}
 	}
 	return changed, findings
@@ -310,12 +360,12 @@ func checkProtectedInputs(root string) []finding {
 		return findings
 	}
 	manifest, parseFindings := parseSHA256Manifest("harness/foundation-inputs.sha256", data, false)
-	findings = append(findings, parseFindings...)
+	findings = appendFindings(findings, parseFindings...)
 	for relative, expected := range manifest {
 		content, readFindings := readStrictFile(root, relative)
-		findings = append(findings, readFindings...)
+		findings = appendFindings(findings, readFindings...)
 		if len(readFindings) == 0 && fileSHA256(content) != expected {
-			findings = append(findings, newFinding("SCOPE-360", relative, "protected foundation/prototype bytes changed", "restore the approved protected input"))
+			findings = appendFindings(findings, newFinding("SCOPE-360", relative, "protected foundation/prototype bytes changed", "restore the approved protected input"))
 		}
 	}
 	return findings
@@ -325,9 +375,9 @@ func checkApprovedWaveInputs(root string) []finding {
 	var findings []finding
 	for relative, expected := range approvedWaveInputs {
 		content, readFindings := readStrictFile(root, relative)
-		findings = append(findings, readFindings...)
+		findings = appendFindings(findings, readFindings...)
 		if len(readFindings) == 0 && fileSHA256(content) != expected {
-			findings = append(findings, newFinding("SCOPE-361", relative, "approved Wave 1 planning bytes changed", "restore the exact owner-approved input"))
+			findings = appendFindings(findings, newFinding("SCOPE-361", relative, "approved Wave 1 planning bytes changed", "restore the exact owner-approved input"))
 		}
 	}
 	return findings
@@ -337,49 +387,49 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 	var findings []finding
 	read := func(relative string) string {
 		data, readFindings := readStrictFile(root, relative)
-		findings = append(findings, readFindings...)
+		findings = appendFindings(findings, readFindings...)
 		return string(data)
 	}
 	version := read(".go-version")
 	if version != "1.26.7\n" {
-		findings = append(findings, newFinding("SCOPE-370", ".go-version", "baseline Go version changed", "restore Go 1.26.7"))
+		findings = appendFindings(findings, newFinding("SCOPE-370", ".go-version", "baseline Go version changed", "restore Go 1.26.7"))
 	}
 	moduleData := read("go.mod")
 	moduleRows, moduleFindings := loadTSV(root, "harness/modules.lock.tsv", []string{"role", "state", "directory", "module_path"})
-	findings = append(findings, moduleFindings...)
-	findings = append(findings, validateModuleInvariants(moduleData, moduleRows, finalCandidate)...)
+	findings = appendFindings(findings, moduleFindings...)
+	findings = appendFindings(findings, validateModuleInvariants(moduleData, moduleRows, finalCandidate)...)
 	for _, relative := range []string{"go.sum", "vendor"} {
 		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = append(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in Wave 1", "remove it through an authorized recovery action"))
+			findings = appendFindings(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in Wave 1", "remove it through an authorized recovery action"))
 		}
 	}
 	for _, relative := range []string{"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/render", "internal/evaluator", "semantic", "schemas", "fixtures", "packages", "build/generated"} {
 		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = append(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
+			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
 		}
 	}
 	workflow := read(".github/workflows/harness.yml")
 	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify Wave 1 build controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
 		if !strings.Contains(workflow, required) {
-			findings = append(findings, newFinding("SCOPE-380", ".github/workflows/harness.yml", "configured CI lost a required safety or matrix binding", "restore the approved configured control"))
+			findings = appendFindings(findings, newFinding("SCOPE-380", ".github/workflows/harness.yml", "configured CI lost a required safety or matrix binding", "restore the approved configured control"))
 		}
 	}
 	if strings.Contains(workflow, "pull_request_target:") || strings.Contains(workflow, "secrets.") {
-		findings = append(findings, newFinding("SCOPE-381", ".github/workflows/harness.yml", "configured CI contains a forbidden trigger or secret reference", "remove the forbidden control"))
+		findings = appendFindings(findings, newFinding("SCOPE-381", ".github/workflows/harness.yml", "configured CI contains a forbidden trigger or secret reference", "remove the forbidden control"))
 	}
 	makefile := read("Makefile")
 	for _, required := range []string{"override CORE_MODULE_PATH :=", "$(PROJECT_ROOT)/harness/modules.lock.tsv", "override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness", "build-control-check: toolchain-check", "\"$(GO)\" run -mod=readonly ./internal/harness/buildcontrol", "policy-check: build-control-check", "candidate-check: policy-check import-check"} {
 		if !strings.Contains(makefile, required) {
-			findings = append(findings, newFinding("SCOPE-383", "Makefile", "active build-control integration is incomplete", "restore the approved module-derived Wave 1 targets"))
+			findings = appendFindings(findings, newFinding("SCOPE-383", "Makefile", "active build-control integration is incomplete", "restore the approved module-derived Wave 1 targets"))
 		}
 	}
 	if strings.Contains(makefile, legacyModule) || strings.Contains(makefile, "check-foundation-scope.sh") {
-		findings = append(findings, newFinding("SCOPE-384", "Makefile", "active harness retains a provisional module or predecessor policy entry", "use the module registry and Wave 1 controller"))
+		findings = appendFindings(findings, newFinding("SCOPE-384", "Makefile", "active harness retains a provisional module or predecessor policy entry", "use the module registry and Wave 1 controller"))
 	}
 	importCheck := read("scripts/harness/check-import-boundaries.sh")
 	for _, required := range []string{"matches_prefix \"$package\" \"$harness_path\" && continue", "matches_prefix \"$imported\" \"$harness_path\""} {
 		if !strings.Contains(importCheck, required) {
-			findings = append(findings, newFinding("SCOPE-385", "scripts/harness/check-import-boundaries.sh", "harness descendant import denial is incomplete", "restore prefix denial for the entire harness subtree"))
+			findings = appendFindings(findings, newFinding("SCOPE-385", "scripts/harness/check-import-boundaries.sh", "harness descendant import denial is incomplete", "restore prefix denial for the entire harness subtree"))
 		}
 	}
 	for relative, required := range map[string]string{
@@ -388,7 +438,7 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 		"harness/toolchains.lock.tsv":         "1.26.7",
 	} {
 		if !strings.Contains(read(relative), required) {
-			findings = append(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
+			findings = appendFindings(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
 		}
 	}
 	return findings
@@ -403,14 +453,14 @@ func validateModuleInvariants(moduleData string, moduleRows []tsvRow, finalCandi
 		}
 	}
 	if modulePath != legacyModule && modulePath != selectedModule {
-		findings = append(findings, newFinding("SCOPE-372", "go.mod", "root module is neither the predecessor nor approved replacement", "use the approved GitHub module"))
+		findings = appendFindings(findings, newFinding("SCOPE-372", "go.mod", "root module is neither the predecessor nor approved replacement", "use the approved GitHub module"))
 	}
 	if finalCandidate && modulePath != selectedModule {
-		findings = append(findings, newFinding("SCOPE-373", "go.mod", "final candidate did not apply the approved module decision", "use the approved GitHub module"))
+		findings = appendFindings(findings, newFinding("SCOPE-373", "go.mod", "final candidate did not apply the approved module decision", "use the approved GitHub module"))
 	}
 	expectedGoMod := fmt.Sprintf("module %s\n\ngo 1.26.0\n\ntoolchain go1.26.7\n", modulePath)
 	if moduleData != expectedGoMod {
-		findings = append(findings, newFinding("SCOPE-374", "go.mod", "module file differs from the zero-dependency pinned Wave 1 shape", "restore the approved module, Go language, and toolchain lines"))
+		findings = appendFindings(findings, newFinding("SCOPE-374", "go.mod", "module file differs from the zero-dependency pinned Wave 1 shape", "restore the approved module, Go language, and toolchain lines"))
 	}
 	coreCount := 0
 	updaterCount := 0
@@ -418,21 +468,21 @@ func validateModuleInvariants(moduleData string, moduleRows []tsvRow, finalCandi
 		if row["role"] == "core" {
 			coreCount++
 			if row["state"] != "active" || row["directory"] != "." || row["module_path"] != modulePath {
-				findings = append(findings, newFinding("SCOPE-375", "core", "module registry does not match go.mod", "update both module identities together"))
+				findings = appendFindings(findings, newFinding("SCOPE-375", "core", "module registry does not match go.mod", "update both module identities together"))
 			}
 		}
 		if row["role"] == "updater" {
 			updaterCount++
 			if row["state"] != "reserved" || row["directory"] != "cmd/l7up" || row["module_path"] != "UNSET" {
-				findings = append(findings, newFinding("SCOPE-376", "updater", "updater must remain reserved with identity UNSET", "restore the Wave 10 reservation"))
+				findings = appendFindings(findings, newFinding("SCOPE-376", "updater", "updater must remain reserved with identity UNSET", "restore the Wave 10 reservation"))
 			}
 		}
 		if row["role"] != "core" && row["role"] != "updater" {
-			findings = append(findings, newFinding("SCOPE-377", row["role"], "module registry contains an unknown role", "retain only the active core and reserved updater"))
+			findings = appendFindings(findings, newFinding("SCOPE-377", row["role"], "module registry contains an unknown role", "retain only the active core and reserved updater"))
 		}
 	}
 	if coreCount != 1 || updaterCount != 1 {
-		findings = append(findings, newFinding("SCOPE-377", "harness/modules.lock.tsv", "module registry must contain one core and one updater row", "restore the exact module roles"))
+		findings = appendFindings(findings, newFinding("SCOPE-377", "harness/modules.lock.tsv", "module registry must contain one core and one updater row", "restore the exact module roles"))
 	}
 	expectedModules := fmt.Sprintf("# role\tstate\tdirectory\tmodule_path\ncore\tactive\t.\t%s\nupdater\treserved\tcmd/l7up\tUNSET\n", modulePath)
 	var actualModules strings.Builder
@@ -441,7 +491,7 @@ func validateModuleInvariants(moduleData string, moduleRows []tsvRow, finalCandi
 		fmt.Fprintf(&actualModules, "%s\t%s\t%s\t%s\n", row["role"], row["state"], row["directory"], row["module_path"])
 	}
 	if actualModules.String() != expectedModules {
-		findings = append(findings, newFinding("SCOPE-377", "harness/modules.lock.tsv", "module registry differs from the exact two-role Wave 1 shape", "restore the active core and reserved updater rows"))
+		findings = appendFindings(findings, newFinding("SCOPE-377", "harness/modules.lock.tsv", "module registry differs from the exact two-role Wave 1 shape", "restore the active core and reserved updater rows"))
 	}
 	return findings
 }
@@ -453,7 +503,7 @@ func validateCandidateManifest(root string, base map[string]string, current map[
 		return findings
 	}
 	manifest, parseFindings := parseSHA256Manifest(manifestPath, data, true)
-	findings = append(findings, parseFindings...)
+	findings = appendFindings(findings, parseFindings...)
 	excluded := map[string]bool{
 		manifestPath:                         true,
 		"docs/artifacts/wave-01-evidence.md": true,
@@ -471,18 +521,18 @@ func validateCandidateManifest(root string, base map[string]string, current map[
 	}
 	for relative, digest := range expected {
 		if manifest[relative] != digest {
-			findings = append(findings, newFinding("SCOPE-390", relative, "candidate manifest is missing or has the wrong digest", "regenerate the exact candidate manifest"))
+			findings = appendFindings(findings, newFinding("SCOPE-390", relative, "candidate manifest is missing or has the wrong digest", "regenerate the exact candidate manifest"))
 		}
 	}
 	for relative := range manifest {
 		if _, ok := expected[relative]; !ok {
-			findings = append(findings, newFinding("SCOPE-391", relative, "candidate manifest contains a noncandidate or excluded path", "regenerate the exact candidate manifest"))
+			findings = appendFindings(findings, newFinding("SCOPE-391", relative, "candidate manifest contains a noncandidate or excluded path", "regenerate the exact candidate manifest"))
 		}
 	}
 	for relative, rule := range rules {
 		if rule.change == "add" && relative != manifestPath && relative != "docs/artifacts/wave-01-evidence.md" {
 			if _, ok := current[relative]; !ok {
-				findings = append(findings, newFinding("SCOPE-392", relative, "final candidate is missing an approved required addition", "complete the approved candidate path"))
+				findings = appendFindings(findings, newFinding("SCOPE-392", relative, "final candidate is missing an approved required addition", "complete the approved candidate path"))
 			}
 		}
 	}

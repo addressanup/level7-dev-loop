@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestCurrentClaimContracts(t *testing.T) {
 	t.Parallel()
@@ -83,5 +90,43 @@ func TestStrictTSVAcceptsExactCommentHeader(t *testing.T) {
 	rows, findings := parseTSV("fixture.tsv", []byte("# id\tvalue\na\tb\n"), []string{"id", "value"})
 	if len(findings) != 0 || len(rows) != 1 || rows[0]["id"] != "a" || rows[0]["value"] != "b" {
 		t.Fatalf("comment-header parse rows=%+v findings=%+v", rows, findings)
+	}
+}
+
+func TestStrictInputBoundsAreEnforcedBeforeParsing(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "oversize"), bytes.Repeat([]byte{'x'}, maxInputBytes+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data, findings := readStrictFile(root, "oversize")
+	if data != nil || findingRules(findings)["BCTL-011"] == 0 {
+		t.Fatalf("oversize input was not rejected before parsing: data=%d findings=%+v", len(data), findings)
+	}
+
+	atLimit := strings.Repeat("x\n", maxInputLines)
+	if _, findings := validateStrictText("at-limit", []byte(atLimit)); findingRules(findings)["BCTL-015"] != 0 {
+		t.Fatalf("line-count boundary was rejected: %+v", findings)
+	}
+	overLimit := atLimit + "x\n"
+	if _, findings := validateStrictText("over-limit", []byte(overLimit)); findingRules(findings)["BCTL-015"] == 0 {
+		t.Fatalf("line-count overflow was accepted: %+v", findings)
+	}
+}
+
+func TestSkillInventoryRejectsEntryOverflowBeforeReadingSkills(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	skills := filepath.Join(root, "skills")
+	if err := os.Mkdir(skills, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for index := 0; index <= maxSkillEntries; index++ {
+		if err := os.Mkdir(filepath.Join(skills, fmt.Sprintf("skill-%03d", index)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, findings := loadSkillInventory(root); findingRules(findings)["CLAIM-213"] == 0 {
+		t.Fatalf("skill-entry overflow was accepted: %+v", findings)
 	}
 }

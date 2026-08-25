@@ -52,6 +52,27 @@ func TestRequirementExpressionRejectsMalformedAndReversedRanges(t *testing.T) {
 	}
 }
 
+func TestRequirementExpressionEnforcesCumulativeExpansionBound(t *testing.T) {
+	t.Parallel()
+	ids, findings := expandRequirementExpressionBounded("`L7-FLOW-000`–`009`", 10)
+	if len(findings) != 0 || len(ids) != 10 {
+		t.Fatalf("at-limit expansion failed: ids=%d findings=%+v", len(ids), findings)
+	}
+	ids, findings = expandRequirementExpressionBounded("`L7-FLOW-000`–`009`", 9)
+	if ids != nil || findingRules(findings)["TRACE-112"] == 0 {
+		t.Fatalf("over-limit expansion was accepted: ids=%d findings=%+v", len(ids), findings)
+	}
+
+	backlog := "# Test\n\n## 8. Normative requirement ownership and release allocation\n\n" +
+		"| Requirement IDs | Accountable backlog owner | Allocation | Count |\n|---|---|---|---|\n" +
+		"| `L7-A-000`–`299` | `L7-BL-001` | V1.0 | 300 |\n" +
+		"| `L7-B-000`–`299` | `L7-BL-002` | V1.0 | 300 |\n\n## 9. Stop\n"
+	owners, findings := parseRequirementOwnership(backlog)
+	if len(owners) != 300 || findingRules(findings)["TRACE-112"] == 0 {
+		t.Fatalf("document-wide expansion bound failed: owners=%d findings=%+v", len(owners), findings)
+	}
+}
+
 func TestTraceRejectsDuplicateMissingUnknownAndAllocationDrift(t *testing.T) {
 	t.Parallel()
 	root := repositoryRoot(t)

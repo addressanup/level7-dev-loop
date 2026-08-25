@@ -19,16 +19,16 @@ type traceResult struct {
 func checkTrace(root string) (traceResult, []finding) {
 	requirementsData, findings := readStrictFile(root, "docs/artifacts/requirements.md")
 	backlogData, backlogFindings := readStrictFile(root, "docs/artifacts/feature-backlog.md")
-	findings = append(findings, backlogFindings...)
+	findings = appendFindings(findings, backlogFindings...)
 	if len(findings) != 0 {
 		return traceResult{}, findings
 	}
 	definitions, definitionFindings := parseRequirementDefinitions(string(requirementsData))
 	owners, ownerFindings := parseRequirementOwnership(string(backlogData))
-	findings = append(findings, definitionFindings...)
-	findings = append(findings, ownerFindings...)
+	findings = appendFindings(findings, definitionFindings...)
+	findings = appendFindings(findings, ownerFindings...)
 	result, validationFindings := validateTrace(definitions, owners)
-	findings = append(findings, validationFindings...)
+	findings = appendFindings(findings, validationFindings...)
 	return result, findings
 }
 
@@ -53,17 +53,21 @@ func parseRequirementDefinitions(document string) (map[string]struct{}, []findin
 		}
 		id, ok := unquoteCodeCell(cell)
 		if !ok || !requirementIDPattern.MatchString(id) {
-			findings = append(findings, newFinding("TRACE-101", fmt.Sprintf("requirements.md:%d", lineIndex+1), "malformed normative requirement ID cell", "restore one exact backticked requirement ID"))
+			findings = appendFindings(findings, newFinding("TRACE-101", fmt.Sprintf("requirements.md:%d", lineIndex+1), "malformed normative requirement ID cell", "restore one exact backticked requirement ID"))
 			continue
 		}
 		if _, duplicate := definitions[id]; duplicate {
-			findings = append(findings, newFinding("TRACE-102", id, "duplicate normative requirement definition", "retain exactly one authoritative definition"))
+			findings = appendFindings(findings, newFinding("TRACE-102", id, "duplicate normative requirement definition", "retain exactly one authoritative definition"))
 			continue
+		}
+		if len(definitions) >= maxExpandedRequirementIDs {
+			findings = appendFindings(findings, newFinding("TRACE-103", "requirements.md", "normative requirement definitions exceed the cumulative limit", "narrow the authoritative requirement set"))
+			break
 		}
 		definitions[id] = struct{}{}
 	}
 	if !inNormativeRegion {
-		findings = append(findings, newFinding("TRACE-100", "requirements.md", "normative requirement section is missing", "restore the approved section heading"))
+		findings = appendFindings(findings, newFinding("TRACE-100", "requirements.md", "normative requirement section is missing", "restore the approved section heading"))
 	}
 	return definitions, findings
 }
@@ -72,6 +76,7 @@ func parseRequirementOwnership(document string) (map[string]ownership, []finding
 	owners := make(map[string]ownership)
 	var findings []finding
 	inOwnershipRegion := false
+	expandedCount := 0
 	for lineIndex, line := range strings.Split(document, "\n") {
 		if strings.HasPrefix(line, "## 8. Normative requirement ownership and release allocation") {
 			inOwnershipRegion = true
@@ -91,35 +96,39 @@ func parseRequirementOwnership(document string) (map[string]ownership, []finding
 			continue
 		}
 		if len(cells) != 4 {
-			findings = append(findings, newFinding("TRACE-120", fmt.Sprintf("feature-backlog.md:%d", lineIndex+1), "ownership row must contain exactly four cells", "restore the approved ownership row shape"))
+			findings = appendFindings(findings, newFinding("TRACE-120", fmt.Sprintf("feature-backlog.md:%d", lineIndex+1), "ownership row must contain exactly four cells", "restore the approved ownership row shape"))
 			continue
 		}
-		ids, expressionFindings := expandRequirementExpression(cells[0])
-		findings = append(findings, expressionFindings...)
+		ids, expressionFindings := expandRequirementExpressionBounded(cells[0], maxExpandedRequirementIDs-expandedCount)
+		findings = appendFindings(findings, expressionFindings...)
+		if len(expressionFindings) != 0 {
+			continue
+		}
+		expandedCount += len(ids)
 		owner, ownerOK := unquoteCodeCell(cells[1])
 		if !ownerOK || !backlogOwnerPattern.MatchString(owner) {
-			findings = append(findings, newFinding("TRACE-121", cells[1], "malformed accountable backlog owner", "use one exact L7-BL-### owner"))
+			findings = appendFindings(findings, newFinding("TRACE-121", cells[1], "malformed accountable backlog owner", "use one exact L7-BL-### owner"))
 			continue
 		}
 		allocation := cells[2]
 		if allocation != "V1.0" && allocation != "V1.x" && allocation != "Later" {
-			findings = append(findings, newFinding("TRACE-122", allocation, "unknown release allocation", "use V1.0, V1.x, or Later"))
+			findings = appendFindings(findings, newFinding("TRACE-122", allocation, "unknown release allocation", "use V1.0, V1.x, or Later"))
 			continue
 		}
 		declaredCount, err := strconv.Atoi(strings.Trim(cells[3], "*"))
 		if err != nil || declaredCount != len(ids) {
-			findings = append(findings, newFinding("TRACE-123", cells[0], "declared count does not match the expanded IDs", "correct the expression or count"))
+			findings = appendFindings(findings, newFinding("TRACE-123", cells[0], "declared count does not match the expanded IDs", "correct the expression or count"))
 		}
 		for _, id := range ids {
 			if previous, duplicate := owners[id]; duplicate {
-				findings = append(findings, newFinding("TRACE-124", id, fmt.Sprintf("multiple accountable owners: %s and %s", previous.owner, owner), "retain exactly one accountable owner"))
+				findings = appendFindings(findings, newFinding("TRACE-124", id, fmt.Sprintf("multiple accountable owners: %s and %s", previous.owner, owner), "retain exactly one accountable owner"))
 				continue
 			}
 			owners[id] = ownership{owner: owner, allocation: allocation}
 		}
 	}
 	if !inOwnershipRegion {
-		findings = append(findings, newFinding("TRACE-119", "feature-backlog.md", "ownership section is missing", "restore the approved section heading"))
+		findings = appendFindings(findings, newFinding("TRACE-119", "feature-backlog.md", "ownership section is missing", "restore the approved section heading"))
 	}
 	return owners, findings
 }
@@ -130,23 +139,23 @@ func validateTrace(definitions map[string]struct{}, owners map[string]ownership)
 	for id := range definitions {
 		owner, ok := owners[id]
 		if !ok {
-			findings = append(findings, newFinding("TRACE-130", id, "normative requirement has no accountable owner", "add exactly one approved ownership record"))
+			findings = appendFindings(findings, newFinding("TRACE-130", id, "normative requirement has no accountable owner", "add exactly one approved ownership record"))
 			continue
 		}
 		result.allocations[owner.allocation]++
 	}
 	for id := range owners {
 		if _, ok := definitions[id]; !ok {
-			findings = append(findings, newFinding("TRACE-131", id, "ownership map contains an unknown requirement", "remove or define the unknown ID through an approved change"))
+			findings = appendFindings(findings, newFinding("TRACE-131", id, "ownership map contains an unknown requirement", "remove or define the unknown ID through an approved change"))
 		}
 	}
 	if len(definitions) != 163 {
-		findings = append(findings, newFinding("TRACE-132", "requirements", fmt.Sprintf("derived total is %d, want 163", len(definitions)), "restore the approved normative requirement set"))
+		findings = appendFindings(findings, newFinding("TRACE-132", "requirements", fmt.Sprintf("derived total is %d, want 163", len(definitions)), "restore the approved normative requirement set"))
 	}
 	expected := map[string]int{"V1.0": 140, "V1.x": 18, "Later": 5}
 	for allocation, want := range expected {
 		if got := result.allocations[allocation]; got != want {
-			findings = append(findings, newFinding("TRACE-133", allocation, fmt.Sprintf("derived allocation is %d, want %d", got, want), "restore the approved release allocation"))
+			findings = appendFindings(findings, newFinding("TRACE-133", allocation, fmt.Sprintf("derived allocation is %d, want %d", got, want), "restore the approved release allocation"))
 		}
 	}
 	return result, findings

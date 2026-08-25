@@ -42,3 +42,14 @@ func TestFindingNormalizationAndOrderAreDeterministic(t *testing.T) {
 		t.Fatal("diagnostic bounds must be positive")
 	}
 }
+
+func TestFindingCollectionIsBoundedBeforeAppend(t *testing.T) {
+	t.Parallel()
+	var findings []finding
+	for index := 0; index < maxCollectedFindings+100; index++ {
+		findings = appendFindings(findings, newFinding("TEST-001", "fixture", "bounded", "none"))
+	}
+	if len(findings) != maxCollectedFindings {
+		t.Fatalf("finding collection size: got %d, want %d", len(findings), maxCollectedFindings)
+	}
+}

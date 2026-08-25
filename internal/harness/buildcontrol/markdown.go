@@ -14,6 +14,8 @@ var (
 	backlogOwnerPattern  = regexp.MustCompile(`^L7-BL-[0-9]{3}$`)
 )
 
+const maxExpandedRequirementIDs = 512
+
 func firstMarkdownCell(line string) (string, bool) {
 	trimmed := strings.TrimSpace(line)
 	if !strings.HasPrefix(trimmed, "|") {
@@ -51,6 +53,13 @@ func unquoteCodeCell(cell string) (string, bool) {
 }
 
 func expandRequirementExpression(expression string) ([]string, []finding) {
+	return expandRequirementExpressionBounded(expression, maxExpandedRequirementIDs)
+}
+
+func expandRequirementExpressionBounded(expression string, limit int) ([]string, []finding) {
+	if limit <= 0 {
+		return nil, []finding{newFinding("TRACE-112", expression, "requirement expansion exceeds the cumulative limit", "narrow the ownership expressions")}
+	}
 	normalized := strings.ReplaceAll(expression, "`", "")
 	normalized = strings.ReplaceAll(normalized, " ", "")
 	if normalized == "" {
@@ -84,6 +93,9 @@ func expandRequirementExpression(expression string) ([]string, []finding) {
 			return nil, []finding{newFinding("TRACE-112", token, "requirement range exceeds the expansion limit", "narrow the range")}
 		}
 		for value := start; value <= end; value++ {
+			if len(ids) >= limit {
+				return nil, []finding{newFinding("TRACE-112", expression, "requirement expansion exceeds the cumulative limit", "narrow the ownership expressions")}
+			}
 			id := fmt.Sprintf("%s%03d", currentPrefix, value)
 			if !requirementIDPattern.MatchString(id) {
 				return nil, []finding{newFinding("TRACE-110", id, "expanded requirement ID is malformed", "correct the range")}

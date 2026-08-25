@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -150,5 +153,53 @@ func TestSafeRelativeASCIIPathRejectsAliases(t *testing.T) {
 	}
 	if !safeRelativeASCIIPath("docs/artifacts/file.md") {
 		t.Fatal("canonical path rejected")
+	}
+}
+
+func TestRepositoryScanStopsAtDirectoryAndFileBounds(t *testing.T) {
+	t.Parallel()
+	t.Run("directories", func(t *testing.T) {
+		root := t.TempDir()
+		for index := 0; index <= maxRepositoryDirectories; index++ {
+			if err := os.Mkdir(filepath.Join(root, fmt.Sprintf("d-%03d", index)), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, findings := scanRepository(root)
+		if findingRules(findings)["SCOPE-348"] == 0 {
+			t.Fatalf("directory traversal overflow was accepted: %+v", findings)
+		}
+	})
+	t.Run("files", func(t *testing.T) {
+		root := t.TempDir()
+		for index := 0; index <= maxRepositoryFiles; index++ {
+			name := filepath.Join(root, fmt.Sprintf("f-%03d", index))
+			if err := os.WriteFile(name, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, findings := scanRepository(root)
+		if findingRules(findings)["SCOPE-346"] == 0 {
+			t.Fatalf("file traversal overflow was accepted: %+v", findings)
+		}
+	})
+}
+
+func TestRepositoryFileReadHonorsByteBoundary(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	name := filepath.Join(root, "fixture")
+	if err := os.WriteFile(name, []byte("data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, size, findings := readRepositoryFile(name, "fixture", info, 4); len(findings) != 0 || size != 4 {
+		t.Fatalf("at-limit repository read failed: size=%d findings=%+v", size, findings)
+	}
+	if _, _, findings := readRepositoryFile(name, "fixture", info, 3); findingRules(findings)["SCOPE-347"] == 0 {
+		t.Fatalf("over-limit repository read was accepted: %+v", findings)
 	}
 }

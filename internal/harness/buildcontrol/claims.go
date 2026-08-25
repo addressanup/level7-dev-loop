@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 )
+
+const maxSkillEntries = 64
 
 type supportExpectation struct {
 	surface      string
@@ -53,14 +56,14 @@ var expectedDispositions = map[string]dispositionExpectation{
 func checkClaims(root string) (int, []finding) {
 	supportRows, findings := loadTSV(root, "harness/support-matrix.tsv", []string{"id", "surface", "current_state", "v1_ceiling", "claim_state", "owner"})
 	dispositionRows, dispositionLoadFindings := loadTSV(root, "harness/prototype-dispositions.tsv", []string{"skill", "disposition", "target_owner", "cutover"})
-	findings = append(findings, dispositionLoadFindings...)
+	findings = appendFindings(findings, dispositionLoadFindings...)
 	if len(findings) != 0 {
 		return 0, findings
 	}
-	findings = append(findings, validateSupportRows(supportRows)...)
+	findings = appendFindings(findings, validateSupportRows(supportRows)...)
 	inventory, inventoryFindings := loadSkillInventory(root)
-	findings = append(findings, inventoryFindings...)
-	findings = append(findings, validateDispositionRows(dispositionRows, inventory)...)
+	findings = appendFindings(findings, inventoryFindings...)
+	findings = appendFindings(findings, validateDispositionRows(dispositionRows, inventory)...)
 	return len(inventory), findings
 }
 
@@ -70,32 +73,43 @@ func validateSupportRows(rows []tsvRow) []finding {
 	for _, row := range rows {
 		id := row["id"]
 		if seen[id] {
-			findings = append(findings, newFinding("CLAIM-201", id, "duplicate support-matrix ID", "retain exactly one row"))
+			findings = appendFindings(findings, newFinding("CLAIM-201", id, "duplicate support-matrix ID", "retain exactly one row"))
 			continue
 		}
 		seen[id] = true
 		expected, ok := expectedSupport[id]
 		if !ok {
-			findings = append(findings, newFinding("CLAIM-202", id, "unknown support-matrix ID", "remove or approve the new claim surface"))
+			findings = appendFindings(findings, newFinding("CLAIM-202", id, "unknown support-matrix ID", "remove or approve the new claim surface"))
 			continue
 		}
 		actual := supportExpectation{row["surface"], row["current_state"], row["v1_ceiling"], row["claim_state"], row["owner"]}
 		if actual != expected {
-			findings = append(findings, newFinding("CLAIM-203", id, "support row differs from the approved Wave 1 claim", "restore the approved claim or obtain a new impact decision"))
+			findings = appendFindings(findings, newFinding("CLAIM-203", id, "support row differs from the approved Wave 1 claim", "restore the approved claim or obtain a new impact decision"))
 		}
 	}
 	for id := range expectedSupport {
 		if !seen[id] {
-			findings = append(findings, newFinding("CLAIM-204", id, "required support-matrix row is missing", "restore the required row"))
+			findings = appendFindings(findings, newFinding("CLAIM-204", id, "required support-matrix row is missing", "restore the required row"))
 		}
 	}
 	return findings
 }
 
 func loadSkillInventory(root string) ([]string, []finding) {
-	entries, err := os.ReadDir(filepath.Join(root, "skills"))
+	directory, err := os.Open(filepath.Join(root, "skills"))
 	if err != nil {
 		return nil, []finding{newFinding("CLAIM-210", "skills", err.Error(), "restore the protected skill inventory")}
+	}
+	entries, readErr := directory.ReadDir(maxSkillEntries + 1)
+	closeErr := directory.Close()
+	if readErr != nil && readErr != io.EOF {
+		return nil, []finding{newFinding("CLAIM-210", "skills", readErr.Error(), "restore the protected skill inventory")}
+	}
+	if closeErr != nil {
+		return nil, []finding{newFinding("CLAIM-210", "skills", closeErr.Error(), "restore the protected skill inventory")}
+	}
+	if len(entries) > maxSkillEntries {
+		return nil, []finding{newFinding("CLAIM-213", "skills", "skill directory exceeds the entry limit", "narrow the protected skill inventory")}
 	}
 	var inventory []string
 	var findings []finding
@@ -106,11 +120,11 @@ func loadSkillInventory(root string) ([]string, []finding) {
 		relative := filepath.ToSlash(filepath.Join("skills", entry.Name(), "SKILL.md"))
 		data, readFindings := readStrictFile(root, relative)
 		if len(readFindings) != 0 {
-			findings = append(findings, readFindings...)
+			findings = appendFindings(findings, readFindings...)
 			continue
 		}
 		name, invocable, parseFindings := parseSkillFrontmatter(relative, string(data))
-		findings = append(findings, parseFindings...)
+		findings = appendFindings(findings, parseFindings...)
 		if invocable {
 			inventory = append(inventory, name)
 		}
@@ -155,31 +169,31 @@ func validateDispositionRows(rows []tsvRow, inventory []string) []finding {
 	for _, row := range rows {
 		skill := row["skill"]
 		if seen[skill] {
-			findings = append(findings, newFinding("CLAIM-220", skill, "duplicate prototype disposition", "retain exactly one disposition"))
+			findings = appendFindings(findings, newFinding("CLAIM-220", skill, "duplicate prototype disposition", "retain exactly one disposition"))
 			continue
 		}
 		seen[skill] = true
 		if !inventorySet[skill] {
-			findings = append(findings, newFinding("CLAIM-221", skill, "disposition names an unknown or non-invocable skill", "remove or approve the inventory change"))
+			findings = appendFindings(findings, newFinding("CLAIM-221", skill, "disposition names an unknown or non-invocable skill", "remove or approve the inventory change"))
 			continue
 		}
 		expected, ok := expectedDispositions[skill]
 		if !ok {
-			findings = append(findings, newFinding("CLAIM-222", skill, "skill has no approved Wave 1 disposition", "add an approved disposition"))
+			findings = appendFindings(findings, newFinding("CLAIM-222", skill, "skill has no approved Wave 1 disposition", "add an approved disposition"))
 			continue
 		}
 		actual := dispositionExpectation{row["disposition"], row["target_owner"], row["cutover"]}
 		if actual != expected {
-			findings = append(findings, newFinding("CLAIM-223", skill, "prototype disposition differs from the approved migration plan", "restore the approved disposition or obtain a new impact decision"))
+			findings = appendFindings(findings, newFinding("CLAIM-223", skill, "prototype disposition differs from the approved migration plan", "restore the approved disposition or obtain a new impact decision"))
 		}
 	}
 	for _, skill := range inventory {
 		if !seen[skill] {
-			findings = append(findings, newFinding("CLAIM-224", skill, "user-invocable skill has no disposition", "add exactly one disposition"))
+			findings = appendFindings(findings, newFinding("CLAIM-224", skill, "user-invocable skill has no disposition", "add exactly one disposition"))
 		}
 	}
 	if len(inventory) != 12 {
-		findings = append(findings, newFinding("CLAIM-225", "prototype-inventory", fmt.Sprintf("derived user-invocable skill count is %d, want 12", len(inventory)), "restore or approve the prototype inventory"))
+		findings = appendFindings(findings, newFinding("CLAIM-225", "prototype-inventory", fmt.Sprintf("derived user-invocable skill count is %d, want 12", len(inventory)), "restore or approve the prototype inventory"))
 	}
 	return findings
 }

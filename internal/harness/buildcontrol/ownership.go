@@ -50,10 +50,10 @@ var expectedOwnership = map[string]ownershipExpectation{
 func checkOwnership(root string) (int, []finding) {
 	rows, findings := loadTSV(root, "harness/control-ownership.tsv", []string{"control", "path_kind", "path", "writer", "reviewer", "change_gate"})
 	rules, validationFindings := validateOwnershipRows(rows)
-	findings = append(findings, validationFindings...)
+	findings = appendFindings(findings, validationFindings...)
 	pathRows, pathFindings := loadTSV(root, "harness/wave-01-paths.tsv", []string{"change", "path", "owner", "rule"})
-	findings = append(findings, pathFindings...)
-	findings = append(findings, crossCheckPathOwnership(pathRows, rules)...)
+	findings = appendFindings(findings, pathFindings...)
+	findings = appendFindings(findings, crossCheckPathOwnership(pathRows, rules)...)
 	return len(rules), findings
 }
 
@@ -63,12 +63,12 @@ func validateOwnershipRows(rows []tsvRow) (map[string]ownershipExpectation, []fi
 	for _, row := range rows {
 		control := row["control"]
 		if _, duplicate := rules[control]; duplicate {
-			findings = append(findings, newFinding("OWN-401", control, "duplicate control ownership row", "retain exactly one control owner"))
+			findings = appendFindings(findings, newFinding("OWN-401", control, "duplicate control ownership row", "retain exactly one control owner"))
 			continue
 		}
 		actual := ownershipExpectation{row["path_kind"], row["path"], row["writer"], row["reviewer"], row["change_gate"]}
 		if actual.pathKind != "exact" && actual.pathKind != "prefix" {
-			findings = append(findings, newFinding("OWN-402", control, "unknown ownership path kind", "use exact or prefix"))
+			findings = appendFindings(findings, newFinding("OWN-402", control, "unknown ownership path kind", "use exact or prefix"))
 			continue
 		}
 		canonicalPath := actual.path
@@ -76,20 +76,20 @@ func validateOwnershipRows(rows []tsvRow) (map[string]ownershipExpectation, []fi
 			canonicalPath = strings.TrimSuffix(actual.path, "/")
 		}
 		if !safeRelativeASCIIPath(canonicalPath) || (actual.pathKind == "prefix" && canonicalPath+"/" != actual.path) {
-			findings = append(findings, newFinding("OWN-403", control, "ownership path is noncanonical", "use an exact ASCII path and a trailing slash for prefixes"))
+			findings = appendFindings(findings, newFinding("OWN-403", control, "ownership path is noncanonical", "use an exact ASCII path and a trailing slash for prefixes"))
 			continue
 		}
 		rules[control] = actual
 		expected, ok := expectedOwnership[control]
 		if !ok {
-			findings = append(findings, newFinding("OWN-404", control, "unknown shared-control class", "remove it or obtain an approved ownership change"))
+			findings = appendFindings(findings, newFinding("OWN-404", control, "unknown shared-control class", "remove it or obtain an approved ownership change"))
 		} else if actual != expected {
-			findings = append(findings, newFinding("OWN-405", control, "ownership row differs from the approved design", "restore the approved writer, reviewer, and gate"))
+			findings = appendFindings(findings, newFinding("OWN-405", control, "ownership row differs from the approved design", "restore the approved writer, reviewer, and gate"))
 		}
 	}
 	for control := range expectedOwnership {
 		if _, ok := rules[control]; !ok {
-			findings = append(findings, newFinding("OWN-406", control, "required shared-control ownership is missing", "restore the required ownership row"))
+			findings = appendFindings(findings, newFinding("OWN-406", control, "required shared-control ownership is missing", "restore the required ownership row"))
 		}
 	}
 	controls := sortedKeys(rules)
@@ -98,7 +98,7 @@ func validateOwnershipRows(rows []tsvRow) (map[string]ownershipExpectation, []fi
 		for _, rightControl := range controls[leftIndex+1:] {
 			right := rules[rightControl]
 			if ownershipPathsOverlap(left, right) {
-				findings = append(findings, newFinding("OWN-407", fmt.Sprintf("%s+%s", leftControl, rightControl), "ownership paths overlap", "make shared-control ownership paths disjoint"))
+				findings = appendFindings(findings, newFinding("OWN-407", fmt.Sprintf("%s+%s", leftControl, rightControl), "ownership paths overlap", "make shared-control ownership paths disjoint"))
 			}
 		}
 	}
@@ -129,11 +129,11 @@ func crossCheckPathOwnership(pathRows []tsvRow, rules map[string]ownershipExpect
 			}
 		}
 		if len(matches) != 1 {
-			findings = append(findings, newFinding("OWN-410", relative, fmt.Sprintf("path resolves to %d ownership rules, want one", len(matches)), "assign one disjoint accountable writer"))
+			findings = appendFindings(findings, newFinding("OWN-410", relative, fmt.Sprintf("path resolves to %d ownership rules, want one", len(matches)), "assign one disjoint accountable writer"))
 			continue
 		}
 		if matches[0].writer != row["owner"] {
-			findings = append(findings, newFinding("OWN-411", relative, "path-policy owner differs from shared-control writer", "restore one consistent writer"))
+			findings = appendFindings(findings, newFinding("OWN-411", relative, "path-policy owner differs from shared-control writer", "restore one consistent writer"))
 		}
 	}
 	return findings

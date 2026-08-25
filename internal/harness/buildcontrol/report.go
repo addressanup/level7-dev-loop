@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	maxFindings    = 50
-	maxMessageSize = 240
+	maxFindings          = 50
+	maxCollectedFindings = maxFindings + 1
+	maxMessageSize       = 240
 )
 
 type finding struct {
@@ -25,6 +26,17 @@ func newFinding(rule, subject, message, next string) finding {
 		message: safeASCII(message, maxMessageSize),
 		next:    safeASCII(next, maxMessageSize),
 	}
+}
+
+func appendFindings(current []finding, additional ...finding) []finding {
+	remaining := maxCollectedFindings - len(current)
+	if remaining <= 0 {
+		return current
+	}
+	if len(additional) > remaining {
+		additional = additional[:remaining]
+	}
+	return append(current, additional...)
 }
 
 func sortFindings(findings []finding) {
@@ -47,7 +59,7 @@ func printFindings(findings []finding) {
 	}
 	if len(findings) > limit {
 		fmt.Printf("BLOCKED rule=BCTL-099 subject=findings message=%q next=%q\n",
-			fmt.Sprintf("%d additional findings omitted", len(findings)-limit),
+			"finding collection cap reached; additional findings omitted",
 			"fix the reported findings and rerun the complete gate")
 	}
 }
