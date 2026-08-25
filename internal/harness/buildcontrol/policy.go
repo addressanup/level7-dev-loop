@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	waveBaseCommit = "ee181b759c346055b0fb5b2fa1b3b1e676dd83e4"
-	waveBaseTree   = "2f23a0810660995b6f562c361ab38cd4faafa3b3"
-	selectedModule = "github.com/addressanup/level7-dev-loop"
-	legacyModule   = "continuallabs.ltd/level7-dev-loop"
+	waveBaseCommit     = "ee181b759c346055b0fb5b2fa1b3b1e676dd83e4"
+	waveBaseTree       = "2f23a0810660995b6f562c361ab38cd4faafa3b3"
+	selectedModule     = "github.com/addressanup/level7-dev-loop"
+	legacyModule       = "continuallabs.ltd/level7-dev-loop"
+	maxRepositoryFiles = 512
+	maxRepositoryBytes = int64(8 << 20)
 )
 
 var sha256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -77,6 +79,13 @@ var expectedWavePaths = map[string]pathExpectation{
 	"scripts/harness/check-import-boundaries.sh":      {"modify", "harness-integrator", "SCOPE-320"},
 }
 
+var approvedWaveInputs = map[string]string{
+	"docs/artifacts/wave-01-change-contract.md":  "f53d06d2b02760bcf6ca958b72e4d2473cc52edc3f4a2cb1471cadbd4ab42afc",
+	"docs/artifacts/wave-01-design.md":           "07953b2319635846505a018c3e4cc66705e0c263ab01b0a5c79e75cdaf1fb8e8",
+	"docs/artifacts/wave-01-design-amendment.md": "934a9b0fb2839425401d77ef53d9a7914a14812f3eadd4fa10e4f770ebe12e29",
+	"docs/artifacts/wave-01-specification.md":    "8715388fbe0185a3ae24d4c13d30704305a2393526fefcc71a82fce9bba119cc",
+}
+
 func checkPolicy(root string) (policyResult, []finding) {
 	phaseRows, findings := loadTSV(root, "harness/phases.tsv", []string{"phase", "state", "base_commit", "base_tree", "base_manifest", "path_policy"})
 	phase, phaseFindings := validatePhaseRows(phaseRows)
@@ -87,13 +96,14 @@ func checkPolicy(root string) (policyResult, []finding) {
 	findings = append(findings, validationFindings...)
 	baseData, baseReadFindings := readStrictFile(root, "harness/wave-01-base.sha256")
 	findings = append(findings, baseReadFindings...)
-	base, baseFindings := parseSHA256Manifest("harness/wave-01-base.sha256", baseData, false)
+	base, baseFindings := parseSHA256Manifest("harness/wave-01-base.sha256", baseData, true)
 	findings = append(findings, baseFindings...)
 	current, walkFindings := scanRepository(root)
 	findings = append(findings, walkFindings...)
 	changed, snapshotFindings := validateSnapshot(base, current, rules)
 	findings = append(findings, snapshotFindings...)
 	findings = append(findings, checkProtectedInputs(root)...)
+	findings = append(findings, checkApprovedWaveInputs(root)...)
 	finalCandidate := current["docs/artifacts/wave-01-candidate.sha256"].regular
 	findings = append(findings, checkHarnessInvariants(root, finalCandidate)...)
 	if finalCandidate {
@@ -180,6 +190,8 @@ func parseSHA256Manifest(name string, data []byte, requireSorted bool) (map[stri
 func scanRepository(root string) (map[string]snapshotFile, []finding) {
 	current := make(map[string]snapshotFile)
 	var findings []finding
+	filesSeen := 0
+	totalBytes := int64(0)
 	err := filepath.WalkDir(root, func(fullPath string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			findings = append(findings, newFinding("SCOPE-340", filepath.ToSlash(fullPath), walkErr.Error(), "restore readable bounded repository state"))
@@ -200,6 +212,11 @@ func scanRepository(root string) (map[string]snapshotFile, []finding) {
 		if entry.IsDir() {
 			return nil
 		}
+		filesSeen++
+		if filesSeen > maxRepositoryFiles {
+			findings = append(findings, newFinding("SCOPE-346", relative, "repository file count exceeds the Wave 1 bound", "remove the unapproved paths or approve a bounded successor"))
+			return nil
+		}
 		if !safeRelativeASCIIPath(relative) {
 			findings = append(findings, newFinding("SCOPE-341", relative, "noncanonical or non-ASCII repository path", "remove or rename the unapproved path"))
 			return nil
@@ -214,6 +231,11 @@ func scanRepository(root string) (map[string]snapshotFile, []finding) {
 			current[relative] = snapshotFile{}
 			return nil
 		}
+		if info.Size() > maxRepositoryBytes-totalBytes {
+			findings = append(findings, newFinding("SCOPE-347", relative, "repository bytes exceed the Wave 1 bound", "remove the unapproved data or approve a bounded successor"))
+			return nil
+		}
+		totalBytes += info.Size()
 		links, ok := regularFileLinkCount(info)
 		if !ok || links != 1 {
 			findings = append(findings, newFinding("SCOPE-344", relative, fmt.Sprintf("regular file link count is %d", links), "use one independent regular file"))
@@ -288,6 +310,18 @@ func checkProtectedInputs(root string) []finding {
 	return findings
 }
 
+func checkApprovedWaveInputs(root string) []finding {
+	var findings []finding
+	for relative, expected := range approvedWaveInputs {
+		content, readFindings := readStrictFile(root, relative)
+		findings = append(findings, readFindings...)
+		if len(readFindings) == 0 && fileSHA256(content) != expected {
+			findings = append(findings, newFinding("SCOPE-361", relative, "approved Wave 1 planning bytes changed", "restore the exact owner-approved input"))
+		}
+	}
+	return findings
+}
+
 func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 	var findings []finding
 	read := func(relative string) string {
@@ -300,13 +334,61 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 		findings = append(findings, newFinding("SCOPE-370", ".go-version", "baseline Go version changed", "restore Go 1.26.7"))
 	}
 	moduleData := read("go.mod")
+	moduleRows, moduleFindings := loadTSV(root, "harness/modules.lock.tsv", []string{"role", "state", "directory", "module_path"})
+	findings = append(findings, moduleFindings...)
+	findings = append(findings, validateModuleInvariants(moduleData, moduleRows, finalCandidate)...)
+	for _, relative := range []string{"go.sum", "vendor"} {
+		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
+			findings = append(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in Wave 1", "remove it through an authorized recovery action"))
+		}
+	}
+	for _, relative := range []string{"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/render", "internal/evaluator", "semantic", "schemas", "fixtures", "packages", "build/generated"} {
+		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
+			findings = append(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
+		}
+	}
+	workflow := read(".github/workflows/harness.yml")
+	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify Wave 1 build controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
+		if !strings.Contains(workflow, required) {
+			findings = append(findings, newFinding("SCOPE-380", ".github/workflows/harness.yml", "configured CI lost a required safety or matrix binding", "restore the approved configured control"))
+		}
+	}
+	if strings.Contains(workflow, "pull_request_target:") || strings.Contains(workflow, "secrets.") {
+		findings = append(findings, newFinding("SCOPE-381", ".github/workflows/harness.yml", "configured CI contains a forbidden trigger or secret reference", "remove the forbidden control"))
+	}
+	makefile := read("Makefile")
+	for _, required := range []string{"override CORE_MODULE_PATH :=", "$(PROJECT_ROOT)/harness/modules.lock.tsv", "override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness", "build-control-check: toolchain-check", "\"$(GO)\" run -mod=readonly ./internal/harness/buildcontrol", "policy-check: build-control-check", "candidate-check: policy-check import-check"} {
+		if !strings.Contains(makefile, required) {
+			findings = append(findings, newFinding("SCOPE-383", "Makefile", "active build-control integration is incomplete", "restore the approved module-derived Wave 1 targets"))
+		}
+	}
+	if strings.Contains(makefile, legacyModule) || strings.Contains(makefile, "check-foundation-scope.sh") {
+		findings = append(findings, newFinding("SCOPE-384", "Makefile", "active harness retains a provisional module or predecessor policy entry", "use the module registry and Wave 1 controller"))
+	}
+	importCheck := read("scripts/harness/check-import-boundaries.sh")
+	for _, required := range []string{"matches_prefix \"$package\" \"$harness_path\" && continue", "matches_prefix \"$imported\" \"$harness_path\""} {
+		if !strings.Contains(importCheck, required) {
+			findings = append(findings, newFinding("SCOPE-385", "scripts/harness/check-import-boundaries.sh", "harness descendant import denial is incomplete", "restore prefix denial for the entire harness subtree"))
+		}
+	}
+	for relative, required := range map[string]string{
+		"harness/signing-identities.lock.tsv": "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796",
+		"harness/ci-actions.lock.tsv":         "3d3c42e5aac5ba805825da76410c181273ba90b1",
+		"harness/toolchains.lock.tsv":         "1.26.7",
+	} {
+		if !strings.Contains(read(relative), required) {
+			findings = append(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
+		}
+	}
+	return findings
+}
+
+func validateModuleInvariants(moduleData string, moduleRows []tsvRow, finalCandidate bool) []finding {
+	var findings []finding
 	modulePath := ""
 	for _, line := range strings.Split(moduleData, "\n") {
 		if strings.HasPrefix(line, "module ") {
 			modulePath = strings.TrimPrefix(line, "module ")
-		}
-		if strings.HasPrefix(strings.TrimSpace(line), "require") {
-			findings = append(findings, newFinding("SCOPE-371", "go.mod", "production dependency requirement is forbidden in Wave 1", "remove the dependency"))
 		}
 	}
 	if modulePath != legacyModule && modulePath != selectedModule {
@@ -315,11 +397,10 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 	if finalCandidate && modulePath != selectedModule {
 		findings = append(findings, newFinding("SCOPE-373", "go.mod", "final candidate did not apply the approved module decision", "use the approved GitHub module"))
 	}
-	if !strings.Contains(moduleData, "toolchain go1.26.7") {
-		findings = append(findings, newFinding("SCOPE-374", "go.mod", "toolchain pin changed", "restore toolchain go1.26.7"))
+	expectedGoMod := fmt.Sprintf("module %s\n\ngo 1.26.0\n\ntoolchain go1.26.7\n", modulePath)
+	if moduleData != expectedGoMod {
+		findings = append(findings, newFinding("SCOPE-374", "go.mod", "module file differs from the zero-dependency pinned Wave 1 shape", "restore the approved module, Go language, and toolchain lines"))
 	}
-	moduleRows, moduleFindings := loadTSV(root, "harness/modules.lock.tsv", []string{"role", "state", "directory", "module_path"})
-	findings = append(findings, moduleFindings...)
 	coreCount := 0
 	updaterCount := 0
 	for _, row := range moduleRows {
@@ -335,37 +416,21 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 				findings = append(findings, newFinding("SCOPE-376", "updater", "updater must remain reserved with identity UNSET", "restore the Wave 10 reservation"))
 			}
 		}
+		if row["role"] != "core" && row["role"] != "updater" {
+			findings = append(findings, newFinding("SCOPE-377", row["role"], "module registry contains an unknown role", "retain only the active core and reserved updater"))
+		}
 	}
 	if coreCount != 1 || updaterCount != 1 {
 		findings = append(findings, newFinding("SCOPE-377", "harness/modules.lock.tsv", "module registry must contain one core and one updater row", "restore the exact module roles"))
 	}
-	for _, relative := range []string{"go.sum", "vendor"} {
-		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = append(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in Wave 1", "remove it through an authorized recovery action"))
-		}
+	expectedModules := fmt.Sprintf("# role\tstate\tdirectory\tmodule_path\ncore\tactive\t.\t%s\nupdater\treserved\tcmd/l7up\tUNSET\n", modulePath)
+	var actualModules strings.Builder
+	actualModules.WriteString("# role\tstate\tdirectory\tmodule_path\n")
+	for _, row := range moduleRows {
+		fmt.Fprintf(&actualModules, "%s\t%s\t%s\t%s\n", row["role"], row["state"], row["directory"], row["module_path"])
 	}
-	for _, relative := range []string{"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/render", "internal/evaluator", "semantic", "schemas", "fixtures", "packages", "build/generated"} {
-		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = append(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
-		}
-	}
-	workflow := read(".github/workflows/harness.yml")
-	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true"} {
-		if !strings.Contains(workflow, required) {
-			findings = append(findings, newFinding("SCOPE-380", ".github/workflows/harness.yml", "configured CI lost a required safety or matrix binding", "restore the approved configured control"))
-		}
-	}
-	if strings.Contains(workflow, "pull_request_target:") || strings.Contains(workflow, "secrets.") {
-		findings = append(findings, newFinding("SCOPE-381", ".github/workflows/harness.yml", "configured CI contains a forbidden trigger or secret reference", "remove the forbidden control"))
-	}
-	for relative, required := range map[string]string{
-		"harness/signing-identities.lock.tsv": "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796",
-		"harness/ci-actions.lock.tsv":         "3d3c42e5aac5ba805825da76410c181273ba90b1",
-		"harness/toolchains.lock.tsv":         "1.26.7",
-	} {
-		if !strings.Contains(read(relative), required) {
-			findings = append(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
-		}
+	if actualModules.String() != expectedModules {
+		findings = append(findings, newFinding("SCOPE-377", "harness/modules.lock.tsv", "module registry differs from the exact two-role Wave 1 shape", "restore the active core and reserved updater rows"))
 	}
 	return findings
 }

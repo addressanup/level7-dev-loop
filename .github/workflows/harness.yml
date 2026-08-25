@@ -38,5 +38,5 @@ jobs:
       - name: Bootstrap authenticated Go archive
         run: make bootstrap GO_VERSION=${{ matrix.go-version }}
 
-      - name: Verify inert harness offline
+      - name: Verify Wave 1 build controls offline
         run: make ci GO_VERSION=${{ matrix.go-version }}

@@ -1,4 +1,4 @@
-module continuallabs.ltd/level7-dev-loop
+module github.com/addressanup/level7-dev-loop
 
 go 1.26.0
 

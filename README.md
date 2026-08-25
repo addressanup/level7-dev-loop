@@ -1,14 +1,22 @@
 # Level 7 Dev Loop
 
-> Foundation prototype. This repository is not a released, supported, security-qualified, or self-healing product.
+> Wave 1 build-control candidate. This repository is not a released, supported, security-qualified, or self-healing product.
 
 Level 7 Dev Loop is being designed as a dual-host development-governance system for Codex and Claude Code. Its intended scope spans greenfield, brownfield, and legacy work while preserving evidence, explicit approval, small changes, and safe degraded behavior.
 
 The current host manifests and skills are prototype inputs. They provide an advisory workflow only; they do not enforce filesystem isolation, trusted approval, mutation control, provider privacy, deployment safety, or release readiness. The approved architecture separates future advisory host packages from a separately installed controlled client. Neither controlled mode nor product behavior exists in this harness.
 
-## Foundation status
+## Wave 1 candidate status
 
-Requirements, backlog, architecture, and technology selection are recorded under `docs/artifacts/`. Foundation Step 5 adds only an inert developer harness:
+Requirements, backlog, architecture, and technology selection are recorded under `docs/artifacts/`. Foundation Step 5 established the inert developer harness. The local Wave 1 candidate adds a fail-closed, phase-aware build-control successor that:
+
+- derives exactly 163 normative requirements and their `140 V1.0 / 18 V1.x / 5 Later` allocation from approved source records;
+- records a non-support claim matrix and one disposition for each of the 12 prototype skills;
+- binds the active phase to an immutable base commit, tree, manifest, and exact path policy;
+- rejects unknown paths, deletion, protected-byte drift, non-regular files, ambiguous ownership, product paths, dependencies, and updater activation; and
+- preserves the prior Foundation Step 5 checker as immutable historical source while making the Go validator the active policy gate.
+
+The retained harness still provides:
 
 - exact Go 1.26.7 baseline and Go 1.27.0 shadow archive locks;
 - official archive digest and detached-signature verification;
@@ -18,7 +26,7 @@ Requirements, backlog, architecture, and technology selection are recorded under
 - a digest guard over approved foundation inputs and protected prototype files; and
 - a no-secret, no-authority `.env.example` that is never auto-loaded.
 
-The module registry marks the separately required updater module `reserved`. Creating `cmd/l7up` fails the harness until a later approved wave assigns its module identity and adds module-specific dependency enforcement; the root-module boundary check cannot silently treat a nested module as covered.
+The root module is `github.com/addressanup/level7-dev-loop`, selected from the accountable owner's assertion that the project will live in the personal GitHub account `addressanup`. This is sufficient only for the local candidate: repository existence, account control, remote binding, publication, and compatibility remain unauthenticated and `NOT_RUN`. The module registry marks the separately required updater module `reserved`. Creating `cmd/l7up` fails the harness until a later approved wave assigns its module identity and adds module-specific dependency enforcement; the root-module boundary check cannot silently treat a nested module as covered.
 
 There are intentionally no production dependencies, `go.sum`, vendored modules, product commands, runtime packages, generated host packages, provider calls, host experiments, release jobs, or deployment paths.
 
@@ -29,6 +37,9 @@ Prerequisites are a POSIX shell plus `make`, `curl`, `tar`, `awk`, `gpg`, and `g
 ```sh
 make bootstrap
 make install
+make policy-check
+make import-check
+make candidate-check
 make lint
 make typecheck
 make test
@@ -48,11 +59,11 @@ make bootstrap GO_VERSION=1.27.0
 make verify GO_VERSION=1.27.0
 ```
 
-`make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
+`make policy-check` runs the fixed-input Wave 1 controller with the pinned local Go toolchain. `make candidate-check` combines the phase/scope controller and import-boundary gate. `make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
 
-The offline settings close Go module and VCS resolution for these commands; they are not an operating-system network sandbox. The sole proving test has no network import or call. Go telemetry is redirected into the ignored repository cache and pinned `off`; verification fails if either exact compiler no longer exposes that tested isolation mechanism. The `continuallabs.ltd/level7-dev-loop` Go module name is a provisional development namespace based on the owner-supplied product site; domain control and vanity-module resolution must be confirmed before product packages or publication.
+The offline settings close Go module and VCS resolution for these commands; they are not an operating-system network sandbox. The proving tests have no network import or call. Go telemetry is redirected into the ignored repository cache and pinned `off`; verification fails if either exact compiler no longer exposes that tested isolation mechanism.
 
-The GitHub workflow is configured but remains `NOT_RUN` until this folder becomes a Git repository with a remote workflow run. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity.
+The GitHub workflow is configured but remains `NOT_RUN` because no remote workflow run is part of this candidate. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity. The Wave 1 candidate remains incomplete until its manifest/evidence freeze and a separately authorized independent read-only audit; it creates no product behavior or support claim.
 
 ## Prototype skill entry point
 

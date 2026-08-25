@@ -77,3 +77,11 @@ func TestStrictTSVRejectsHeaderBlankAndPaddedFields(t *testing.T) {
 		})
 	}
 }
+
+func TestStrictTSVAcceptsExactCommentHeader(t *testing.T) {
+	t.Parallel()
+	rows, findings := parseTSV("fixture.tsv", []byte("# id\tvalue\na\tb\n"), []string{"id", "value"})
+	if len(findings) != 0 || len(rows) != 1 || rows[0]["id"] != "a" || rows[0]["value"] != "b" {
+		t.Fatalf("comment-header parse rows=%+v findings=%+v", rows, findings)
+	}
+}

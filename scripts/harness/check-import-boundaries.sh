@@ -103,10 +103,12 @@ done <"$policy_file"
 harness_path="$module/internal/harness"
 for package in $packages; do
 	case $package in "$module"/*) ;; *) continue ;; esac
-	test "$package" != "$harness_path" || continue
+	matches_prefix "$package" "$harness_path" && continue
 	imports=$($go_bin list -f '{{join .Imports " "}} {{join .TestImports " "}} {{join .XTestImports " "}}' "$package")
 	for imported in $imports; do
-		test "$imported" != "$harness_path" || fail "BND-005: ${package#"$module/"} imports the test-only harness"
+		if matches_prefix "$imported" "$harness_path"; then
+			fail "BND-005: ${package#"$module/"} imports test/build-control-only harness package $imported"
+		fi
 		test "$imported" != 'unsafe' || fail "BND-007: ${package#"$module/"} imports unsafe"
 	done
 done

@@ -80,6 +80,44 @@ func TestManifestRejectsMalformedDuplicateAndUnsortedRows(t *testing.T) {
 	}
 }
 
+func TestModuleInvariantsRejectWrongDependencyReservedAndExtraStates(t *testing.T) {
+	t.Parallel()
+	validRows := []tsvRow{
+		{"role": "core", "state": "active", "directory": ".", "module_path": selectedModule},
+		{"role": "updater", "state": "reserved", "directory": "cmd/l7up", "module_path": "UNSET"},
+	}
+	validModule := "module " + selectedModule + "\n\ngo 1.26.0\n\ntoolchain go1.26.7\n"
+	if findings := validateModuleInvariants(validModule, validRows, true); len(findings) != 0 {
+		t.Fatalf("valid module findings: %+v", findings)
+	}
+
+	legacyModuleData := "module " + legacyModule + "\n\ngo 1.26.0\n\ntoolchain go1.26.7\n"
+	legacyRows := []tsvRow{
+		{"role": "core", "state": "active", "directory": ".", "module_path": legacyModule},
+		validRows[1],
+	}
+	if rules := findingRules(validateModuleInvariants(legacyModuleData, legacyRows, true)); rules["SCOPE-373"] == 0 {
+		t.Fatalf("final legacy module was accepted: %+v", rules)
+	}
+
+	withDependency := validModule + "\nrequire example.invalid/dependency v1.0.0\n"
+	if rules := findingRules(validateModuleInvariants(withDependency, validRows, true)); rules["SCOPE-374"] == 0 {
+		t.Fatalf("dependency-bearing module was accepted: %+v", rules)
+	}
+
+	badRows := []tsvRow{
+		validRows[0],
+		{"role": "updater", "state": "active", "directory": "cmd/l7up", "module_path": "example.invalid/updater"},
+		{"role": "extra", "state": "active", "directory": "extra", "module_path": "example.invalid/extra"},
+	}
+	rules := findingRules(validateModuleInvariants(validModule, badRows, true))
+	for _, rule := range []string{"SCOPE-376", "SCOPE-377"} {
+		if rules[rule] == 0 {
+			t.Errorf("rules %+v do not contain %s", rules, rule)
+		}
+	}
+}
+
 func TestSafeRelativeASCIIPathRejectsAliases(t *testing.T) {
 	t.Parallel()
 	for _, value := range []string{"", "/absolute", "../escape", "a/../b", "a\\b", "sp ace", "unicodé"} {

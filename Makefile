@@ -29,7 +29,11 @@ override L7_LOG_FORMAT := json
 override L7_LOG_LEVEL := INFO
 override L7_TELEMETRY := off
 override L7_NETWORK := off
-override HARNESS_IMPORT_PATH := continuallabs.ltd/level7-dev-loop/internal/harness
+override CORE_MODULE_PATH := $(strip $(shell awk -F '\t' '$$1 == "core" && $$2 == "active" { print $$4 }' "$(PROJECT_ROOT)/harness/modules.lock.tsv"))
+ifneq ($(words $(CORE_MODULE_PATH)),1)
+$(error harness/modules.lock.tsv must contain exactly one active core module)
+endif
+override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness
 override HARNESS_IDENTITY_LDFLAGS := -X $(HARNESS_IMPORT_PATH).expectedGoVersion=$(L7_EXPECT_GO_VERSION) -X $(HARNESS_IMPORT_PATH).expectedGOOS=$(HOST_GOOS) -X $(HARNESS_IMPORT_PATH).expectedGOARCH=$(HOST_GOARCH)
 
 override GOENV := off
@@ -71,7 +75,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR GOPROXY GOSUMDB 
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install policy-check import-check format-check lint typecheck test reproducible verify ci
+.PHONY: bootstrap prepare toolchain-check install build-control-check policy-check import-check candidate-check format-check lint typecheck test reproducible verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -114,11 +118,15 @@ install: toolchain-check
 	@"$(GO)" mod verify
 	@"$(GO)" mod tidy -diff
 
-policy-check:
-	@./scripts/harness/check-foundation-scope.sh
+build-control-check: toolchain-check
+	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol
+
+policy-check: build-control-check
 
 import-check: toolchain-check
 	@./scripts/harness/check-import-boundaries.sh "$(GO)"
+
+candidate-check: policy-check import-check
 
 format-check: toolchain-check
 	@unformatted="$$(find . -type f -name '*.go' -not -path './.cache/*' -not -path './build/*' -print0 | xargs -0 "$(GOFMT)" -l)"; \
