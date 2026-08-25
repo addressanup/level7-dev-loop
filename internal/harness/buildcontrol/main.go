@@ -18,18 +18,26 @@ func main() {
 	}
 	trace, traceFindings := checkTrace(root)
 	prototypeCount, claimFindings := checkClaims(root)
+	policy, policyFindings := checkPolicy(root)
+	ownershipCount, ownershipFindings := checkOwnership(root)
 	findings = append(findings, traceFindings...)
 	findings = append(findings, claimFindings...)
+	findings = append(findings, policyFindings...)
+	findings = append(findings, ownershipFindings...)
 	if len(findings) != 0 {
 		printFindings(findings)
 		os.Exit(1)
 	}
-	fmt.Printf("PASS rule=BCTL-000 phase=wave-01 requirements=%d allocation=v1.0:%d,v1.x:%d,later:%d prototypes=%d\n",
+	fmt.Printf("PASS rule=BCTL-000 phase=%s requirements=%d allocation=v1.0:%d,v1.x:%d,later:%d prototypes=%d ownership=%d files=%d changed=%d\n",
+		policy.phase,
 		trace.total,
 		trace.allocations["V1.0"],
 		trace.allocations["V1.x"],
 		trace.allocations["Later"],
 		prototypeCount,
+		ownershipCount,
+		policy.files,
+		policy.changed,
 	)
 }
 

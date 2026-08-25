@@ -65,7 +65,11 @@ func parseTSV(name string, data []byte, expectedHeader []string) ([]tsvRow, []fi
 	var rows []tsvRow
 	for lineIndex, line := range lines[:len(lines)-1] {
 		if !headerSeen && strings.HasPrefix(line, "#") {
-			continue
+			commentHeader := strings.TrimPrefix(line, "# ")
+			if commentHeader != strings.Join(expectedHeader, "\t") {
+				continue
+			}
+			line = commentHeader
 		}
 		if line == "" {
 			findings = append(findings, newFinding("BCTL-017", fmt.Sprintf("%s:%d", name, lineIndex+1), "blank rows are forbidden", "remove the blank row"))
