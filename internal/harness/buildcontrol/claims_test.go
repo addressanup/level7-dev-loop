@@ -25,18 +25,63 @@ func TestSupportMatrixRejectsFalseClaimsAndInventoryDrift(t *testing.T) {
 	rows := make([]tsvRow, 0, len(expectedSupport))
 	for id, expected := range expectedSupport {
 		rows = append(rows, tsvRow{
-			"id": id, "surface": expected.surface, "current_state": expected.currentState,
+			"record_version": expected.recordVersion, "id": id, "surface": expected.surface, "current_state": expected.currentState,
 			"v1_ceiling": expected.v1Ceiling, "claim_state": expected.claimState, "owner": expected.owner,
 		})
 	}
 	rows[0]["claim_state"] = "supported"
 	rows = append(rows, rows[1])
-	rows = append(rows, tsvRow{"id": "unapproved", "surface": "unknown", "current_state": "planned", "v1_ceiling": "A5", "claim_state": "supported", "owner": "L7-BL-001"})
+	rows = append(rows, tsvRow{"record_version": "wave-01-v1", "id": "unapproved", "surface": "unknown", "current_state": "planned", "v1_ceiling": "A5", "claim_state": "supported", "owner": "L7-BL-001"})
 	rules := findingRules(validateSupportRows(rows))
 	for _, rule := range []string{"CLAIM-201", "CLAIM-202", "CLAIM-203"} {
 		if rules[rule] == 0 {
 			t.Errorf("rules %+v do not contain %s", rules, rule)
 		}
+	}
+}
+
+func TestSupportMatrixRejectsEveryRequiredBoundaryDrift(t *testing.T) {
+	t.Parallel()
+	for _, id := range []string{"workspace-boundary", "plugin-authority", "development-evidence", "release-blocking-proof", "priority-p0", "priority-p1", "priority-p2", "priority-change-control"} {
+		id := id
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+			var rows []tsvRow
+			for rowID, expected := range expectedSupport {
+				row := tsvRow{
+					"record_version": expected.recordVersion, "id": rowID, "surface": expected.surface, "current_state": expected.currentState,
+					"v1_ceiling": expected.v1Ceiling, "claim_state": expected.claimState, "owner": expected.owner,
+				}
+				if rowID == id {
+					row["claim_state"] = "promoted"
+				}
+				rows = append(rows, row)
+			}
+			if findings := validateSupportRows(rows); findingRules(findings)["CLAIM-203"] == 0 {
+				t.Fatalf("%s drift was accepted: %+v", id, findings)
+			}
+		})
+	}
+}
+
+func TestPriorityContractIsSourceBound(t *testing.T) {
+	t.Parallel()
+	data, findings := readStrictFile(repositoryRoot(t), "docs/artifacts/feature-backlog.md")
+	if len(findings) != 0 {
+		t.Fatalf("read backlog: %+v", findings)
+	}
+	if findings := validatePriorityContract(string(data)); len(findings) != 0 {
+		t.Fatalf("approved priority contract findings: %+v", findings)
+	}
+	for priority := range expectedPriority {
+		changed := strings.Replace(string(data), "| `"+priority+"` |", "| `PX` |", 1)
+		if findings := validatePriorityContract(changed); findingRules(findings)["CLAIM-205"] == 0 {
+			t.Fatalf("%s priority drift was accepted: %+v", priority, findings)
+		}
+	}
+	changed := strings.Replace(string(data), requiredPriorityChangeRules[0], "priority changes are unrestricted", 1)
+	if findings := validatePriorityContract(changed); findingRules(findings)["CLAIM-206"] == 0 {
+		t.Fatalf("priority approval drift was accepted: %+v", findings)
 	}
 }
 
