@@ -226,8 +226,13 @@ func scanRepository(root string) (map[string]snapshotFile, []finding) {
 			findings = append(findings, newFinding("SCOPE-342", relative, err.Error(), "restore readable regular-file state"))
 			return nil
 		}
+		links := uint64(0)
+		linkCountKnown := false
+		if info.Mode().IsRegular() {
+			links, linkCountKnown = regularFileLinkCount(info)
+		}
+		findings = append(findings, validateFileShape(relative, info.Mode(), links, linkCountKnown)...)
 		if !info.Mode().IsRegular() {
-			findings = append(findings, newFinding("SCOPE-343", relative, "repository entry is not a regular file", "remove the symlink or special node"))
 			current[relative] = snapshotFile{}
 			return nil
 		}
@@ -236,10 +241,6 @@ func scanRepository(root string) (map[string]snapshotFile, []finding) {
 			return nil
 		}
 		totalBytes += info.Size()
-		links, ok := regularFileLinkCount(info)
-		if !ok || links != 1 {
-			findings = append(findings, newFinding("SCOPE-344", relative, fmt.Sprintf("regular file link count is %d", links), "use one independent regular file"))
-		}
 		data, err := os.ReadFile(fullPath)
 		if err != nil {
 			findings = append(findings, newFinding("SCOPE-345", relative, err.Error(), "restore readable candidate bytes"))
@@ -252,6 +253,16 @@ func scanRepository(root string) (map[string]snapshotFile, []finding) {
 		findings = append(findings, newFinding("SCOPE-340", root, err.Error(), "restore a readable repository tree"))
 	}
 	return current, findings
+}
+
+func validateFileShape(relative string, mode fs.FileMode, links uint64, linkCountKnown bool) []finding {
+	if !mode.IsRegular() {
+		return []finding{newFinding("SCOPE-343", relative, "repository entry is not a regular file", "remove the symlink or special node")}
+	}
+	if !linkCountKnown || links != 1 {
+		return []finding{newFinding("SCOPE-344", relative, fmt.Sprintf("regular file link count is %d", links), "use one independent regular file")}
+	}
+	return nil
 }
 
 func validateSnapshot(base map[string]string, current map[string]snapshotFile, rules map[string]pathExpectation) (int, []finding) {

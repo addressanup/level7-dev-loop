@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -77,6 +78,28 @@ func TestManifestRejectsMalformedDuplicateAndUnsortedRows(t *testing.T) {
 		if rules[rule] == 0 {
 			t.Errorf("rules %+v do not contain %s", rules, rule)
 		}
+	}
+}
+
+func TestFileShapeRejectsSymlinkSpecialAndHardlink(t *testing.T) {
+	t.Parallel()
+	for name, mode := range map[string]fs.FileMode{
+		"symlink": fs.ModeSymlink,
+		"pipe":    fs.ModeNamedPipe,
+		"device":  fs.ModeDevice,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if rules := findingRules(validateFileShape("candidate", mode, 0, false)); rules["SCOPE-343"] == 0 {
+				t.Fatalf("nonregular mode %v was accepted: %+v", mode, rules)
+			}
+		})
+	}
+	if rules := findingRules(validateFileShape("candidate", 0, 2, true)); rules["SCOPE-344"] == 0 {
+		t.Fatalf("hardlinked regular file was accepted: %+v", rules)
+	}
+	if findings := validateFileShape("candidate", 0, 1, true); len(findings) != 0 {
+		t.Fatalf("single-link regular file findings: %+v", findings)
 	}
 }
 

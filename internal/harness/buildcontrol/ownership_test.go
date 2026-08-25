@@ -49,3 +49,19 @@ func TestOwnershipRejectsOverlappingPathsAndWriterMismatch(t *testing.T) {
 		t.Fatalf("writer mismatch findings: %+v", findings)
 	}
 }
+
+func TestOwnershipRejectsCandidateWriterForProtectedControls(t *testing.T) {
+	t.Parallel()
+	var rows []tsvRow
+	for control, expected := range expectedOwnership {
+		writer := expected.writer
+		if control == "protected-controls" {
+			writer = "candidate-author"
+		}
+		rows = append(rows, tsvRow{"control": control, "path_kind": expected.pathKind, "path": expected.path, "writer": writer, "reviewer": expected.reviewer, "change_gate": expected.changeGate})
+	}
+	_, findings := validateOwnershipRows(rows)
+	if rules := findingRules(findings); rules["OWN-405"] == 0 {
+		t.Fatalf("candidate protected-control ownership was accepted: %+v", findings)
+	}
+}

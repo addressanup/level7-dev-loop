@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -20,4 +21,24 @@ func findingRules(findings []finding) map[string]int {
 		rules[item.rule]++
 	}
 	return rules
+}
+
+func TestFindingNormalizationAndOrderAreDeterministic(t *testing.T) {
+	t.Parallel()
+	findings := []finding{
+		newFinding("Z-002", "b", "second", "next"),
+		newFinding("A-001", "z", "first", "next"),
+		newFinding("A-001", "a", "first", "next"),
+	}
+	sortFindings(findings)
+	if findings[0].subject != "a" || findings[1].subject != "z" || findings[2].rule != "Z-002" {
+		t.Fatalf("unexpected finding order: %+v", findings)
+	}
+	normalized := safeASCII("line\n"+strings.Repeat("x", 300), 12)
+	if normalized != "line?xxxxxxx" || len(normalized) != 12 {
+		t.Fatalf("unexpected bounded normalization: %q", normalized)
+	}
+	if maxFindings <= 0 || maxMessageSize <= 0 {
+		t.Fatal("diagnostic bounds must be positive")
+	}
 }

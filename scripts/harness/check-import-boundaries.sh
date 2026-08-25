@@ -101,6 +101,10 @@ while IFS="$tab" read -r mode source_prefix forbidden_prefix rule; do
 done <"$policy_file"
 
 harness_path="$module/internal/harness"
+matches_prefix "$module/internal/harness/buildcontrol" "$harness_path" || fail 'BND-005: harness-descendant matcher rejected its positive control'
+if matches_prefix "$module/internal/harness-bypass" "$harness_path"; then
+	fail 'BND-005: harness-descendant matcher accepted a sibling-prefix bypass'
+fi
 for package in $packages; do
 	case $package in "$module"/*) ;; *) continue ;; esac
 	matches_prefix "$package" "$harness_path" && continue
