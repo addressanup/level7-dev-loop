@@ -30,23 +30,42 @@ func newFinding(rule, subject, message, next string) finding {
 }
 
 func appendFindings(current []finding, additional ...finding) []finding {
-	remaining := maxCollectedFindings - len(current)
-	if remaining <= 0 {
-		return current
+	for _, candidate := range additional {
+		if len(current) < maxCollectedFindings {
+			current = append(current, candidate)
+			continue
+		}
+
+		largest := 0
+		for index := 1; index < len(current); index++ {
+			if findingLess(current[largest], current[index]) {
+				largest = index
+			}
+		}
+		if findingLess(candidate, current[largest]) {
+			current[largest] = candidate
+		}
 	}
-	if len(additional) > remaining {
-		additional = additional[:remaining]
-	}
-	return append(current, additional...)
+	return current
 }
 
 func sortFindings(findings []finding) {
 	sort.Slice(findings, func(i, j int) bool {
-		left := findings[i]
-		right := findings[j]
-		return strings.Join([]string{left.rule, left.subject, left.message, left.next}, "\x00") <
-			strings.Join([]string{right.rule, right.subject, right.message, right.next}, "\x00")
+		return findingLess(findings[i], findings[j])
 	})
+}
+
+func findingLess(left, right finding) bool {
+	if left.rule != right.rule {
+		return left.rule < right.rule
+	}
+	if left.subject != right.subject {
+		return left.subject < right.subject
+	}
+	if left.message != right.message {
+		return left.message < right.message
+	}
+	return left.next < right.next
 }
 
 func printFindings(findings []finding) {

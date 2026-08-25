@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -105,6 +106,38 @@ func TestRenderedFindingsAreOrderedCappedAndRepeatable(t *testing.T) {
 	}
 	if !strings.Contains(first, "rule=BCTL-099") {
 		t.Fatalf("finding-cap diagnostic is absent: %q", first)
+	}
+}
+
+func TestCappedFailingTraceIsRepeatDeterministicAcrossProcesses(t *testing.T) {
+	const helperEnvironment = "L7_AUD_W01_008_HELPER"
+	if os.Getenv(helperEnvironment) == "1" {
+		definitions := make(map[string]struct{}, 163)
+		for index := 1; index <= 163; index++ {
+			definitions[fmt.Sprintf("L7-TEST-%03d", index)] = struct{}{}
+		}
+		_, findings := validateTrace(definitions, nil)
+		fmt.Print(renderFindings(findings))
+		os.Exit(1)
+	}
+
+	run := func() (string, error) {
+		command := exec.Command(os.Args[0], "-test.run=^TestCappedFailingTraceIsRepeatDeterministicAcrossProcesses$")
+		command.Env = append(os.Environ(), helperEnvironment+"=1")
+		output, err := command.CombinedOutput()
+		return string(output), err
+	}
+
+	first, firstErr := run()
+	second, secondErr := run()
+	if firstErr == nil || secondErr == nil {
+		t.Fatalf("over-cap trace unexpectedly exited zero: first=%v second=%v", firstErr, secondErr)
+	}
+	if first != second {
+		t.Fatalf("over-cap trace output differs across processes:\nfirst:\n%s\nsecond:\n%s", first, second)
+	}
+	if !strings.Contains(first, "rule=BCTL-099") || !strings.Contains(first, "subject=L7-TEST-050") || strings.Contains(first, "subject=L7-TEST-051") {
+		t.Fatalf("over-cap trace retained the wrong deterministic subset: %s", first)
 	}
 }
 
