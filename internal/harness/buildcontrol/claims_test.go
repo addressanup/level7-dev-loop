@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestCurrentClaimContracts(t *testing.T) {
@@ -224,6 +226,73 @@ func TestStrictInputBoundsAreEnforcedBeforeParsing(t *testing.T) {
 	overLimit := atLimit + "x\n"
 	if _, findings := validateStrictText("over-limit", []byte(overLimit)); findingRules(findings)["BCTL-015"] == 0 {
 		t.Fatalf("line-count overflow was accepted: %+v", findings)
+	}
+}
+
+func TestStrictInputRejectsSymlinkFIFOAndHardlinkBeforeRead(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "target"), []byte("target\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("target", filepath.Join(root, "symlink")); err != nil {
+		t.Fatal(err)
+	}
+	if data, findings := readStrictFile(root, "symlink"); data != nil || findingRules(findings)["SCOPE-343"] == 0 {
+		t.Fatalf("symlink input was consumed: data=%q findings=%+v", data, findings)
+	}
+
+	if err := os.Mkdir(filepath.Join(root, "real-directory"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "real-directory", "input"), []byte("inside\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("real-directory", filepath.Join(root, "directory-link")); err != nil {
+		t.Fatal(err)
+	}
+	if data, findings := readStrictFile(root, "directory-link/input"); data != nil || findingRules(findings)["BCTL-022"] == 0 {
+		t.Fatalf("intermediate symlink input was consumed: data=%q findings=%+v", data, findings)
+	}
+
+	if err := os.Link(filepath.Join(root, "target"), filepath.Join(root, "hardlink")); err != nil {
+		t.Fatal(err)
+	}
+	if data, findings := readStrictFile(root, "target"); data != nil || findingRules(findings)["SCOPE-344"] == 0 {
+		t.Fatalf("hardlinked input was consumed: data=%q findings=%+v", data, findings)
+	}
+
+	fifo := filepath.Join(root, "fifo")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	finished := make(chan []finding, 1)
+	go func() {
+		_, findings := readStrictFile(root, "fifo")
+		finished <- findings
+	}()
+	select {
+	case findings := <-finished:
+		if findingRules(findings)["SCOPE-343"] == 0 {
+			t.Fatalf("FIFO did not fail for the stable shape rule: %+v", findings)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("FIFO input blocked instead of failing before open")
+	}
+}
+
+func TestStrictInputRejectsChangeDuringRead(t *testing.T) {
+	root := t.TempDir()
+	name := filepath.Join(root, "changing")
+	if err := os.WriteFile(name, []byte("before\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data, findings := readStrictFileWithHook(root, "changing", func() {
+		if err := os.WriteFile(name, []byte("changed-and-longer\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if data != nil || findingRules(findings)["BCTL-023"] == 0 {
+		t.Fatalf("changing input was accepted: data=%q findings=%+v", data, findings)
 	}
 }
 

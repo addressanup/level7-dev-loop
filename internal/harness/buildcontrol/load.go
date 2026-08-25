@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
+	"syscall"
 	"unicode/utf8"
 )
 
@@ -21,23 +21,132 @@ const (
 type tsvRow map[string]string
 
 func readStrictFile(root, relative string) ([]byte, []finding) {
-	fullPath := filepath.Join(root, filepath.FromSlash(relative))
-	file, err := os.Open(fullPath)
+	return readStrictFileWithHook(root, relative, nil)
+}
+
+func readStrictFileWithHook(root, relative string, beforeRead func()) ([]byte, []finding) {
+	if !safeRelativeASCIIPath(relative) {
+		return nil, []finding{newFinding("BCTL-022", relative, "input path is not a canonical rooted relative path", "restore the fixed repository-relative input")}
+	}
+	rooted, err := os.OpenRoot(root)
 	if err != nil {
 		return nil, []finding{newFinding("BCTL-010", relative, err.Error(), "restore the required input and rerun the gate")}
 	}
+	expected, pathFindings := lstatStrictInput(rooted, relative)
+	if len(pathFindings) != 0 {
+		if closeErr := rooted.Close(); closeErr != nil {
+			pathFindings = appendFindings(pathFindings, newFinding("BCTL-010", relative, closeErr.Error(), "restore readable rooted input state"))
+		}
+		return nil, pathFindings
+	}
+	if expected.Size() > maxInputBytes {
+		_ = rooted.Close()
+		return nil, []finding{newFinding("BCTL-011", relative, "input exceeds the byte limit", "narrow the authoritative input")}
+	}
+
+	file, err := rooted.OpenFile(relative, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		_ = rooted.Close()
+		return nil, []finding{inputChangedFinding(relative, err.Error())}
+	}
+	opened, statErr := file.Stat()
+	if statErr != nil {
+		_ = file.Close()
+		_ = rooted.Close()
+		return nil, []finding{newFinding("BCTL-010", relative, statErr.Error(), "restore the required input and rerun the gate")}
+	}
+	if shapeFindings := strictInputShapeFindings(relative, opened); len(shapeFindings) != 0 {
+		_ = file.Close()
+		_ = rooted.Close()
+		return nil, shapeFindings
+	}
+	if !sameStrictInputState(expected, opened) {
+		_ = file.Close()
+		_ = rooted.Close()
+		return nil, []finding{inputChangedFinding(relative, "input identity or metadata changed before content read")}
+	}
+
+	if beforeRead != nil {
+		beforeRead()
+	}
 	data, readErr := io.ReadAll(io.LimitReader(file, maxInputBytes+1))
-	closeErr := file.Close()
+	final, finalStatErr := file.Stat()
+	pathFinal, pathStatErr := rooted.Lstat(relative)
+	fileCloseErr := file.Close()
+	rootCloseErr := rooted.Close()
 	if readErr != nil {
 		return nil, []finding{newFinding("BCTL-010", relative, readErr.Error(), "restore the required input and rerun the gate")}
 	}
-	if closeErr != nil {
-		return nil, []finding{newFinding("BCTL-010", relative, closeErr.Error(), "restore the required input and rerun the gate")}
+	if finalStatErr != nil {
+		return nil, []finding{newFinding("BCTL-010", relative, finalStatErr.Error(), "restore the required input and rerun the gate")}
+	}
+	if pathStatErr != nil {
+		return nil, []finding{inputChangedFinding(relative, pathStatErr.Error())}
+	}
+	if fileCloseErr != nil {
+		return nil, []finding{newFinding("BCTL-010", relative, fileCloseErr.Error(), "restore the required input and rerun the gate")}
+	}
+	if rootCloseErr != nil {
+		return nil, []finding{newFinding("BCTL-010", relative, rootCloseErr.Error(), "restore readable rooted input state")}
 	}
 	if len(data) > maxInputBytes {
 		return nil, []finding{newFinding("BCTL-011", relative, "input exceeds the byte limit", "narrow the authoritative input")}
 	}
+	if shapeFindings := strictInputShapeFindings(relative, final); len(shapeFindings) != 0 {
+		return nil, shapeFindings
+	}
+	if shapeFindings := strictInputShapeFindings(relative, pathFinal); len(shapeFindings) != 0 {
+		return nil, shapeFindings
+	}
+	if !sameStrictInputState(expected, final) || !sameStrictInputState(final, pathFinal) || final.Size() != int64(len(data)) {
+		return nil, []finding{inputChangedFinding(relative, "input identity, metadata, or size changed during content read")}
+	}
 	return validateStrictText(relative, data)
+}
+
+func lstatStrictInput(rooted *os.Root, relative string) (os.FileInfo, []finding) {
+	components := strings.Split(relative, "/")
+	for index := range components {
+		name := strings.Join(components[:index+1], "/")
+		info, err := rooted.Lstat(name)
+		if err != nil {
+			return nil, []finding{newFinding("BCTL-010", relative, err.Error(), "restore the required input and rerun the gate")}
+		}
+		if index < len(components)-1 {
+			if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+				return nil, []finding{newFinding("BCTL-022", name, "input path contains a symlink or nondirectory component", "restore a real rooted directory path")}
+			}
+			continue
+		}
+		if findings := strictInputShapeFindings(relative, info); len(findings) != 0 {
+			return nil, findings
+		}
+		return info, nil
+	}
+	return nil, []finding{newFinding("BCTL-022", relative, "input path has no component", "restore the fixed repository-relative input")}
+}
+
+func strictInputShapeFindings(relative string, info os.FileInfo) []finding {
+	links := uint64(0)
+	linkCountKnown := false
+	if info.Mode().IsRegular() {
+		links, linkCountKnown = regularFileLinkCount(info)
+	}
+	return validateFileShape(relative, info.Mode(), links, linkCountKnown)
+}
+
+func sameStrictInputState(left, right os.FileInfo) bool {
+	leftLinks, leftKnown := regularFileLinkCount(left)
+	rightLinks, rightKnown := regularFileLinkCount(right)
+	return os.SameFile(left, right) &&
+		left.Mode() == right.Mode() &&
+		left.Size() == right.Size() &&
+		left.ModTime().Equal(right.ModTime()) &&
+		leftKnown && rightKnown && leftLinks == 1 && rightLinks == 1
+}
+
+func inputChangedFinding(relative, detail string) finding {
+	return newFinding("BCTL-023", relative, "input changed during rooted inspection: "+detail, "retry from a stable single-link regular input")
 }
 
 func validateStrictText(name string, data []byte) ([]byte, []finding) {
