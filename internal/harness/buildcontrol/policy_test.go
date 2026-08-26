@@ -199,31 +199,147 @@ func TestRepositoryScanStopsAtDirectoryAndFileBounds(t *testing.T) {
 
 func TestRepositoryScanCapsSingleDirectoryReadBeforeEnumeration(t *testing.T) {
 	t.Parallel()
-	root := t.TempDir()
-	for index := 0; index < maxRepositoryReadBatch+200; index++ {
-		name := filepath.Join(root, fmt.Sprintf("f-%04d", index))
-		if err := os.WriteFile(name, nil, 0o600); err != nil {
-			t.Fatal(err)
+	const expected = "BLOCKED rule=SCOPE-338 subject=. message=\"repository entry count exceeds the combined Wave 1 bound\" next=\"remove the unapproved paths or approve a bounded successor\"\n"
+	for _, testCase := range []struct {
+		name       string
+		descending bool
+	}{{"ascending-creation", false}, {"descending-creation", true}} {
+		t.Run(testCase.name, func(t *testing.T) {
+			root := t.TempDir()
+			for offset := 0; offset < maxRepositoryReadBatch; offset++ {
+				index := offset
+				if testCase.descending {
+					index = maxRepositoryReadBatch - 1 - offset
+				}
+				name := filepath.Join(root, fmt.Sprintf("f-%04d", index))
+				if err := os.WriteFile(name, nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			maximumRequested := 0
+			reader := func(rooted *os.Root, relative string, entryLimit int) ([]os.DirEntry, []finding) {
+				if entryLimit > maximumRequested {
+					maximumRequested = entryLimit
+				}
+				return readRepositoryDirectory(rooted, relative, entryLimit)
+			}
+			fixedNow := func() time.Time { return time.Unix(0, 0) }
+			current, findings := scanRepositoryWithDependencies(root, fixedNow, reader)
+			if actual := renderFindings(findings); actual != expected {
+				t.Fatalf("oversized single-directory result differs:\nwant:\n%s\ngot:\n%s", expected, actual)
+			}
+			if maximumRequested != maxRepositoryReadBatch {
+				t.Fatalf("directory read requested %d entries, want exact limit %d", maximumRequested, maxRepositoryReadBatch)
+			}
+			if len(current) != 0 {
+				t.Fatalf("scan retained %d files before aggregate bound rejection", len(current))
+			}
+		})
+	}
+}
+
+func TestRepositoryScanMixedEntryBatchIsOrderIndependent(t *testing.T) {
+	t.Parallel()
+	const expected = "BLOCKED rule=SCOPE-338 subject=. message=\"repository entry count exceeds the combined Wave 1 bound\" next=\"remove the unapproved paths or approve a bounded successor\"\n"
+	testCases := []struct {
+		name               string
+		directories, files int
+		reverse            bool
+	}{
+		{"directory-omitted", 512, 515, false},
+		{"file-omitted", 513, 514, true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			batch := syntheticRepositoryBatch(testCase.directories, testCase.files, testCase.reverse)
+			reader := func(_ *os.Root, relative string, entryLimit int) ([]os.DirEntry, []finding) {
+				if relative != "." || entryLimit != maxRepositoryReadBatch {
+					t.Fatalf("unexpected directory request: relative=%q limit=%d", relative, entryLimit)
+				}
+				return batch, nil
+			}
+			fixedNow := func() time.Time { return time.Unix(0, 0) }
+			current, findings := scanRepositoryWithDependencies(t.TempDir(), fixedNow, reader)
+			if actual := renderFindings(findings); actual != expected {
+				t.Fatalf("mixed entry result differs:\nwant:\n%s\ngot:\n%s", expected, actual)
+			}
+			if len(current) != 0 {
+				t.Fatalf("scan retained %d entries before aggregate bound rejection", len(current))
+			}
+		})
+	}
+}
+
+func TestRepositoryEntryBatchFailureIsStableAcrossProcesses(t *testing.T) {
+	const helperEnvironment = "L7_AUD_W01_016_HELPER"
+	if variant := os.Getenv(helperEnvironment); variant != "" {
+		directories, files, reverse := 512, 515, false
+		if variant == "file-omitted" {
+			directories, files, reverse = 513, 514, true
+		}
+		batch := syntheticRepositoryBatch(directories, files, reverse)
+		reader := func(*os.Root, string, int) ([]os.DirEntry, []finding) { return batch, nil }
+		fixedNow := func() time.Time { return time.Unix(0, 0) }
+		_, findings := scanRepositoryWithDependencies(".", fixedNow, reader)
+		fmt.Print(renderFindings(findings))
+		os.Exit(1)
+	}
+
+	run := func(variant string) (string, error) {
+		command := exec.Command(os.Args[0], "-test.run=^TestRepositoryEntryBatchFailureIsStableAcrossProcesses$")
+		command.Env = append(os.Environ(), helperEnvironment+"="+variant)
+		output, err := command.CombinedOutput()
+		return string(output), err
+	}
+	first, firstErr := run("directory-omitted")
+	second, secondErr := run("file-omitted")
+	firstExit, firstOK := firstErr.(*exec.ExitError)
+	secondExit, secondOK := secondErr.(*exec.ExitError)
+	if !firstOK || !secondOK || firstExit.ExitCode() != 1 || secondExit.ExitCode() != 1 {
+		t.Fatalf("aggregate bound did not exit one: first=%v second=%v", firstErr, secondErr)
+	}
+	const expected = "BLOCKED rule=SCOPE-338 subject=. message=\"repository entry count exceeds the combined Wave 1 bound\" next=\"remove the unapproved paths or approve a bounded successor\"\n"
+	if first != expected || second != expected {
+		t.Fatalf("aggregate bound output differs across processes:\nwant:\n%s\nfirst:\n%s\nsecond:\n%s", expected, first, second)
+	}
+}
+
+type syntheticDirEntry struct {
+	name      string
+	directory bool
+}
+
+func (entry syntheticDirEntry) Name() string { return entry.name }
+func (entry syntheticDirEntry) IsDir() bool  { return entry.directory }
+func (entry syntheticDirEntry) Type() fs.FileMode {
+	if entry.directory {
+		return fs.ModeDir
+	}
+	return 0
+}
+func (entry syntheticDirEntry) Info() (fs.FileInfo, error) {
+	return nil, fmt.Errorf("entry %s was inspected before aggregate bound rejection", entry.name)
+}
+
+func syntheticRepositoryBatch(directories, files int, reverse bool) []os.DirEntry {
+	entries := make([]os.DirEntry, 0, directories+files)
+	appendEntries := func(prefix string, count int, directory bool) {
+		for offset := 0; offset < count; offset++ {
+			index := offset
+			if reverse {
+				index = count - 1 - offset
+			}
+			entries = append(entries, syntheticDirEntry{name: fmt.Sprintf("%s-%04d", prefix, index), directory: directory})
 		}
 	}
-	maximumRequested := 0
-	reader := func(rooted *os.Root, relative string, entryLimit int) ([]os.DirEntry, []finding) {
-		if entryLimit > maximumRequested {
-			maximumRequested = entryLimit
-		}
-		return readRepositoryDirectory(rooted, relative, entryLimit)
+	if reverse {
+		appendEntries("f", files, false)
+		appendEntries("d", directories, true)
+	} else {
+		appendEntries("d", directories, true)
+		appendEntries("f", files, false)
 	}
-	fixedNow := func() time.Time { return time.Unix(0, 0) }
-	current, findings := scanRepositoryWithDependencies(root, fixedNow, reader)
-	if findingRules(findings)["SCOPE-346"] == 0 {
-		t.Fatalf("oversized single directory did not fail closed: %+v", findings)
-	}
-	if maximumRequested > maxRepositoryReadBatch {
-		t.Fatalf("directory read requested %d entries, limit %d", maximumRequested, maxRepositoryReadBatch)
-	}
-	if len(current) > maxRepositoryFiles {
-		t.Fatalf("scan retained %d files, limit %d", len(current), maxRepositoryFiles)
-	}
+	return entries
 }
 
 func TestRepositoryScanDeadlineFailsClosedBeforeFurtherIO(t *testing.T) {

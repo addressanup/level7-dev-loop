@@ -240,6 +240,10 @@ func scanRepositoryWithDependencies(root string, now func() time.Time, readDirec
 			findings = appendFindings(findings, repositoryDeadlineFinding(directory))
 			break
 		}
+		if len(entries) >= entryLimit {
+			findings = appendFindings(findings, repositoryEntryBatchFinding(directory))
+			break
+		}
 		sort.Slice(entries, func(left, right int) bool { return entries[left].Name() < entries[right].Name() })
 		var children []string
 		bounded := false
@@ -420,6 +424,10 @@ func sameRepositoryFileState(left, right fs.FileInfo) bool {
 
 func repositoryDeadlineFinding(subject string) finding {
 	return newFinding("SCOPE-339", subject, "repository scan exceeded the five-second Wave 1 deadline", "restore bounded local repository state and rerun the gate")
+}
+
+func repositoryEntryBatchFinding(subject string) finding {
+	return newFinding("SCOPE-338", subject, "repository entry count exceeds the combined Wave 1 bound", "remove the unapproved paths or approve a bounded successor")
 }
 
 func validateFileShape(relative string, mode fs.FileMode, links uint64, linkCountKnown bool) []finding {
