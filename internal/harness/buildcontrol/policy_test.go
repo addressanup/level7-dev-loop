@@ -287,7 +287,7 @@ func TestRepositoryEntryBatchFailureIsStableAcrossProcesses(t *testing.T) {
 
 	run := func(variant string) (string, error) {
 		command := exec.Command(os.Args[0], "-test.run=^TestRepositoryEntryBatchFailureIsStableAcrossProcesses$")
-		command.Env = append(os.Environ(), helperEnvironment+"="+variant)
+		command.Env = processFixtureEnvironment(helperEnvironment + "=" + variant)
 		output, err := command.CombinedOutput()
 		return string(output), err
 	}
@@ -478,7 +478,7 @@ func TestImportBoundaryBrokenPackageGraphs(t *testing.T) {
 			}
 			root := materializeMapFS(t, fixture)
 			cache := t.TempDir()
-			for _, directory := range []string{"go-cache", "mod-cache", "go-path", "go-tmp"} {
+			for _, directory := range []string{"go-cache", "mod-cache", "go-path", "go-tmp", "telemetry"} {
 				if err := os.Mkdir(filepath.Join(cache, directory), 0o700); err != nil {
 					t.Fatal(err)
 				}
@@ -486,10 +486,11 @@ func TestImportBoundaryBrokenPackageGraphs(t *testing.T) {
 			goBinary := filepath.Join(runtime.GOROOT(), "bin", "go")
 			command := exec.Command("/bin/sh", filepath.Join(root, "scripts/harness/check-import-boundaries.sh"), goBinary)
 			command.Dir = root
-			command.Env = append(os.Environ(),
+			command.Env = processFixtureEnvironment(
 				"GOENV=off", "GOTOOLCHAIN=local", "GOWORK=off", "GO111MODULE=on", "GOFLAGS=-mod=readonly", "CGO_ENABLED=0",
 				"GOPROXY=off", "GOSUMDB=off", "GOCACHE="+filepath.Join(cache, "go-cache"), "GOMODCACHE="+filepath.Join(cache, "mod-cache"),
-				"GOPATH="+filepath.Join(cache, "go-path"), "GOTMPDIR="+filepath.Join(cache, "go-tmp"),
+				"GOPATH="+filepath.Join(cache, "go-path"), "GOTMPDIR="+filepath.Join(cache, "go-tmp"), "TMPDIR="+filepath.Join(cache, "go-tmp"),
+				"TEST_TELEMETRY_DIR="+filepath.Join(cache, "telemetry"), "GOVCS=*:off", "GOAUTH=off", "GIT_TERMINAL_PROMPT=0",
 			)
 			output, err := command.CombinedOutput()
 			if err == nil || !strings.Contains(string(output), testCase.expected) {

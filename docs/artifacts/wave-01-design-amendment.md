@@ -5,15 +5,15 @@
 | Artifact ID | `L7-AMD-W01-DES-001` |
 | Artifact type | Finding-specific successor amendment to the Wave 1 design |
 | Artifact schema | Bootstrap/pre-schema; migrate only through a later approved transition |
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Date | 2026-08-26 |
 | Status | **APPROVED FOR THE AUTHORIZED WAVE 1 AUDIT REMEDIATION** |
 | Predecessor design | `L7-W01-DES-001` 0.1.0, SHA-256 `07953b2319635846505a018c3e4cc66705e0c263ab01b0a5c79e75cdaf1fb8e8` |
 | Finding | `W01-DES-DIGEST-001`: the candidate manifest cannot hash evidence that embeds that manifest's final SHA-256 |
-| Successor findings | `AUD-W01-016`: capped repository enumeration used an unordered pre-sort subset; `AUD-W01-017`: accepted fixture/effect description was stale; `AUD-W01-020`: verifier effect roots were lexically but not physically contained |
+| Successor findings | `AUD-W01-016`: capped repository enumeration used an unordered pre-sort subset; `AUD-W01-017`: accepted fixture/effect description was stale; `AUD-W01-020`: verifier effect roots were lexically but not physically contained; `AUD-W01-021`: process inventory and environment isolation were incomplete |
 | Accountable owner | Anup Pandey |
 | Authority event | Accountable-owner approval of `level7-dev-loop:l7-release` Mode C remediation for `AUD-W01-020` and `AUD-W01-021` on 2026-08-26 |
-| Effect | Preserve the acyclic binding; retain stable aggregate-bound behavior; enforce physical repository containment before verifier writes; record actual local fixture/process/clock effects |
+| Effect | Preserve the acyclic binding; retain stable aggregate-bound behavior; enforce physical repository containment before verifier writes; bind the complete process-fixture inventory and deterministic environment allowlist |
 
 ## 1. Finding
 
@@ -67,7 +67,7 @@ For the authorized Wave 1 remediation and verification envelope:
 
 1. `testing/fstest.MapFS` remains preferred for format and pure-policy fixtures. Real filesystem fixtures are permitted only where link, node, identity, replacement, enumeration, process, or OS-root behavior is the fact under test.
 2. `Makefile` exports `TMPDIR=$(GOTMPDIR)` and `GOTMPDIR=$(PROJECT_ROOT)/.cache/go/tmp`, then delegates preparation to `scripts/harness/prepare-cache.sh`. Before any verifier write, that script must reject a noncanonical project root plus every existing symlink or non-directory component in the declared Go, temporary, telemetry, reproducibility, and selected toolchain roots. It creates missing effect directories one component at a time, verifies every resulting physical path equals its repository path, and replaces telemetry mode through a newly created repository-local file. `t.TempDir`, local replacement modules, test binaries, and their automatically cleaned temporary roots must remain physically below that ignored repository-scoped root.
-3. A process fixture may execute only the current local test binary or a pinned repository-local Go binary with offline module settings. No shell-selected executable, user program, provider, host plugin, credential, network, remote, or external sink is admitted.
+3. A process fixture may execute only: the current local test binary; a pinned repository-local Go binary with offline module settings; fixed `/bin/sh` for a repository-owned harness script; or a test-owned controller binary built by that pinned Go into the repository-scoped temporary root. Every command path and argument is fixed by the test. Child environments are rebuilt from the explicit Go, temporary-root, telemetry, locale, logging, and network-denial allowlist plus the exact helper selector; they never inherit ambient home, user, credential, provider, proxy, shell-function, or unrelated variables. The fixed child `PATH` is `/usr/bin:/bin`. No user program, provider, host plugin, credential, network, remote, or external sink is admitted.
 4. Wall-clock use is limited to fail-closed completion ceilings. Deterministic policy tests inject fixed clocks. A timeout never produces a pass or suppresses a stricter finding.
 5. Go testing owns cleanup of `t.TempDir` roots. Repository `.cache` remains ignored retained verifier state; no ambient host cleanup is authorized.
 
@@ -84,3 +84,7 @@ Permanent regressions must prove:
 ### 4.4 Physical verifier-effect containment
 
 Physical containment is an admission rule, not a lexical naming claim. Preparation must fail before its first write when `.cache`, a Go cache/temp/telemetry component, the telemetry-mode path, the toolchain root, or the selected toolchain is a symlink or has an unexpected file type. A safe fixture must create only the declared repository-local directories and exact telemetry mode. Redirect fixtures must leave their external test-owned targets byte-for-byte unchanged and must not create a later cache sibling before rejection.
+
+### 4.5 Process-fixture isolation
+
+Every `exec.Command` fixture must set `Cmd.Env` from one deterministic allowlist. A permanent pure regression must supply reordered ambient environments containing home and secret-shaped variables, prove byte-identical filtered output, retain only approved keys, force the fixed system path, and prove exact helper overrides win. Process fixtures continue to test nonzero exit, deterministic output, import closure, and controller no-repair behavior; the expanded inventory does not authorize a production subprocess surface.

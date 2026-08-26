@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -65,7 +66,7 @@ func runPrepareCacheFixture(t *testing.T, root string) (string, error) {
 	t.Helper()
 	script := filepath.Join(repositoryRoot(t), "scripts", "harness", "prepare-cache.sh")
 	command := exec.Command("/bin/sh", script, root, "1.26.7")
-	command.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC"}
+	command.Env = processFixtureEnvironment()
 	output, err := command.CombinedOutput()
 	return string(output), err
 }
@@ -193,6 +194,106 @@ func findingRules(findings []finding) map[string]int {
 		rules[item.rule]++
 	}
 	return rules
+}
+
+var processFixtureFixedEnvironment = map[string]string{
+	"CGO_ENABLED": "0", "GO111MODULE": "on", "GOAUTH": "off", "GOENV": "off", "GOEXPERIMENT": "",
+	"GOFIPS140": "off", "GOFLAGS": "", "GOINSECURE": "", "GONOPROXY": "", "GONOSUMDB": "",
+	"GOPRIVATE": "", "GOPROXY": "off", "GOSUMDB": "off", "GOTOOLCHAIN": "local", "GOVCS": "*:off",
+	"GOWORK": "off", "GIT_TERMINAL_PROMPT": "0", "L7_LOG_FORMAT": "json", "L7_LOG_LEVEL": "INFO",
+	"L7_NETWORK": "off", "L7_TELEMETRY": "off", "LC_ALL": "C", "PATH": "/usr/bin:/bin", "TZ": "UTC",
+}
+
+var processFixtureInheritedEnvironmentKeys = map[string]struct{}{
+	"GOAMD64": {}, "GOARCH": {}, "GOARM64": {}, "GOBIN": {}, "GOCACHE": {}, "GOMODCACHE": {},
+	"GOOS": {}, "GOPATH": {}, "GOROOT": {}, "GOTMPDIR": {}, "L7_EXPECT_GO_VERSION": {},
+	"TEST_TELEMETRY_DIR": {}, "TMPDIR": {},
+}
+
+var requiredProcessFixtureEnvironmentKeys = []string{
+	"GOARCH", "GOBIN", "GOCACHE", "GOMODCACHE", "GOOS", "GOPATH", "GOROOT", "GOTMPDIR",
+	"L7_EXPECT_GO_VERSION", "TEST_TELEMETRY_DIR", "TMPDIR",
+}
+
+func processFixtureEnvironment(overrides ...string) []string {
+	environment := filterProcessFixtureEnvironment(os.Environ(), overrides...)
+	present := make(map[string]struct{}, len(environment))
+	for _, assignment := range environment {
+		key, _, _ := strings.Cut(assignment, "=")
+		present[key] = struct{}{}
+	}
+	for _, required := range requiredProcessFixtureEnvironmentKeys {
+		if _, ok := present[required]; !ok {
+			panic("missing required process-fixture environment: " + required)
+		}
+	}
+	return environment
+}
+
+func filterProcessFixtureEnvironment(source []string, overrides ...string) []string {
+	values := make(map[string]string, len(processFixtureFixedEnvironment)+len(processFixtureInheritedEnvironmentKeys)+len(overrides))
+	for key, value := range processFixtureFixedEnvironment {
+		values[key] = value
+	}
+	for _, assignment := range source {
+		key, value, ok := strings.Cut(assignment, "=")
+		if !ok {
+			continue
+		}
+		if _, allowed := processFixtureInheritedEnvironmentKeys[key]; allowed {
+			values[key] = value
+		}
+	}
+	for _, assignment := range overrides {
+		key, value, ok := strings.Cut(assignment, "=")
+		if !ok || key == "" {
+			panic("invalid process-fixture environment assignment")
+		}
+		values[key] = value
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	environment := make([]string, 0, len(keys))
+	for _, key := range keys {
+		environment = append(environment, key+"="+values[key])
+	}
+	return environment
+}
+
+func TestProcessFixtureEnvironmentIsAllowlistedAndDeterministic(t *testing.T) {
+	t.Parallel()
+	first := filterProcessFixtureEnvironment(
+		[]string{"HOME=/ambient/home", "AWS_SECRET_ACCESS_KEY=secret", "PATH=/ambient/bin", "GOPROXY=https://ambient.invalid", "TMPDIR=/repo/tmp", "GOENV=ambient", "LC_ALL=ambient"},
+		"L7_AUD_HELPER=1", "GOENV=off",
+	)
+	second := filterProcessFixtureEnvironment(
+		[]string{"LC_ALL=other", "GOENV=other", "TMPDIR=/repo/tmp", "GOPROXY=https://other.invalid", "PATH=/other/bin", "AWS_SECRET_ACCESS_KEY=other", "HOME=/other/home"},
+		"GOENV=off", "L7_AUD_HELPER=1",
+	)
+	if !reflect.DeepEqual(first, second) {
+		t.Fatalf("process fixture environments differ: first=%q second=%q", first, second)
+	}
+	values := make(map[string]string, len(first))
+	for _, assignment := range first {
+		key, value, ok := strings.Cut(assignment, "=")
+		if !ok {
+			t.Fatalf("malformed process fixture assignment: %q", assignment)
+		}
+		values[key] = value
+	}
+	for key, want := range map[string]string{"GOENV": "off", "GOPROXY": "off", "L7_AUD_HELPER": "1", "LC_ALL": "C", "PATH": "/usr/bin:/bin", "TMPDIR": "/repo/tmp"} {
+		if values[key] != want {
+			t.Errorf("process fixture %s: got %q, want %q", key, values[key], want)
+		}
+	}
+	for _, excluded := range []string{"AWS_SECRET_ACCESS_KEY", "HOME"} {
+		if _, ok := values[excluded]; ok {
+			t.Errorf("process fixture retained excluded variable %s", excluded)
+		}
+	}
 }
 
 func materializeMapFS(t *testing.T, fixture fstest.MapFS) string {
@@ -326,7 +427,7 @@ func TestCappedFailingTraceIsRepeatDeterministicAcrossProcesses(t *testing.T) {
 
 	run := func() (string, error) {
 		command := exec.Command(os.Args[0], "-test.run=^TestCappedFailingTraceIsRepeatDeterministicAcrossProcesses$")
-		command.Env = append(os.Environ(), helperEnvironment+"=1")
+		command.Env = processFixtureEnvironment(helperEnvironment + "=1")
 		output, err := command.CombinedOutput()
 		return string(output), err
 	}
@@ -390,14 +491,14 @@ func TestControllerExitNoRepairEnvironmentIsolationAndRepeatDeterminism(t *testi
 	goBinary := filepath.Join(runtime.GOROOT(), "bin", "go")
 	build := exec.Command(goBinary, "build", "-mod=readonly", "-trimpath", "-buildvcs=false", "-o", binary, "./internal/harness/buildcontrol")
 	build.Dir = root
-	build.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "GOFLAGS=")
+	build.Env = processFixtureEnvironment("GOTOOLCHAIN=local", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "GOFLAGS=")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build controller: %v\n%s", err, output)
 	}
 	run := func(extraEnvironment ...string) (string, error) {
 		command := exec.Command(binary)
 		command.Dir = root
-		command.Env = append(os.Environ(), extraEnvironment...)
+		command.Env = processFixtureEnvironment(extraEnvironment...)
 		output, err := command.CombinedOutput()
 		return string(output), err
 	}
@@ -411,6 +512,7 @@ func TestControllerExitNoRepairEnvironmentIsolationAndRepeatDeterminism(t *testi
 	}
 	argument := exec.Command(binary, "unexpected")
 	argument.Dir = root
+	argument.Env = processFixtureEnvironment()
 	output, err := argument.CombinedOutput()
 	if err == nil {
 		t.Fatalf("argument failure exited zero: %q", output)
