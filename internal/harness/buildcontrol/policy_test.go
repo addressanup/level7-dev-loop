@@ -18,14 +18,13 @@ func TestCurrentPolicyContract(t *testing.T) {
 	if len(findings) != 0 {
 		t.Fatalf("policy findings: %+v", findings)
 	}
-	validClosure := (result.files == 172 && result.changed == 17) ||
-		(result.files == 173 && result.changed == 18) ||
-		(result.files == 174 && result.changed == 19)
+	validClosure := (result.files == 186 && result.changed == 19) ||
+		(result.files == 187 && result.changed == 20) ||
+		(result.files == 188 && result.changed == 21)
 	validCheckpoint := map[string]bool{
-		"open": true, "researching": true, "ready-for-brief": true, "blocked": true, "superseded": true,
-		"brief-draft": true, "brief-approved": true, "brief-rejected": true, "brief-stale": true, "brief-superseded": true,
+		"admission-in-progress": true, "admitted-awaiting-assurance": true, "admitted": true,
 	}[result.checkpoint]
-	if result.phase != "concept-discovery" || !validCheckpoint || !validClosure {
+	if result.phase != "foundation-rebaseline" || !validCheckpoint || !validClosure {
 		t.Fatalf("unexpected policy result: %+v", result)
 	}
 }

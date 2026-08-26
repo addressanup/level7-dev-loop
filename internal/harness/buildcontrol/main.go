@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const buildControlVersion = "concept-rebaseline-v1"
+const buildControlVersion = "foundation-rebaseline-admission-v1"
 
 type successSource struct {
 	id   string
@@ -92,6 +92,25 @@ func loadSuccessSourceDigests(root string) (string, []finding) {
 			successSource{"base", phase.baseManifest},
 		)
 		switch phase.phase {
+		case "foundation-rebaseline":
+			sources = append(sources,
+				successSource{"foundation-approval", "docs/artifacts/foundation-rebaseline-approval.md"},
+				successSource{"foundation-candidate", foundationCandidatePath},
+				successSource{"foundation-contract", "docs/artifacts/foundation-rebaseline-change-contract.md"},
+				successSource{"foundation-specification", "docs/artifacts/foundation-rebaseline-specification.md"},
+				successSource{"foundation-design", "docs/artifacts/foundation-rebaseline-design.md"},
+				successSource{"foundation-history", "docs/artifacts/foundation-rebaseline-history.md"},
+				successSource{"foundation-gates", foundationGateRegistryPath},
+				successSource{"foundation-predecessors", foundationPredecessorManifestPath},
+				successSource{"concept-discovery", conceptDossierPath},
+				successSource{"concept-brief", conceptBriefPath},
+				successSource{"historical-wave-02-candidate", wave02CandidateManifest},
+			)
+			for _, optional := range []successSource{{"foundation-admission-evidence", foundationAdmissionEvidencePath}, {"foundation-admission-audit", foundationAdmissionAuditPath}} {
+				if foundationOptionalRegular(root, optional.path) {
+					sources = append(sources, optional)
+				}
+			}
 		case "concept-discovery":
 			sources = append(sources,
 				successSource{"rebaseline-approval", "docs/artifacts/concept-rebaseline-approval.md"},

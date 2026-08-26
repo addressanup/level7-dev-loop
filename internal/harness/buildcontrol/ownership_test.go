@@ -137,6 +137,42 @@ func TestConceptBootstrapOwnershipIsExactAndSeparated(t *testing.T) {
 	}
 }
 
+func TestFoundationAdmissionOwnershipSeparatesEvidenceAndAudit(t *testing.T) {
+	t.Parallel()
+	for control, want := range map[string]ownershipExpectation{
+		"foundation-rebaseline-admission-evidence": {"exact", foundationAdmissionEvidencePath, "foundation-integrator", "independent-auditor", "separate-admission-audit"},
+		"foundation-rebaseline-admission-audit":    {"exact", foundationAdmissionAuditPath, "independent-auditor", "owner-review", "separate-admission-audit"},
+		"foundation-rebaseline-approval":           {"exact", "docs/artifacts/foundation-rebaseline-approval.md", "foundation-integrator", "owner-review", "owner+exact-gate-2-digest"},
+	} {
+		if got := expectedOwnership[control]; got != want {
+			t.Errorf("%s ownership: got %+v, want %+v", control, got, want)
+		}
+		if orchestrationClassForControl[control] != "wave-records" {
+			t.Errorf("%s lacks the governance-record source class", control)
+		}
+	}
+	if ownershipPathsOverlap(expectedOwnership["foundation-rebaseline-admission-evidence"], expectedOwnership["foundation-rebaseline-admission-audit"]) {
+		t.Fatal("admission evidence and independent audit ownership overlap")
+	}
+
+	root := repositoryRoot(t)
+	rows, loadFindings := loadTSV(root, "harness/control-ownership.tsv", []string{"control", "path_kind", "path", "writer", "reviewer", "change_gate"})
+	if len(loadFindings) != 0 {
+		t.Fatalf("load ownership: %+v", loadFindings)
+	}
+	rules, validationFindings := validateOwnershipRows(rows)
+	if len(validationFindings) != 0 {
+		t.Fatalf("validate ownership: %+v", validationFindings)
+	}
+	_, pathRows, pathFindings := loadFoundationPathPolicy(root)
+	if len(pathFindings) != 0 {
+		t.Fatalf("load foundation path ownership: %+v", pathFindings)
+	}
+	if findings := crossCheckFoundationPathOwnership(pathRows, rules); len(findings) != 0 {
+		t.Fatalf("foundation ownership cross-check: %+v", findings)
+	}
+}
+
 func TestWave02SemanticEvaluatorAndFutureFeatureOwnershipIsDisjoint(t *testing.T) {
 	t.Parallel()
 	for _, removed := range []string{"schema-source", "public-fixtures"} {

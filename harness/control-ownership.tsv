@@ -27,6 +27,14 @@ concept-rebaseline-approval	exact	docs/artifacts/concept-rebaseline-approval.md	
 concept-rebaseline-contract	exact	docs/artifacts/concept-rebaseline-change-contract.md	wave-integrator	owner-review	owner+design
 concept-rebaseline-design	exact	docs/artifacts/concept-rebaseline-design.md	wave-integrator	owner-review	owner+design
 concept-rebaseline-specification	exact	docs/artifacts/concept-rebaseline-specification.md	wave-integrator	owner-review	owner+design
+foundation-rebaseline-admission-audit	exact	docs/artifacts/foundation-rebaseline-admission-audit.md	independent-auditor	owner-review	separate-admission-audit
+foundation-rebaseline-admission-evidence	exact	docs/artifacts/foundation-rebaseline-admission-evidence.md	foundation-integrator	independent-auditor	separate-admission-audit
+foundation-rebaseline-approval	exact	docs/artifacts/foundation-rebaseline-approval.md	foundation-integrator	owner-review	owner+exact-gate-2-digest
+foundation-rebaseline-candidate	exact	docs/artifacts/foundation-rebaseline-candidate.sha256	foundation-integrator	independent-auditor	owner+exact-gate-2-digest
+foundation-rebaseline-contract	exact	docs/artifacts/foundation-rebaseline-change-contract.md	foundation-integrator	owner-review	owner+exact-gate-2-digest
+foundation-rebaseline-design	exact	docs/artifacts/foundation-rebaseline-design.md	foundation-integrator	owner-review	owner+exact-gate-2-digest
+foundation-rebaseline-history	exact	docs/artifacts/foundation-rebaseline-history.md	foundation-integrator	independent-auditor	owner+scope-audit
+foundation-rebaseline-specification	exact	docs/artifacts/foundation-rebaseline-specification.md	foundation-integrator	owner-review	owner+exact-gate-2-digest
 requirements-source	exact	docs/artifacts/requirements.md	requirements-owner	owner-review	owner+requirements-decision
 release-allocation	exact	docs/artifacts/feature-backlog.md	backlog-owner	owner-review	owner+impact-decision
 harness-data	prefix	harness/	harness-integrator	independent-readonly	owner+scope-audit

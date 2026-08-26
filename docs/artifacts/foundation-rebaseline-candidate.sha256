@@ -1,0 +1,5 @@
+# L7-FRB-CAND-001 v0.1.0; Gate 2 candidate based on commit 1c5c351f52f258d37ba48d8348e1cd883d2fb250 and tree b1fe4753b51b0da847d73b0ff64377fb2bda1434; paths are intended canonical destinations; excludes this manifest and the later current-conversation approval record.
+8c297db289bd9f405ccdec9f33448fb81def5f6334ba70a23c0306cbd3aa68e8  docs/artifacts/foundation-rebaseline-change-contract.md
+7621541e0319dc5a2c238ea57a3841b3bfb62a0bb3b46d8371bb3bb3ba54b23a  docs/artifacts/foundation-rebaseline-design.md
+ff9ca1d03a21533e000bb586796ea4367f95df59a321900b5044ce71d6dfebc9  docs/artifacts/foundation-rebaseline-specification.md
+09513eab93c254c50a5cae2704786a62a9d3a61f02103c93d28706f8c49f6ecc  harness/foundation-rebaseline-paths.tsv

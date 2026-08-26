@@ -118,13 +118,15 @@ var approvedWave01Inputs = map[string]string{
 var expectedPhases = []phaseExpectation{
 	{"wave-01", "historical", wave01BaseCommit, wave01BaseTree, "harness/wave-01-base.sha256", "harness/wave-01-paths.tsv"},
 	{"wave-02", "historical", wave02BaseCommit, wave02BaseTree, "harness/wave-02-base.sha256", "harness/wave-02-paths.tsv"},
-	{"concept-discovery", "active", conceptBaseCommit, conceptBaseTree, "harness/concept-discovery-base.sha256", "harness/concept-discovery-paths.tsv"},
+	{"concept-discovery", "historical", conceptBaseCommit, conceptBaseTree, "harness/concept-discovery-base.sha256", "harness/concept-discovery-paths.tsv"},
+	{"foundation-rebaseline", "active", foundationBaseCommit, foundationBaseTree, "harness/foundation-rebaseline-base.sha256", foundationPathPolicyPath},
 }
 
 var expectedBaseManifestSHA256 = map[string]string{
-	"wave-01":           "fdf5f29f3986a52aecff57fa02fb99397a35ac0abbbff0b3af3ebcdde018cd9f",
-	"wave-02":           wave02BaseManifestSHA256,
-	"concept-discovery": conceptBaseManifestSHA256,
+	"wave-01":               "fdf5f29f3986a52aecff57fa02fb99397a35ac0abbbff0b3af3ebcdde018cd9f",
+	"wave-02":               wave02BaseManifestSHA256,
+	"concept-discovery":     conceptBaseManifestSHA256,
+	"foundation-rebaseline": foundationBaseManifestSHA256,
 }
 
 var forbiddenWave02ProductPaths = []string{
@@ -136,18 +138,28 @@ func checkPolicy(root string) (policyResult, []finding) {
 	if len(findings) != 0 {
 		return policyResult{}, findings
 	}
-	expectedPaths, ok := map[string]map[string]pathExpectation{
-		"wave-01":           expectedWave01Paths,
-		"wave-02":           expectedWave02Paths,
-		"concept-discovery": expectedConceptPaths,
-	}[phase.phase]
-	if !ok {
-		return policyResult{}, []finding{newFinding("SCOPE-301", phase.phase, "active phase has no compiled path expectations", "restore the approved phase registry")}
+	var rules map[string]pathExpectation
+	var foundationPaths map[string]foundationPathExpectation
+	if phase.phase == "foundation-rebaseline" {
+		var pathFindings []finding
+		foundationPaths, _, pathFindings = loadFoundationPathPolicy(root)
+		findings = appendFindings(findings, pathFindings...)
+		rules = genericFoundationRules(foundationPaths)
+	} else {
+		expectedPaths, ok := map[string]map[string]pathExpectation{
+			"wave-01":           expectedWave01Paths,
+			"wave-02":           expectedWave02Paths,
+			"concept-discovery": expectedConceptPaths,
+		}[phase.phase]
+		if !ok {
+			return policyResult{}, []finding{newFinding("SCOPE-301", phase.phase, "active phase has no compiled path expectations", "restore the approved phase registry")}
+		}
+		pathRows, pathFindings := loadTSV(root, phase.pathPolicy, []string{"change", "path", "owner", "rule"})
+		var validationFindings []finding
+		rules, validationFindings = validatePathRows(pathRows, expectedPaths)
+		findings = appendFindings(findings, pathFindings...)
+		findings = appendFindings(findings, validationFindings...)
 	}
-	pathRows, pathFindings := loadTSV(root, phase.pathPolicy, []string{"change", "path", "owner", "rule"})
-	rules, validationFindings := validatePathRows(pathRows, expectedPaths)
-	findings = appendFindings(findings, pathFindings...)
-	findings = appendFindings(findings, validationFindings...)
 	baseData, baseReadFindings := readStrictFile(root, phase.baseManifest)
 	findings = appendFindings(findings, baseReadFindings...)
 	if len(baseReadFindings) == 0 && fileSHA256(baseData) != expectedBaseManifestSHA256[phase.phase] {
@@ -164,6 +176,10 @@ func checkPolicy(root string) (policyResult, []finding) {
 	finalCandidate := false
 	checkpoint := "in-progress"
 	switch phase.phase {
+	case "foundation-rebaseline":
+		foundationCheckpoint, foundationFindings := checkFoundationAdmission(root, base, current, foundationPaths)
+		checkpoint = foundationCheckpoint
+		findings = appendFindings(findings, foundationFindings...)
 	case "concept-discovery":
 		conceptCheckpoint, conceptFindings := checkConceptAdmission(root, current)
 		checkpoint = conceptCheckpoint
@@ -182,7 +198,7 @@ func checkPolicy(root string) (policyResult, []finding) {
 			})...)
 		}
 	}
-	if finalCandidate && phase.phase != "concept-discovery" {
+	if finalCandidate && phase.phase != "concept-discovery" && phase.phase != "foundation-rebaseline" {
 		checkpoint = "final-candidate"
 	}
 	findings = appendFindings(findings, checkHarnessInvariants(root, phase.phase, finalCandidate)...)
@@ -663,8 +679,8 @@ func checkHarnessInvariants(root, phase string, finalCandidate bool) []finding {
 			findings = appendFindings(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
 		}
 	}
-	if phase != "concept-discovery" {
-		findings = appendFindings(findings, newFinding("SCOPE-386", phase, "runtime controller selected a non-successor phase", "restore concept-discovery as the sole active phase"))
+	if phase != "foundation-rebaseline" {
+		findings = appendFindings(findings, newFinding("SCOPE-386", phase, "runtime controller selected a non-successor phase", "restore foundation-rebaseline as the sole active phase"))
 	}
 	return findings
 }
