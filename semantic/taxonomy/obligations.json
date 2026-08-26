@@ -1,0 +1,2133 @@
+{
+  "schema_version": "1.0.0",
+  "obligations": [
+    {
+      "id": "L7-OBL-AGENT-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-AGENT-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-AGENT-001",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Subagents SHALL be optional optimizations rather than correctness dependencies; a safe single-agent fallback SHALL exist.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-AGENT-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-AGENT-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-AGENT-002.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-AGENT-002",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Delegation SHALL specify objective, non-overlapping scope, inputs, authority, tools, budget, output, evidence, verifier, and termination.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-AGENT-002"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-AGENT-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-AGENT-003.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-AGENT-003",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Parallel writes SHALL use disjoint paths or isolated worktrees with one integration owner; delegation SHALL never increase authority.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-AGENT-003"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-EVAL-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-EVAL-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-EVAL-001",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-003 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Public regression fixtures, schemas, graders, and run manifests SHALL be provider-neutral, repository-controlled, and locally executable where they do not require a host/model.",
+      "enforcement_locus": "frozen-evaluator-control",
+      "required_renderers": [],
+      "machine_only": true,
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "public_case_ids": [
+        "L7-CASE-EVAL-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-EVAL-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-EVAL-003.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-EVAL-003",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-003 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Deterministic graders SHALL be preferred; calibrated model judges MAY supplement them; consequential ambiguity SHALL require human review.",
+      "enforcement_locus": "frozen-evaluator-control",
+      "required_renderers": [],
+      "machine_only": true,
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "public_case_ids": [
+        "L7-CASE-EVAL-003"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-EVAL-004",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-EVAL-004.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-EVAL-004",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-003 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Model-judge results SHALL not be treated as independent safety authority and SHALL be tested for ordering, verbosity, and family bias.",
+      "enforcement_locus": "frozen-evaluator-control",
+      "required_renderers": [],
+      "machine_only": true,
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "public_case_ids": [
+        "L7-CASE-EVAL-004"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-EVAL-006",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-EVAL-006.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-EVAL-006",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-003 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Every eval run SHALL record model, host/harness, prompt/skill versions, tools, environment, resources, cost, latency, and candidate revision.",
+      "enforcement_locus": "frozen-evaluator-control",
+      "required_renderers": [],
+      "machine_only": true,
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "public_case_ids": [
+        "L7-CASE-EVAL-006"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-EVAL-008",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-EVAL-008.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-EVAL-008",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-003 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Candidates SHALL NOT modify their evaluator, oracle, adjudication policy, authorization controls, or release thresholds.",
+      "enforcement_locus": "frozen-evaluator-control",
+      "required_renderers": [],
+      "machine_only": true,
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "public_case_ids": [
+        "L7-CASE-EVAL-008"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-EVAL-009",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-EVAL-009.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-EVAL-009",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-003 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Before implementation tuning, each metric SHALL freeze scenario selection, truth labels, models/versions, run count, sampling, adjudication, confidence reporting, and failure thresholds; safety invariants SHALL not be weakened by baseline review.",
+      "enforcement_locus": "frozen-evaluator-control",
+      "required_renderers": [],
+      "machine_only": true,
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "public_case_ids": [
+        "L7-CASE-EVAL-009"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-001",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "The semantic lifecycle SHALL be `Baseline → Frame → Approve → Execute → Verify → Deliver → Observe → Learn`. `Deliver` contains separately gated optional transitions `Package`, `Deploy`, and `Expose`; profiles may skip, collapse, repeat, or mark states `NOT_APPLICABLE` with reason.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-002.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-002",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Every state SHALL define entry, exit, failure, blocked, stale, and superseded conditions.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-002"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-003.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-003",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "A transition SHALL complete only when required artifacts are schema-valid, scope/source-identity-bound, fresh under §6.7, and approved at the required assurance level.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-003"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-004",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-004.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-004",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "A conditional assurance-profile mechanism SHALL select gates, evidence, review, rollout, retention, and escalation from stage, change class, risk, capability, policy, and jurisdiction.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-004"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-005",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-005.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-005",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Only applicable reference profiles SHALL be loaded; Level 7 SHALL NOT apply every framework to every change.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-005"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-006",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-006.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-006",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Fast, standard, and elevated paths SHOULD be available, with the highest material risk dimension setting the minimum gate.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-006"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-008",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-008.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-008",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "`R3` work SHALL require an assurance case containing claim, argument, evidence, assumptions, counterevidence/defeaters, residual risk, and approver, plus structurally independent qualified review.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-008"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-009",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-009.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-009",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "One visible transition MAY contain multiple in-scope read-only or approved reversible/compensable steps; it does not mean one tool call, file, or user round trip.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-009"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-FLOW-010",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-FLOW-010.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-FLOW-010",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Numeric recipes such as option counts, RICE, line limits, layer order, spacing grids, and rollout percentages MAY be profile defaults but SHALL NOT be universal invariants; deviations SHALL be justified by context.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-FLOW-010"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-HOST-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-HOST-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-HOST-001",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "One provider-neutral semantic source SHALL define lifecycle, taxonomy, artifacts, evidence, prompts, skill contracts, and eval fixtures.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-HOST-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-HOST-005",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-HOST-005.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-HOST-005",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Native hooks, MCP, subagents, memory, browser, and telemetry integrations SHALL be optional accelerators in v1 and SHALL NOT be required for semantic correctness.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-HOST-005"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-KNOW-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-KNOW-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-KNOW-001",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Every reference profile SHALL record source, authority type, version, status, applicability, contraindications, jurisdiction, license, last-reviewed date, and freshness policy.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-KNOW-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-KNOW-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-KNOW-002.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-KNOW-002",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Laws, normative standards, official guidance, empirical research, and practitioner patterns SHALL be distinguished.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-KNOW-002"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-KNOW-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-KNOW-003.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-KNOW-003",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Draft, emerging, superseded, or disputed guidance SHALL be labeled and SHALL not silently become a mandatory invariant.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-KNOW-003"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-KNOW-004",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-KNOW-004.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-KNOW-004",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Proprietary or restrictively licensed standards SHALL be linked and mapped without unauthorized reproduction.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-KNOW-004"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-NFR-033",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-NFR-033.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-NFR-033",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Tool calls, subagents, retries, time, tokens, and monetary cost SHALL have policy-owned budgets and observability.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-NFR-033"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-PROMPT-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-PROMPT-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-PROMPT-001",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Prompts SHALL be composed from goal, authoritative inputs, invariants, prohibited effects, acceptance criteria, authority/tool bounds, evidence, retry/stopping/escalation, and output schema.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-PROMPT-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-PROMPT-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-PROMPT-002.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-PROMPT-002",
+      "criticality": "safety-critical",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Host renderers MAY differ in syntax or examples, but SHALL preserve semantic obligations and avoid duplicating rules.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-PROMPT-002"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-SKILL-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-SKILL-001.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-SKILL-001",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Every semantic skill SHALL declare ID/version, positive and negative triggers, prerequisites, input artifacts, authority/effect class, outputs, transition, success, failure, stopping/escalation, host support, references, and eval fixtures.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-SKILL-001"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-OBL-SKILL-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Source-derived obligation for L7-SKILL-002.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-150",
+        "SEM-165"
+      ],
+      "source_requirement": "L7-SKILL-002",
+      "criticality": "material",
+      "rationale": "Preserve the approved L7-BL-002 requirement without weakening or invention.",
+      "applicability": {
+        "stages": [
+          "approve",
+          "execute",
+          "frame",
+          "verify"
+        ],
+        "profiles": [
+          "behavior-preserving-refactor",
+          "feature-change",
+          "generic"
+        ],
+        "risks": [
+          "R0",
+          "R1",
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "effects": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "capabilities": [
+          "available",
+          "degraded",
+          "unverified"
+        ],
+        "hosts": [
+          "controlled-client",
+          "stock-a0"
+        ],
+        "contraindications": []
+      },
+      "rule": "Skill descriptions SHALL be concise, distinctive, front-loaded, and non-overlapping enough to survive host discovery budgets.",
+      "enforcement_locus": "semantic-compiler-and-deterministic-grader",
+      "required_renderers": [
+        "controlled-client",
+        "stock-a0"
+      ],
+      "machine_only": false,
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "public_case_ids": [
+        "L7-CASE-SKILL-002"
+      ],
+      "evidence_rule": "A deterministic public case must bind the source, obligation, grader, and exact candidate identity.",
+      "overrideability": "non-waivable-within-wave-02"
+    }
+  ]
+}

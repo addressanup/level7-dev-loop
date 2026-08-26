@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/taxonomy.schema.json",
+  "title": "Level 7 semantic taxonomy record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "allowed_transitions",
+    "change_gate",
+    "compatibility",
+    "definition",
+    "earliest_removal",
+    "id",
+    "introduced_by",
+    "invalid_combinations",
+    "kind",
+    "owner",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "status",
+    "supersedes",
+    "values",
+    "version"
+  ],
+  "properties": {
+    "allowed_transitions": {
+      "type": "array",
+      "description": "Allowed typed transitions.",
+      "minItems": 0,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "description": "Closed transition.",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "gate",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Transition from."
+          },
+          "gate": {
+            "type": "string",
+            "description": "Transition gate."
+          },
+          "to": {
+            "type": "string",
+            "description": "Transition to."
+          }
+        }
+      }
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value."
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "invalid_combinations": {
+      "type": "array",
+      "description": "Sorted invalid_combinations set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "invalid_combinations item."
+      }
+    },
+    "kind": {
+      "type": "string",
+      "description": "Typed kind value."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained_tests set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value."
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value."
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted supersedes set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "values": {
+      "type": "array",
+      "description": "Ordered taxonomy values.",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "description": "Closed taxonomy value.",
+        "additionalProperties": false,
+        "required": [
+          "blocked",
+          "entry",
+          "exit",
+          "failure",
+          "meaning",
+          "stale",
+          "superseded",
+          "value"
+        ],
+        "properties": {
+          "blocked": {
+            "type": "string",
+            "description": "Taxonomy value blocked."
+          },
+          "entry": {
+            "type": "string",
+            "description": "Taxonomy value entry."
+          },
+          "exit": {
+            "type": "string",
+            "description": "Taxonomy value exit."
+          },
+          "failure": {
+            "type": "string",
+            "description": "Taxonomy value failure."
+          },
+          "meaning": {
+            "type": "string",
+            "description": "Taxonomy value meaning."
+          },
+          "stale": {
+            "type": "string",
+            "description": "Taxonomy value stale."
+          },
+          "superseded": {
+            "type": "string",
+            "description": "Taxonomy value superseded."
+          },
+          "value": {
+            "type": "string",
+            "description": "Taxonomy value value."
+          }
+        }
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value."
+    }
+  }
+}

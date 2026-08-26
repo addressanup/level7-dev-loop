@@ -1,0 +1,365 @@
+{
+  "schema_version": "1.0.0",
+  "guardrails": [
+    {
+      "id": "L7-GUARD-A5-V1",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: A5 or background/self-modifying behavior in v1.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "A5 or background/self-modifying behavior in v1",
+      "decision": "blocked",
+      "failure_mode": "Unauthorized irreversible or autonomous behavior",
+      "recovery": "Remove A5 and background/self-modifying behavior",
+      "proof": "Deterministic effect-bound grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-AP0-CURRENT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Editable AP0 text treated as live approval.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Editable AP0 text treated as live approval",
+      "decision": "blocked",
+      "failure_mode": "Stale text expands authority",
+      "recovery": "Obtain current separately bound approval",
+      "proof": "Approval identity and digest grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-EFFECT-CEILING",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Requested or observed effect above capability, approval, or effect ceiling.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Requested or observed effect above capability, approval, or effect ceiling",
+      "decision": "blocked",
+      "failure_mode": "Execution exceeds admitted authority",
+      "recovery": "Reduce the effect or obtain bounded approval",
+      "proof": "Deterministic effect-ceiling grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-EVALUATOR-CONTROL",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Candidate or remediator changes a frozen evaluator control or threshold.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Candidate or remediator changes a frozen evaluator control or threshold",
+      "decision": "blocked",
+      "failure_mode": "Outcome-driven controls invalidate evidence",
+      "recovery": "Restore the frozen control bytes and manifest",
+      "proof": "Frozen-control digest grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-GO-BLOCKER",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Go with an applicable unresolved release blocker.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Go with an applicable unresolved release blocker",
+      "decision": "blocked",
+      "failure_mode": "Release verdict conceals a blocker",
+      "recovery": "Resolve the blocker or return no_go",
+      "proof": "Deterministic verdict/blocker grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-NA-REASON",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Non-applicable lifecycle state without a validated reason.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Non-applicable lifecycle state without a validated reason",
+      "decision": "blocked",
+      "failure_mode": "Lifecycle work is silently skipped",
+      "recovery": "Supply a typed reason-bearing transition",
+      "proof": "Lifecycle matrix grader",
+      "criticality": "material",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-NO-SUBAGENT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Accepted semantic result differs when delegation is unavailable.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Accepted semantic result differs when delegation is unavailable",
+      "decision": "blocked",
+      "failure_mode": "Correctness depends on optional delegation",
+      "recovery": "Restore the safe single-agent path",
+      "proof": "No-subagent equivalence grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-OBLIGATION-ACCOUNTING",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Critical obligation missing, duplicated, weakened, dangling, or invented.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Critical obligation missing, duplicated, weakened, dangling, or invented",
+      "decision": "blocked",
+      "failure_mode": "Compilation no longer represents approved truth",
+      "recovery": "Restore exact source-derived accounting",
+      "proof": "Obligation parity grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-PASS-UNVERIFIED",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Pass supported only by unverified, not_run, not_evaluated, or absent evidence.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Pass supported only by unverified, not_run, not_evaluated, or absent evidence",
+      "decision": "blocked",
+      "failure_mode": "Unsupported success claim",
+      "recovery": "Provide reproducible evidence or return a non-pass result",
+      "proof": "Evidence-state grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-RISK-FLOOR",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Lower-risk profile overrides a higher material risk dimension.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Lower-risk profile overrides a higher material risk dimension",
+      "decision": "blocked",
+      "failure_mode": "Composition silently lowers protection",
+      "recovery": "Use the maximum applicable risk floor",
+      "proof": "Profile-composition grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-SECRET-NONLEAK",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Synthetic canary appears in output, diagnostic, or retained artifact.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Synthetic canary appears in output, diagnostic, or retained artifact",
+      "decision": "fail",
+      "failure_mode": "Protected evaluation data leaks",
+      "recovery": "Remove the leak and invalidate affected evidence",
+      "proof": "Canary nonleakage grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    },
+    {
+      "id": "L7-GUARD-UNKNOWN-SUCCESS",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Permanent invalid-combination rule: Unknown taxonomy value interpreted as success.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-146",
+        "SEM-148"
+      ],
+      "input": "Unknown taxonomy value interpreted as success",
+      "decision": "blocked",
+      "failure_mode": "Unrecognized state silently passes",
+      "recovery": "Use a canonical value or block",
+      "proof": "Closed-taxonomy grader",
+      "criticality": "safety-critical",
+      "enforcement_locus": "deterministic-semantic-validation",
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "overrideability": "non-waivable-within-wave-02"
+    }
+  ]
+}

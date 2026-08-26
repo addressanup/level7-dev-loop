@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0.0",
+  "knowledge": [
+    {
+      "id": "L7-KNOW-EMPIRICAL-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "License-safe metadata for the empirical_research authority class.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-149"
+      ],
+      "pointer": "https://doi.org/10.48550/arXiv.2302.11382",
+      "source_type": "bibliographic-metadata",
+      "authority_type": "empirical_research",
+      "source_version": "arXiv-2302.11382-v1",
+      "source_date": "2023-02-21",
+      "source_status": "current",
+      "jurisdiction": "not_applicable",
+      "license": "metadata-only-citation",
+      "use_restriction": "Do not reproduce copyrighted source text; use only citation metadata and approved mappings.",
+      "mapping": [
+        "evidence calibration",
+        "workflow evaluation"
+      ],
+      "applicability": [
+        "semantic-compilation",
+        "wave-02"
+      ],
+      "contraindications": [],
+      "freshness_days": 365,
+      "last_reviewed": "2026-08-26",
+      "next_review": "2027-08-26",
+      "normative": false
+    },
+    {
+      "id": "L7-KNOW-GUIDANCE-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "License-safe metadata for the official_guidance authority class.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-149"
+      ],
+      "pointer": "https://doi.org/10.6028/NIST.AI.100-1",
+      "source_type": "official-guidance-pointer",
+      "authority_type": "official_guidance",
+      "source_version": "NIST-AI-100-1",
+      "source_date": "2023-01-26",
+      "source_status": "current",
+      "jurisdiction": "United States",
+      "license": "United-States-government-work",
+      "use_restriction": "Use as labeled guidance; do not imply certification or universal legal authority.",
+      "mapping": [
+        "evidence vocabulary",
+        "risk management"
+      ],
+      "applicability": [
+        "semantic-compilation",
+        "wave-02"
+      ],
+      "contraindications": [],
+      "freshness_days": 365,
+      "last_reviewed": "2026-08-26",
+      "next_review": "2027-08-26",
+      "normative": false
+    },
+    {
+      "id": "L7-KNOW-LAW-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "License-safe metadata for the law authority class.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-149"
+      ],
+      "pointer": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
+      "source_type": "official-legal-pointer",
+      "authority_type": "law",
+      "source_version": "OJ-L-2024-1689",
+      "source_date": "2024-07-12",
+      "source_status": "current",
+      "jurisdiction": "European Union",
+      "license": "official-public-legal-text",
+      "use_restriction": "Applicability requires jurisdiction and current legal review; metadata is not legal advice.",
+      "mapping": [
+        "authority limits",
+        "risk classification"
+      ],
+      "applicability": [
+        "semantic-compilation",
+        "wave-02"
+      ],
+      "contraindications": [],
+      "freshness_days": 180,
+      "last_reviewed": "2026-08-26",
+      "next_review": "2027-02-22",
+      "normative": false
+    },
+    {
+      "id": "L7-KNOW-PATTERN-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "License-safe metadata for the practitioner_pattern authority class.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-149"
+      ],
+      "pointer": "AGENTS.md",
+      "source_type": "repository-practitioner-pattern",
+      "authority_type": "practitioner_pattern",
+      "source_version": "wave-02-source-tuple",
+      "source_date": "2026-08-26",
+      "source_status": "current",
+      "jurisdiction": "repository-local",
+      "license": "repository-owned-instructions",
+      "use_restriction": "Apply only within the bound repository and approval identity.",
+      "mapping": [
+        "approval gates",
+        "single-writer workflow"
+      ],
+      "applicability": [
+        "semantic-compilation",
+        "wave-02"
+      ],
+      "contraindications": [],
+      "freshness_days": 365,
+      "last_reviewed": "2026-08-26",
+      "next_review": "2027-08-26",
+      "normative": false
+    },
+    {
+      "id": "L7-KNOW-STANDARD-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "License-safe metadata for the normative_standard authority class.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-149"
+      ],
+      "pointer": "https://www.iso.org/standard/81230.html",
+      "source_type": "standard-catalog-metadata",
+      "authority_type": "normative_standard",
+      "source_version": "ISO-IEC-42001:2023",
+      "source_date": "2023-12-18",
+      "source_status": "restricted",
+      "jurisdiction": "international",
+      "license": "restricted-standard-metadata-only",
+      "use_restriction": "Do not reproduce restricted standard text or represent metadata as normative conformance.",
+      "mapping": [
+        "governance vocabulary",
+        "management-system context"
+      ],
+      "applicability": [
+        "semantic-compilation",
+        "wave-02"
+      ],
+      "contraindications": [
+        "normative-projection"
+      ],
+      "freshness_days": 365,
+      "last_reviewed": "2026-08-26",
+      "next_review": "2027-08-26",
+      "normative": false
+    }
+  ]
+}

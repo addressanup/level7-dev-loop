@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/knowledge.schema.json",
+  "title": "Level 7 semantic knowledge record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "applicability",
+    "authority_type",
+    "change_gate",
+    "compatibility",
+    "contraindications",
+    "definition",
+    "earliest_removal",
+    "freshness_days",
+    "id",
+    "introduced_by",
+    "jurisdiction",
+    "last_reviewed",
+    "license",
+    "mapping",
+    "next_review",
+    "normative",
+    "owner",
+    "pointer",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "source_date",
+    "source_status",
+    "source_type",
+    "source_version",
+    "status",
+    "supersedes",
+    "use_restriction",
+    "version"
+  ],
+  "properties": {
+    "applicability": {
+      "type": "array",
+      "description": "Sorted applicability set.",
+      "minItems": 0,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "applicability item."
+      }
+    },
+    "authority_type": {
+      "type": "string",
+      "description": "Typed authority_type value."
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "contraindications": {
+      "type": "array",
+      "description": "Sorted contraindications set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "contraindications item."
+      }
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "freshness_days": {
+      "type": "integer",
+      "description": "Bounded freshness_days value.",
+        "minimum": 1,
+      "maximum": 3650
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value."
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Typed jurisdiction value."
+    },
+    "last_reviewed": {
+      "type": "string",
+      "description": "Typed last_reviewed value."
+    },
+    "license": {
+      "type": "string",
+      "description": "Typed license value."
+    },
+    "mapping": {
+      "type": "array",
+      "description": "Sorted mapping set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "mapping item."
+      }
+    },
+    "next_review": {
+      "type": "string",
+      "description": "Typed next_review value."
+    },
+    "normative": {
+      "type": "boolean",
+      "description": "Typed normative value."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "pointer": {
+      "type": "string",
+      "description": "Typed pointer value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained_tests set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value."
+    },
+    "source_date": {
+      "type": "string",
+      "description": "Typed source_date value."
+    },
+    "source_status": {
+      "type": "string",
+      "description": "Typed source_status value."
+    },
+    "source_type": {
+      "type": "string",
+      "description": "Typed source_type value."
+    },
+    "source_version": {
+      "type": "string",
+      "description": "Typed source_version value."
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value."
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted supersedes set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "use_restriction": {
+      "type": "string",
+      "description": "Typed use_restriction value."
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value."
+    }
+  }
+}

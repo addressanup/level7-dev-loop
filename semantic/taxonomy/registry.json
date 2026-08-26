@@ -1,0 +1,1366 @@
+{
+  "schema_version": "1.0.0",
+  "taxonomies": [
+    {
+      "id": "L7-TAX-APPROVAL-ASSURANCE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical approval-assurance vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "approval-assurance",
+      "values": [
+        {
+          "value": "AP0",
+          "meaning": "AP0 is the canonical approval-assurance value.",
+          "entry": "Enter AP0 only from validated typed evidence.",
+          "exit": "Exit AP0 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for AP0 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for AP0 is blocked.",
+          "stale": "A source-identity change makes evidence for AP0 stale.",
+          "superseded": "A versioned replacement explicitly supersedes AP0."
+        },
+        {
+          "value": "AP1",
+          "meaning": "AP1 is the canonical approval-assurance value.",
+          "entry": "Enter AP1 only from validated typed evidence.",
+          "exit": "Exit AP1 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for AP1 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for AP1 is blocked.",
+          "stale": "A source-identity change makes evidence for AP1 stale.",
+          "superseded": "A versioned replacement explicitly supersedes AP1."
+        },
+        {
+          "value": "AP2",
+          "meaning": "AP2 is the canonical approval-assurance value.",
+          "entry": "Enter AP2 only from validated typed evidence.",
+          "exit": "Exit AP2 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for AP2 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for AP2 is blocked.",
+          "stale": "A source-identity change makes evidence for AP2 stale.",
+          "superseded": "A versioned replacement explicitly supersedes AP2."
+        },
+        {
+          "value": "AP3",
+          "meaning": "AP3 is the canonical approval-assurance value.",
+          "entry": "Enter AP3 only from validated typed evidence.",
+          "exit": "Exit AP3 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for AP3 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for AP3 is blocked.",
+          "stale": "A source-identity change makes evidence for AP3 stale.",
+          "superseded": "A versioned replacement explicitly supersedes AP3."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": [
+        "L7-GUARD-AP0-CURRENT"
+      ]
+    },
+    {
+      "id": "L7-TAX-CAPABILITY",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical capability vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "capability",
+      "values": [
+        {
+          "value": "available",
+          "meaning": "available is the canonical capability value.",
+          "entry": "Enter available only from validated typed evidence.",
+          "exit": "Exit available only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for available is a failing semantic state.",
+          "blocked": "Missing authority or evidence for available is blocked.",
+          "stale": "A source-identity change makes evidence for available stale.",
+          "superseded": "A versioned replacement explicitly supersedes available."
+        },
+        {
+          "value": "unavailable",
+          "meaning": "unavailable is the canonical capability value.",
+          "entry": "Enter unavailable only from validated typed evidence.",
+          "exit": "Exit unavailable only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for unavailable is a failing semantic state.",
+          "blocked": "Missing authority or evidence for unavailable is blocked.",
+          "stale": "A source-identity change makes evidence for unavailable stale.",
+          "superseded": "A versioned replacement explicitly supersedes unavailable."
+        },
+        {
+          "value": "degraded",
+          "meaning": "degraded is the canonical capability value.",
+          "entry": "Enter degraded only from validated typed evidence.",
+          "exit": "Exit degraded only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for degraded is a failing semantic state.",
+          "blocked": "Missing authority or evidence for degraded is blocked.",
+          "stale": "A source-identity change makes evidence for degraded stale.",
+          "superseded": "A versioned replacement explicitly supersedes degraded."
+        },
+        {
+          "value": "unsupported",
+          "meaning": "unsupported is the canonical capability value.",
+          "entry": "Enter unsupported only from validated typed evidence.",
+          "exit": "Exit unsupported only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for unsupported is a failing semantic state.",
+          "blocked": "Missing authority or evidence for unsupported is blocked.",
+          "stale": "A source-identity change makes evidence for unsupported stale.",
+          "superseded": "A versioned replacement explicitly supersedes unsupported."
+        },
+        {
+          "value": "not_applicable",
+          "meaning": "not_applicable is the canonical capability value.",
+          "entry": "Enter not_applicable only from validated typed evidence.",
+          "exit": "Exit not_applicable only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for not_applicable is a failing semantic state.",
+          "blocked": "Missing authority or evidence for not_applicable is blocked.",
+          "stale": "A source-identity change makes evidence for not_applicable stale.",
+          "superseded": "A versioned replacement explicitly supersedes not_applicable."
+        },
+        {
+          "value": "unverified",
+          "meaning": "unverified is the canonical capability value.",
+          "entry": "Enter unverified only from validated typed evidence.",
+          "exit": "Exit unverified only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for unverified is a failing semantic state.",
+          "blocked": "Missing authority or evidence for unverified is blocked.",
+          "stale": "A source-identity change makes evidence for unverified stale.",
+          "superseded": "A versioned replacement explicitly supersedes unverified."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-CHANGE-CLASS",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical change-class vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "change-class",
+      "values": [
+        {
+          "value": "documentation",
+          "meaning": "documentation is the canonical change-class value.",
+          "entry": "Enter documentation only from validated typed evidence.",
+          "exit": "Exit documentation only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for documentation is a failing semantic state.",
+          "blocked": "Missing authority or evidence for documentation is blocked.",
+          "stale": "A source-identity change makes evidence for documentation stale.",
+          "superseded": "A versioned replacement explicitly supersedes documentation."
+        },
+        {
+          "value": "test",
+          "meaning": "test is the canonical change-class value.",
+          "entry": "Enter test only from validated typed evidence.",
+          "exit": "Exit test only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for test is a failing semantic state.",
+          "blocked": "Missing authority or evidence for test is blocked.",
+          "stale": "A source-identity change makes evidence for test stale.",
+          "superseded": "A versioned replacement explicitly supersedes test."
+        },
+        {
+          "value": "infrastructure",
+          "meaning": "infrastructure is the canonical change-class value.",
+          "entry": "Enter infrastructure only from validated typed evidence.",
+          "exit": "Exit infrastructure only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for infrastructure is a failing semantic state.",
+          "blocked": "Missing authority or evidence for infrastructure is blocked.",
+          "stale": "A source-identity change makes evidence for infrastructure stale.",
+          "superseded": "A versioned replacement explicitly supersedes infrastructure."
+        },
+        {
+          "value": "architecture",
+          "meaning": "architecture is the canonical change-class value.",
+          "entry": "Enter architecture only from validated typed evidence.",
+          "exit": "Exit architecture only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for architecture is a failing semantic state.",
+          "blocked": "Missing authority or evidence for architecture is blocked.",
+          "stale": "A source-identity change makes evidence for architecture stale.",
+          "superseded": "A versioned replacement explicitly supersedes architecture."
+        },
+        {
+          "value": "feature",
+          "meaning": "feature is the canonical change-class value.",
+          "entry": "Enter feature only from validated typed evidence.",
+          "exit": "Exit feature only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for feature is a failing semantic state.",
+          "blocked": "Missing authority or evidence for feature is blocked.",
+          "stale": "A source-identity change makes evidence for feature stale.",
+          "superseded": "A versioned replacement explicitly supersedes feature."
+        },
+        {
+          "value": "security",
+          "meaning": "security is the canonical change-class value.",
+          "entry": "Enter security only from validated typed evidence.",
+          "exit": "Exit security only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for security is a failing semantic state.",
+          "blocked": "Missing authority or evidence for security is blocked.",
+          "stale": "A source-identity change makes evidence for security stale.",
+          "superseded": "A versioned replacement explicitly supersedes security."
+        },
+        {
+          "value": "data",
+          "meaning": "data is the canonical change-class value.",
+          "entry": "Enter data only from validated typed evidence.",
+          "exit": "Exit data only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for data is a failing semantic state.",
+          "blocked": "Missing authority or evidence for data is blocked.",
+          "stale": "A source-identity change makes evidence for data stale.",
+          "superseded": "A versioned replacement explicitly supersedes data."
+        },
+        {
+          "value": "dependency",
+          "meaning": "dependency is the canonical change-class value.",
+          "entry": "Enter dependency only from validated typed evidence.",
+          "exit": "Exit dependency only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for dependency is a failing semantic state.",
+          "blocked": "Missing authority or evidence for dependency is blocked.",
+          "stale": "A source-identity change makes evidence for dependency stale.",
+          "superseded": "A versioned replacement explicitly supersedes dependency."
+        },
+        {
+          "value": "distribution",
+          "meaning": "distribution is the canonical change-class value.",
+          "entry": "Enter distribution only from validated typed evidence.",
+          "exit": "Exit distribution only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for distribution is a failing semantic state.",
+          "blocked": "Missing authority or evidence for distribution is blocked.",
+          "stale": "A source-identity change makes evidence for distribution stale.",
+          "superseded": "A versioned replacement explicitly supersedes distribution."
+        },
+        {
+          "value": "operations",
+          "meaning": "operations is the canonical change-class value.",
+          "entry": "Enter operations only from validated typed evidence.",
+          "exit": "Exit operations only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for operations is a failing semantic state.",
+          "blocked": "Missing authority or evidence for operations is blocked.",
+          "stale": "A source-identity change makes evidence for operations stale.",
+          "superseded": "A versioned replacement explicitly supersedes operations."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-EFFECT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical effect vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "effect",
+      "values": [
+        {
+          "value": "A0",
+          "meaning": "A0 is the canonical effect value.",
+          "entry": "Enter A0 only from validated typed evidence.",
+          "exit": "Exit A0 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for A0 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for A0 is blocked.",
+          "stale": "A source-identity change makes evidence for A0 stale.",
+          "superseded": "A versioned replacement explicitly supersedes A0."
+        },
+        {
+          "value": "A1",
+          "meaning": "A1 is the canonical effect value.",
+          "entry": "Enter A1 only from validated typed evidence.",
+          "exit": "Exit A1 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for A1 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for A1 is blocked.",
+          "stale": "A source-identity change makes evidence for A1 stale.",
+          "superseded": "A versioned replacement explicitly supersedes A1."
+        },
+        {
+          "value": "A2",
+          "meaning": "A2 is the canonical effect value.",
+          "entry": "Enter A2 only from validated typed evidence.",
+          "exit": "Exit A2 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for A2 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for A2 is blocked.",
+          "stale": "A source-identity change makes evidence for A2 stale.",
+          "superseded": "A versioned replacement explicitly supersedes A2."
+        },
+        {
+          "value": "A3",
+          "meaning": "A3 is the canonical effect value.",
+          "entry": "Enter A3 only from validated typed evidence.",
+          "exit": "Exit A3 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for A3 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for A3 is blocked.",
+          "stale": "A source-identity change makes evidence for A3 stale.",
+          "superseded": "A versioned replacement explicitly supersedes A3."
+        },
+        {
+          "value": "A4",
+          "meaning": "A4 is the canonical effect value.",
+          "entry": "Enter A4 only from validated typed evidence.",
+          "exit": "Exit A4 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for A4 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for A4 is blocked.",
+          "stale": "A source-identity change makes evidence for A4 stale.",
+          "superseded": "A versioned replacement explicitly supersedes A4."
+        },
+        {
+          "value": "A5",
+          "meaning": "A5 is the canonical effect value.",
+          "entry": "Enter A5 only from validated typed evidence.",
+          "exit": "Exit A5 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for A5 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for A5 is blocked.",
+          "stale": "A source-identity change makes evidence for A5 stale.",
+          "superseded": "A versioned replacement explicitly supersedes A5."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": [
+        "L7-GUARD-A5-V1",
+        "L7-GUARD-EFFECT-CEILING"
+      ]
+    },
+    {
+      "id": "L7-TAX-EVIDENCE-STATE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical evidence-state vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "evidence-state",
+      "values": [
+        {
+          "value": "absent",
+          "meaning": "absent is the canonical evidence-state value.",
+          "entry": "Enter absent only from validated typed evidence.",
+          "exit": "Exit absent only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for absent is a failing semantic state.",
+          "blocked": "Missing authority or evidence for absent is blocked.",
+          "stale": "A source-identity change makes evidence for absent stale.",
+          "superseded": "A versioned replacement explicitly supersedes absent."
+        },
+        {
+          "value": "not_run",
+          "meaning": "not_run is the canonical evidence-state value.",
+          "entry": "Enter not_run only from validated typed evidence.",
+          "exit": "Exit not_run only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for not_run is a failing semantic state.",
+          "blocked": "Missing authority or evidence for not_run is blocked.",
+          "stale": "A source-identity change makes evidence for not_run stale.",
+          "superseded": "A versioned replacement explicitly supersedes not_run."
+        },
+        {
+          "value": "not_evaluated",
+          "meaning": "not_evaluated is the canonical evidence-state value.",
+          "entry": "Enter not_evaluated only from validated typed evidence.",
+          "exit": "Exit not_evaluated only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for not_evaluated is a failing semantic state.",
+          "blocked": "Missing authority or evidence for not_evaluated is blocked.",
+          "stale": "A source-identity change makes evidence for not_evaluated stale.",
+          "superseded": "A versioned replacement explicitly supersedes not_evaluated."
+        },
+        {
+          "value": "unverified",
+          "meaning": "unverified is the canonical evidence-state value.",
+          "entry": "Enter unverified only from validated typed evidence.",
+          "exit": "Exit unverified only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for unverified is a failing semantic state.",
+          "blocked": "Missing authority or evidence for unverified is blocked.",
+          "stale": "A source-identity change makes evidence for unverified stale.",
+          "superseded": "A versioned replacement explicitly supersedes unverified."
+        },
+        {
+          "value": "observed",
+          "meaning": "observed is the canonical evidence-state value.",
+          "entry": "Enter observed only from validated typed evidence.",
+          "exit": "Exit observed only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for observed is a failing semantic state.",
+          "blocked": "Missing authority or evidence for observed is blocked.",
+          "stale": "A source-identity change makes evidence for observed stale.",
+          "superseded": "A versioned replacement explicitly supersedes observed."
+        },
+        {
+          "value": "reproducible",
+          "meaning": "reproducible is the canonical evidence-state value.",
+          "entry": "Enter reproducible only from validated typed evidence.",
+          "exit": "Exit reproducible only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for reproducible is a failing semantic state.",
+          "blocked": "Missing authority or evidence for reproducible is blocked.",
+          "stale": "A source-identity change makes evidence for reproducible stale.",
+          "superseded": "A versioned replacement explicitly supersedes reproducible."
+        },
+        {
+          "value": "independently_verified",
+          "meaning": "independently_verified is the canonical evidence-state value.",
+          "entry": "Enter independently_verified only from validated typed evidence.",
+          "exit": "Exit independently_verified only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for independently_verified is a failing semantic state.",
+          "blocked": "Missing authority or evidence for independently_verified is blocked.",
+          "stale": "A source-identity change makes evidence for independently_verified stale.",
+          "superseded": "A versioned replacement explicitly supersedes independently_verified."
+        },
+        {
+          "value": "invalidated",
+          "meaning": "invalidated is the canonical evidence-state value.",
+          "entry": "Enter invalidated only from validated typed evidence.",
+          "exit": "Exit invalidated only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for invalidated is a failing semantic state.",
+          "blocked": "Missing authority or evidence for invalidated is blocked.",
+          "stale": "A source-identity change makes evidence for invalidated stale.",
+          "superseded": "A versioned replacement explicitly supersedes invalidated."
+        },
+        {
+          "value": "stale",
+          "meaning": "stale is the canonical evidence-state value.",
+          "entry": "Enter stale only from validated typed evidence.",
+          "exit": "Exit stale only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for stale is a failing semantic state.",
+          "blocked": "Missing authority or evidence for stale is blocked.",
+          "stale": "A source-identity change makes evidence for stale stale.",
+          "superseded": "A versioned replacement explicitly supersedes stale."
+        },
+        {
+          "value": "superseded",
+          "meaning": "superseded is the canonical evidence-state value.",
+          "entry": "Enter superseded only from validated typed evidence.",
+          "exit": "Exit superseded only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for superseded is a failing semantic state.",
+          "blocked": "Missing authority or evidence for superseded is blocked.",
+          "stale": "A source-identity change makes evidence for superseded stale.",
+          "superseded": "A versioned replacement explicitly supersedes superseded."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": [
+        "L7-GUARD-PASS-UNVERIFIED"
+      ]
+    },
+    {
+      "id": "L7-TAX-GATE-RESULT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical gate-result vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "gate-result",
+      "values": [
+        {
+          "value": "pass",
+          "meaning": "pass is the canonical gate-result value.",
+          "entry": "Enter pass only from validated typed evidence.",
+          "exit": "Exit pass only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for pass is a failing semantic state.",
+          "blocked": "Missing authority or evidence for pass is blocked.",
+          "stale": "A source-identity change makes evidence for pass stale.",
+          "superseded": "A versioned replacement explicitly supersedes pass."
+        },
+        {
+          "value": "fail",
+          "meaning": "fail is the canonical gate-result value.",
+          "entry": "Enter fail only from validated typed evidence.",
+          "exit": "Exit fail only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for fail is a failing semantic state.",
+          "blocked": "Missing authority or evidence for fail is blocked.",
+          "stale": "A source-identity change makes evidence for fail stale.",
+          "superseded": "A versioned replacement explicitly supersedes fail."
+        },
+        {
+          "value": "blocked",
+          "meaning": "blocked is the canonical gate-result value.",
+          "entry": "Enter blocked only from validated typed evidence.",
+          "exit": "Exit blocked only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for blocked is a failing semantic state.",
+          "blocked": "Missing authority or evidence for blocked is blocked.",
+          "stale": "A source-identity change makes evidence for blocked stale.",
+          "superseded": "A versioned replacement explicitly supersedes blocked."
+        },
+        {
+          "value": "not_applicable",
+          "meaning": "not_applicable is the canonical gate-result value.",
+          "entry": "Enter not_applicable only from validated typed evidence.",
+          "exit": "Exit not_applicable only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for not_applicable is a failing semantic state.",
+          "blocked": "Missing authority or evidence for not_applicable is blocked.",
+          "stale": "A source-identity change makes evidence for not_applicable stale.",
+          "superseded": "A versioned replacement explicitly supersedes not_applicable."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": [
+        "L7-GUARD-PASS-UNVERIFIED"
+      ]
+    },
+    {
+      "id": "L7-TAX-HERITAGE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical heritage vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "heritage",
+      "values": [
+        {
+          "value": "prototype",
+          "meaning": "prototype is the canonical heritage value.",
+          "entry": "Enter prototype only from validated typed evidence.",
+          "exit": "Exit prototype only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for prototype is a failing semantic state.",
+          "blocked": "Missing authority or evidence for prototype is blocked.",
+          "stale": "A source-identity change makes evidence for prototype stale.",
+          "superseded": "A versioned replacement explicitly supersedes prototype."
+        },
+        {
+          "value": "generated",
+          "meaning": "generated is the canonical heritage value.",
+          "entry": "Enter generated only from validated typed evidence.",
+          "exit": "Exit generated only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for generated is a failing semantic state.",
+          "blocked": "Missing authority or evidence for generated is blocked.",
+          "stale": "A source-identity change makes evidence for generated stale.",
+          "superseded": "A versioned replacement explicitly supersedes generated."
+        },
+        {
+          "value": "canonical",
+          "meaning": "canonical is the canonical heritage value.",
+          "entry": "Enter canonical only from validated typed evidence.",
+          "exit": "Exit canonical only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for canonical is a failing semantic state.",
+          "blocked": "Missing authority or evidence for canonical is blocked.",
+          "stale": "A source-identity change makes evidence for canonical stale.",
+          "superseded": "A versioned replacement explicitly supersedes canonical."
+        },
+        {
+          "value": "deprecated",
+          "meaning": "deprecated is the canonical heritage value.",
+          "entry": "Enter deprecated only from validated typed evidence.",
+          "exit": "Exit deprecated only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for deprecated is a failing semantic state.",
+          "blocked": "Missing authority or evidence for deprecated is blocked.",
+          "stale": "A source-identity change makes evidence for deprecated stale.",
+          "superseded": "A versioned replacement explicitly supersedes deprecated."
+        },
+        {
+          "value": "retired",
+          "meaning": "retired is the canonical heritage value.",
+          "entry": "Enter retired only from validated typed evidence.",
+          "exit": "Exit retired only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for retired is a failing semantic state.",
+          "blocked": "Missing authority or evidence for retired is blocked.",
+          "stale": "A source-identity change makes evidence for retired stale.",
+          "superseded": "A versioned replacement explicitly supersedes retired."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-LIFECYCLE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical lifecycle vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "lifecycle",
+      "values": [
+        {
+          "value": "baseline",
+          "meaning": "baseline is the canonical lifecycle value.",
+          "entry": "Enter baseline only from validated typed evidence.",
+          "exit": "Exit baseline only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for baseline is a failing semantic state.",
+          "blocked": "Missing authority or evidence for baseline is blocked.",
+          "stale": "A source-identity change makes evidence for baseline stale.",
+          "superseded": "A versioned replacement explicitly supersedes baseline."
+        },
+        {
+          "value": "frame",
+          "meaning": "frame is the canonical lifecycle value.",
+          "entry": "Enter frame only from validated typed evidence.",
+          "exit": "Exit frame only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for frame is a failing semantic state.",
+          "blocked": "Missing authority or evidence for frame is blocked.",
+          "stale": "A source-identity change makes evidence for frame stale.",
+          "superseded": "A versioned replacement explicitly supersedes frame."
+        },
+        {
+          "value": "approve",
+          "meaning": "approve is the canonical lifecycle value.",
+          "entry": "Enter approve only from validated typed evidence.",
+          "exit": "Exit approve only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for approve is a failing semantic state.",
+          "blocked": "Missing authority or evidence for approve is blocked.",
+          "stale": "A source-identity change makes evidence for approve stale.",
+          "superseded": "A versioned replacement explicitly supersedes approve."
+        },
+        {
+          "value": "execute",
+          "meaning": "execute is the canonical lifecycle value.",
+          "entry": "Enter execute only from validated typed evidence.",
+          "exit": "Exit execute only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for execute is a failing semantic state.",
+          "blocked": "Missing authority or evidence for execute is blocked.",
+          "stale": "A source-identity change makes evidence for execute stale.",
+          "superseded": "A versioned replacement explicitly supersedes execute."
+        },
+        {
+          "value": "verify",
+          "meaning": "verify is the canonical lifecycle value.",
+          "entry": "Enter verify only from validated typed evidence.",
+          "exit": "Exit verify only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for verify is a failing semantic state.",
+          "blocked": "Missing authority or evidence for verify is blocked.",
+          "stale": "A source-identity change makes evidence for verify stale.",
+          "superseded": "A versioned replacement explicitly supersedes verify."
+        },
+        {
+          "value": "deliver",
+          "meaning": "deliver is the canonical lifecycle value.",
+          "entry": "Enter deliver only from validated typed evidence.",
+          "exit": "Exit deliver only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for deliver is a failing semantic state.",
+          "blocked": "Missing authority or evidence for deliver is blocked.",
+          "stale": "A source-identity change makes evidence for deliver stale.",
+          "superseded": "A versioned replacement explicitly supersedes deliver."
+        },
+        {
+          "value": "observe",
+          "meaning": "observe is the canonical lifecycle value.",
+          "entry": "Enter observe only from validated typed evidence.",
+          "exit": "Exit observe only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for observe is a failing semantic state.",
+          "blocked": "Missing authority or evidence for observe is blocked.",
+          "stale": "A source-identity change makes evidence for observe stale.",
+          "superseded": "A versioned replacement explicitly supersedes observe."
+        },
+        {
+          "value": "learn",
+          "meaning": "learn is the canonical lifecycle value.",
+          "entry": "Enter learn only from validated typed evidence.",
+          "exit": "Exit learn only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for learn is a failing semantic state.",
+          "blocked": "Missing authority or evidence for learn is blocked.",
+          "stale": "A source-identity change makes evidence for learn stale.",
+          "superseded": "A versioned replacement explicitly supersedes learn."
+        },
+        {
+          "value": "package",
+          "meaning": "package is the canonical lifecycle value.",
+          "entry": "Enter package only from validated typed evidence.",
+          "exit": "Exit package only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for package is a failing semantic state.",
+          "blocked": "Missing authority or evidence for package is blocked.",
+          "stale": "A source-identity change makes evidence for package stale.",
+          "superseded": "A versioned replacement explicitly supersedes package."
+        },
+        {
+          "value": "deploy",
+          "meaning": "deploy is the canonical lifecycle value.",
+          "entry": "Enter deploy only from validated typed evidence.",
+          "exit": "Exit deploy only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for deploy is a failing semantic state.",
+          "blocked": "Missing authority or evidence for deploy is blocked.",
+          "stale": "A source-identity change makes evidence for deploy stale.",
+          "superseded": "A versioned replacement explicitly supersedes deploy."
+        },
+        {
+          "value": "expose",
+          "meaning": "expose is the canonical lifecycle value.",
+          "entry": "Enter expose only from validated typed evidence.",
+          "exit": "Exit expose only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for expose is a failing semantic state.",
+          "blocked": "Missing authority or evidence for expose is blocked.",
+          "stale": "A source-identity change makes evidence for expose stale.",
+          "superseded": "A versioned replacement explicitly supersedes expose."
+        }
+      ],
+      "allowed_transitions": [
+        {
+          "from": "baseline",
+          "to": "frame",
+          "gate": "approved lifecycle order"
+        },
+        {
+          "from": "frame",
+          "to": "approve",
+          "gate": "framing evidence and owner decision"
+        },
+        {
+          "from": "approve",
+          "to": "execute",
+          "gate": "current approval at the required assurance"
+        },
+        {
+          "from": "execute",
+          "to": "verify",
+          "gate": "bounded implementation is complete"
+        },
+        {
+          "from": "verify",
+          "to": "deliver",
+          "gate": "required verification is reproducible"
+        },
+        {
+          "from": "deliver",
+          "to": "observe",
+          "gate": "delivery evidence exists"
+        },
+        {
+          "from": "observe",
+          "to": "learn",
+          "gate": "outcome evidence exists"
+        },
+        {
+          "from": "learn",
+          "to": "baseline",
+          "gate": "approved learning updates the next baseline"
+        },
+        {
+          "from": "deliver",
+          "to": "package",
+          "gate": "explicit distribution approval"
+        },
+        {
+          "from": "package",
+          "to": "deploy",
+          "gate": "explicit deployment approval"
+        },
+        {
+          "from": "deploy",
+          "to": "expose",
+          "gate": "explicit exposure approval"
+        },
+        {
+          "from": "package",
+          "to": "observe",
+          "gate": "reason-bearing package-only transition"
+        },
+        {
+          "from": "deploy",
+          "to": "observe",
+          "gate": "reason-bearing deploy-without-exposure transition"
+        }
+      ],
+      "invalid_combinations": [
+        "L7-GUARD-NA-REASON"
+      ]
+    },
+    {
+      "id": "L7-TAX-OPERATIONAL-STATE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical operational-state vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "operational-state",
+      "values": [
+        {
+          "value": "draft",
+          "meaning": "draft is the canonical operational-state value.",
+          "entry": "Enter draft only from validated typed evidence.",
+          "exit": "Exit draft only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for draft is a failing semantic state.",
+          "blocked": "Missing authority or evidence for draft is blocked.",
+          "stale": "A source-identity change makes evidence for draft stale.",
+          "superseded": "A versioned replacement explicitly supersedes draft."
+        },
+        {
+          "value": "active",
+          "meaning": "active is the canonical operational-state value.",
+          "entry": "Enter active only from validated typed evidence.",
+          "exit": "Exit active only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for active is a failing semantic state.",
+          "blocked": "Missing authority or evidence for active is blocked.",
+          "stale": "A source-identity change makes evidence for active stale.",
+          "superseded": "A versioned replacement explicitly supersedes active."
+        },
+        {
+          "value": "blocked",
+          "meaning": "blocked is the canonical operational-state value.",
+          "entry": "Enter blocked only from validated typed evidence.",
+          "exit": "Exit blocked only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for blocked is a failing semantic state.",
+          "blocked": "Missing authority or evidence for blocked is blocked.",
+          "stale": "A source-identity change makes evidence for blocked stale.",
+          "superseded": "A versioned replacement explicitly supersedes blocked."
+        },
+        {
+          "value": "recovery_required",
+          "meaning": "recovery_required is the canonical operational-state value.",
+          "entry": "Enter recovery_required only from validated typed evidence.",
+          "exit": "Exit recovery_required only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for recovery_required is a failing semantic state.",
+          "blocked": "Missing authority or evidence for recovery_required is blocked.",
+          "stale": "A source-identity change makes evidence for recovery_required stale.",
+          "superseded": "A versioned replacement explicitly supersedes recovery_required."
+        },
+        {
+          "value": "superseded",
+          "meaning": "superseded is the canonical operational-state value.",
+          "entry": "Enter superseded only from validated typed evidence.",
+          "exit": "Exit superseded only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for superseded is a failing semantic state.",
+          "blocked": "Missing authority or evidence for superseded is blocked.",
+          "stale": "A source-identity change makes evidence for superseded stale.",
+          "superseded": "A versioned replacement explicitly supersedes superseded."
+        },
+        {
+          "value": "retired",
+          "meaning": "retired is the canonical operational-state value.",
+          "entry": "Enter retired only from validated typed evidence.",
+          "exit": "Exit retired only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for retired is a failing semantic state.",
+          "blocked": "Missing authority or evidence for retired is blocked.",
+          "stale": "A source-identity change makes evidence for retired stale.",
+          "superseded": "A versioned replacement explicitly supersedes retired."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-PRODUCT-DECISION",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical product-decision vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "product-decision",
+      "values": [
+        {
+          "value": "proceed",
+          "meaning": "proceed is the canonical product-decision value.",
+          "entry": "Enter proceed only from validated typed evidence.",
+          "exit": "Exit proceed only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for proceed is a failing semantic state.",
+          "blocked": "Missing authority or evidence for proceed is blocked.",
+          "stale": "A source-identity change makes evidence for proceed stale.",
+          "superseded": "A versioned replacement explicitly supersedes proceed."
+        },
+        {
+          "value": "revise",
+          "meaning": "revise is the canonical product-decision value.",
+          "entry": "Enter revise only from validated typed evidence.",
+          "exit": "Exit revise only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for revise is a failing semantic state.",
+          "blocked": "Missing authority or evidence for revise is blocked.",
+          "stale": "A source-identity change makes evidence for revise stale.",
+          "superseded": "A versioned replacement explicitly supersedes revise."
+        },
+        {
+          "value": "defer",
+          "meaning": "defer is the canonical product-decision value.",
+          "entry": "Enter defer only from validated typed evidence.",
+          "exit": "Exit defer only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for defer is a failing semantic state.",
+          "blocked": "Missing authority or evidence for defer is blocked.",
+          "stale": "A source-identity change makes evidence for defer stale.",
+          "superseded": "A versioned replacement explicitly supersedes defer."
+        },
+        {
+          "value": "stop",
+          "meaning": "stop is the canonical product-decision value.",
+          "entry": "Enter stop only from validated typed evidence.",
+          "exit": "Exit stop only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for stop is a failing semantic state.",
+          "blocked": "Missing authority or evidence for stop is blocked.",
+          "stale": "A source-identity change makes evidence for stop stale.",
+          "superseded": "A versioned replacement explicitly supersedes stop."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-REFERENCE-AUTHORITY",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical reference-authority vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "reference-authority",
+      "values": [
+        {
+          "value": "law",
+          "meaning": "law is the canonical reference-authority value.",
+          "entry": "Enter law only from validated typed evidence.",
+          "exit": "Exit law only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for law is a failing semantic state.",
+          "blocked": "Missing authority or evidence for law is blocked.",
+          "stale": "A source-identity change makes evidence for law stale.",
+          "superseded": "A versioned replacement explicitly supersedes law."
+        },
+        {
+          "value": "normative_standard",
+          "meaning": "normative_standard is the canonical reference-authority value.",
+          "entry": "Enter normative_standard only from validated typed evidence.",
+          "exit": "Exit normative_standard only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for normative_standard is a failing semantic state.",
+          "blocked": "Missing authority or evidence for normative_standard is blocked.",
+          "stale": "A source-identity change makes evidence for normative_standard stale.",
+          "superseded": "A versioned replacement explicitly supersedes normative_standard."
+        },
+        {
+          "value": "official_guidance",
+          "meaning": "official_guidance is the canonical reference-authority value.",
+          "entry": "Enter official_guidance only from validated typed evidence.",
+          "exit": "Exit official_guidance only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for official_guidance is a failing semantic state.",
+          "blocked": "Missing authority or evidence for official_guidance is blocked.",
+          "stale": "A source-identity change makes evidence for official_guidance stale.",
+          "superseded": "A versioned replacement explicitly supersedes official_guidance."
+        },
+        {
+          "value": "empirical_research",
+          "meaning": "empirical_research is the canonical reference-authority value.",
+          "entry": "Enter empirical_research only from validated typed evidence.",
+          "exit": "Exit empirical_research only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for empirical_research is a failing semantic state.",
+          "blocked": "Missing authority or evidence for empirical_research is blocked.",
+          "stale": "A source-identity change makes evidence for empirical_research stale.",
+          "superseded": "A versioned replacement explicitly supersedes empirical_research."
+        },
+        {
+          "value": "practitioner_pattern",
+          "meaning": "practitioner_pattern is the canonical reference-authority value.",
+          "entry": "Enter practitioner_pattern only from validated typed evidence.",
+          "exit": "Exit practitioner_pattern only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for practitioner_pattern is a failing semantic state.",
+          "blocked": "Missing authority or evidence for practitioner_pattern is blocked.",
+          "stale": "A source-identity change makes evidence for practitioner_pattern stale.",
+          "superseded": "A versioned replacement explicitly supersedes practitioner_pattern."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-REFERENCE-STATUS",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical reference-status vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "reference-status",
+      "values": [
+        {
+          "value": "current",
+          "meaning": "current is the canonical reference-status value.",
+          "entry": "Enter current only from validated typed evidence.",
+          "exit": "Exit current only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for current is a failing semantic state.",
+          "blocked": "Missing authority or evidence for current is blocked.",
+          "stale": "A source-identity change makes evidence for current stale.",
+          "superseded": "A versioned replacement explicitly supersedes current."
+        },
+        {
+          "value": "draft",
+          "meaning": "draft is the canonical reference-status value.",
+          "entry": "Enter draft only from validated typed evidence.",
+          "exit": "Exit draft only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for draft is a failing semantic state.",
+          "blocked": "Missing authority or evidence for draft is blocked.",
+          "stale": "A source-identity change makes evidence for draft stale.",
+          "superseded": "A versioned replacement explicitly supersedes draft."
+        },
+        {
+          "value": "emerging",
+          "meaning": "emerging is the canonical reference-status value.",
+          "entry": "Enter emerging only from validated typed evidence.",
+          "exit": "Exit emerging only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for emerging is a failing semantic state.",
+          "blocked": "Missing authority or evidence for emerging is blocked.",
+          "stale": "A source-identity change makes evidence for emerging stale.",
+          "superseded": "A versioned replacement explicitly supersedes emerging."
+        },
+        {
+          "value": "disputed",
+          "meaning": "disputed is the canonical reference-status value.",
+          "entry": "Enter disputed only from validated typed evidence.",
+          "exit": "Exit disputed only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for disputed is a failing semantic state.",
+          "blocked": "Missing authority or evidence for disputed is blocked.",
+          "stale": "A source-identity change makes evidence for disputed stale.",
+          "superseded": "A versioned replacement explicitly supersedes disputed."
+        },
+        {
+          "value": "superseded",
+          "meaning": "superseded is the canonical reference-status value.",
+          "entry": "Enter superseded only from validated typed evidence.",
+          "exit": "Exit superseded only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for superseded is a failing semantic state.",
+          "blocked": "Missing authority or evidence for superseded is blocked.",
+          "stale": "A source-identity change makes evidence for superseded stale.",
+          "superseded": "A versioned replacement explicitly supersedes superseded."
+        },
+        {
+          "value": "stale",
+          "meaning": "stale is the canonical reference-status value.",
+          "entry": "Enter stale only from validated typed evidence.",
+          "exit": "Exit stale only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for stale is a failing semantic state.",
+          "blocked": "Missing authority or evidence for stale is blocked.",
+          "stale": "A source-identity change makes evidence for stale stale.",
+          "superseded": "A versioned replacement explicitly supersedes stale."
+        },
+        {
+          "value": "restricted",
+          "meaning": "restricted is the canonical reference-status value.",
+          "entry": "Enter restricted only from validated typed evidence.",
+          "exit": "Exit restricted only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for restricted is a failing semantic state.",
+          "blocked": "Missing authority or evidence for restricted is blocked.",
+          "stale": "A source-identity change makes evidence for restricted stale.",
+          "superseded": "A versioned replacement explicitly supersedes restricted."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    },
+    {
+      "id": "L7-TAX-RELEASE-VERDICT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical release-verdict vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "release-verdict",
+      "values": [
+        {
+          "value": "go",
+          "meaning": "go is the canonical release-verdict value.",
+          "entry": "Enter go only from validated typed evidence.",
+          "exit": "Exit go only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for go is a failing semantic state.",
+          "blocked": "Missing authority or evidence for go is blocked.",
+          "stale": "A source-identity change makes evidence for go stale.",
+          "superseded": "A versioned replacement explicitly supersedes go."
+        },
+        {
+          "value": "conditional_go",
+          "meaning": "conditional_go is the canonical release-verdict value.",
+          "entry": "Enter conditional_go only from validated typed evidence.",
+          "exit": "Exit conditional_go only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for conditional_go is a failing semantic state.",
+          "blocked": "Missing authority or evidence for conditional_go is blocked.",
+          "stale": "A source-identity change makes evidence for conditional_go stale.",
+          "superseded": "A versioned replacement explicitly supersedes conditional_go."
+        },
+        {
+          "value": "no_go",
+          "meaning": "no_go is the canonical release-verdict value.",
+          "entry": "Enter no_go only from validated typed evidence.",
+          "exit": "Exit no_go only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for no_go is a failing semantic state.",
+          "blocked": "Missing authority or evidence for no_go is blocked.",
+          "stale": "A source-identity change makes evidence for no_go stale.",
+          "superseded": "A versioned replacement explicitly supersedes no_go."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": [
+        "L7-GUARD-GO-BLOCKER"
+      ]
+    },
+    {
+      "id": "L7-TAX-RISK",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical risk vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "risk",
+      "values": [
+        {
+          "value": "R0",
+          "meaning": "R0 is the canonical risk value.",
+          "entry": "Enter R0 only from validated typed evidence.",
+          "exit": "Exit R0 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for R0 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for R0 is blocked.",
+          "stale": "A source-identity change makes evidence for R0 stale.",
+          "superseded": "A versioned replacement explicitly supersedes R0."
+        },
+        {
+          "value": "R1",
+          "meaning": "R1 is the canonical risk value.",
+          "entry": "Enter R1 only from validated typed evidence.",
+          "exit": "Exit R1 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for R1 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for R1 is blocked.",
+          "stale": "A source-identity change makes evidence for R1 stale.",
+          "superseded": "A versioned replacement explicitly supersedes R1."
+        },
+        {
+          "value": "R2",
+          "meaning": "R2 is the canonical risk value.",
+          "entry": "Enter R2 only from validated typed evidence.",
+          "exit": "Exit R2 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for R2 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for R2 is blocked.",
+          "stale": "A source-identity change makes evidence for R2 stale.",
+          "superseded": "A versioned replacement explicitly supersedes R2."
+        },
+        {
+          "value": "R3",
+          "meaning": "R3 is the canonical risk value.",
+          "entry": "Enter R3 only from validated typed evidence.",
+          "exit": "Exit R3 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for R3 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for R3 is blocked.",
+          "stale": "A source-identity change makes evidence for R3 stale.",
+          "superseded": "A versioned replacement explicitly supersedes R3."
+        },
+        {
+          "value": "R4",
+          "meaning": "R4 is the canonical risk value.",
+          "entry": "Enter R4 only from validated typed evidence.",
+          "exit": "Exit R4 only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for R4 is a failing semantic state.",
+          "blocked": "Missing authority or evidence for R4 is blocked.",
+          "stale": "A source-identity change makes evidence for R4 stale.",
+          "superseded": "A versioned replacement explicitly supersedes R4."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": [
+        "L7-GUARD-RISK-FLOOR"
+      ]
+    },
+    {
+      "id": "L7-TAX-SENSITIVITY",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Canonical sensitivity vocabulary and lifecycle interpretation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-140",
+        "SEM-144"
+      ],
+      "kind": "sensitivity",
+      "values": [
+        {
+          "value": "public",
+          "meaning": "public is the canonical sensitivity value.",
+          "entry": "Enter public only from validated typed evidence.",
+          "exit": "Exit public only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for public is a failing semantic state.",
+          "blocked": "Missing authority or evidence for public is blocked.",
+          "stale": "A source-identity change makes evidence for public stale.",
+          "superseded": "A versioned replacement explicitly supersedes public."
+        },
+        {
+          "value": "internal",
+          "meaning": "internal is the canonical sensitivity value.",
+          "entry": "Enter internal only from validated typed evidence.",
+          "exit": "Exit internal only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for internal is a failing semantic state.",
+          "blocked": "Missing authority or evidence for internal is blocked.",
+          "stale": "A source-identity change makes evidence for internal stale.",
+          "superseded": "A versioned replacement explicitly supersedes internal."
+        },
+        {
+          "value": "confidential",
+          "meaning": "confidential is the canonical sensitivity value.",
+          "entry": "Enter confidential only from validated typed evidence.",
+          "exit": "Exit confidential only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for confidential is a failing semantic state.",
+          "blocked": "Missing authority or evidence for confidential is blocked.",
+          "stale": "A source-identity change makes evidence for confidential stale.",
+          "superseded": "A versioned replacement explicitly supersedes confidential."
+        },
+        {
+          "value": "restricted",
+          "meaning": "restricted is the canonical sensitivity value.",
+          "entry": "Enter restricted only from validated typed evidence.",
+          "exit": "Exit restricted only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for restricted is a failing semantic state.",
+          "blocked": "Missing authority or evidence for restricted is blocked.",
+          "stale": "A source-identity change makes evidence for restricted stale.",
+          "superseded": "A versioned replacement explicitly supersedes restricted."
+        },
+        {
+          "value": "secret",
+          "meaning": "secret is the canonical sensitivity value.",
+          "entry": "Enter secret only from validated typed evidence.",
+          "exit": "Exit secret only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for secret is a failing semantic state.",
+          "blocked": "Missing authority or evidence for secret is blocked.",
+          "stale": "A source-identity change makes evidence for secret stale.",
+          "superseded": "A versioned replacement explicitly supersedes secret."
+        },
+        {
+          "value": "protected-evaluation",
+          "meaning": "protected-evaluation is the canonical sensitivity value.",
+          "entry": "Enter protected-evaluation only from validated typed evidence.",
+          "exit": "Exit protected-evaluation only through an allowed reason-bearing transition.",
+          "failure": "Contradictory evidence for protected-evaluation is a failing semantic state.",
+          "blocked": "Missing authority or evidence for protected-evaluation is blocked.",
+          "stale": "A source-identity change makes evidence for protected-evaluation stale.",
+          "superseded": "A versioned replacement explicitly supersedes protected-evaluation."
+        }
+      ],
+      "allowed_transitions": [],
+      "invalid_combinations": []
+    }
+  ]
+}

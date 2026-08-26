@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/obligation.schema.json",
+  "title": "Level 7 semantic obligation record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "applicability",
+    "change_gate",
+    "compatibility",
+    "criticality",
+    "definition",
+    "earliest_removal",
+    "enforcement_locus",
+    "evidence_rule",
+    "grader_ids",
+    "id",
+    "introduced_by",
+    "machine_only",
+    "overrideability",
+    "owner",
+    "public_case_ids",
+    "rationale",
+    "replacement",
+    "required_renderers",
+    "retained_tests",
+    "reviewer",
+    "rule",
+    "schema_version",
+    "source_requirement",
+    "status",
+    "supersedes",
+    "version"
+  ],
+  "properties": {
+    "applicability": {
+      "type": "object",
+      "description": "Closed applicability dimensions.",
+      "additionalProperties": false,
+      "required": [
+        "capabilities",
+        "contraindications",
+        "effects",
+        "hosts",
+        "profiles",
+        "risks",
+        "stages"
+      ],
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "description": "Sorted capabilities set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "capabilities item."
+          }
+        },
+        "contraindications": {
+          "type": "array",
+          "description": "Sorted contraindications set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "contraindications item."
+          }
+        },
+        "effects": {
+          "type": "array",
+          "description": "Sorted effects set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "effects item."
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "description": "Sorted hosts set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "hosts item."
+          }
+        },
+        "profiles": {
+          "type": "array",
+          "description": "Sorted profiles set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "profiles item."
+          }
+        },
+        "risks": {
+          "type": "array",
+          "description": "Sorted risks set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "risks item."
+          }
+        },
+        "stages": {
+          "type": "array",
+          "description": "Sorted stages set.",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "stages item."
+          }
+        }
+      }
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "criticality": {
+      "type": "string",
+      "description": "Typed criticality value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "enforcement_locus": {
+      "type": "string",
+      "description": "Typed enforcement_locus value."
+    },
+    "evidence_rule": {
+      "type": "string",
+      "description": "Typed evidence_rule value."
+    },
+    "grader_ids": {
+      "type": "array",
+      "description": "Sorted grader_ids set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "grader_ids item."
+      }
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value."
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "machine_only": {
+      "type": "boolean",
+      "description": "Typed machine_only value."
+    },
+    "overrideability": {
+      "type": "string",
+      "description": "Typed overrideability value."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "public_case_ids": {
+      "type": "array",
+      "description": "Sorted public_case_ids set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "public_case_ids item."
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Typed rationale value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "required_renderers": {
+      "type": "array",
+      "description": "Sorted required_renderers set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "required_renderers item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained_tests set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "rule": {
+      "type": "string",
+      "description": "Typed rule value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value."
+    },
+    "source_requirement": {
+      "type": "string",
+      "description": "Typed source_requirement value."
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value."
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted supersedes set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value."
+    }
+  }
+}

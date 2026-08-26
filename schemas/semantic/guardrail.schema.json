@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/guardrail.schema.json",
+  "title": "Level 7 semantic guardrail record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "change_gate",
+    "compatibility",
+    "criticality",
+    "decision",
+    "definition",
+    "earliest_removal",
+    "enforcement_locus",
+    "failure_mode",
+    "grader_ids",
+    "id",
+    "input",
+    "introduced_by",
+    "overrideability",
+    "owner",
+    "proof",
+    "recovery",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "status",
+    "supersedes",
+    "version"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "criticality": {
+      "type": "string",
+      "description": "Typed criticality value."
+    },
+    "decision": {
+      "type": "string",
+      "description": "Typed decision value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "enforcement_locus": {
+      "type": "string",
+      "description": "Typed enforcement_locus value."
+    },
+    "failure_mode": {
+      "type": "string",
+      "description": "Typed failure_mode value."
+    },
+    "grader_ids": {
+      "type": "array",
+      "description": "Sorted grader_ids set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "grader_ids item."
+      }
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value."
+    },
+    "input": {
+      "type": "string",
+      "description": "Typed input value."
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "overrideability": {
+      "type": "string",
+      "description": "Typed overrideability value."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "proof": {
+      "type": "string",
+      "description": "Typed proof value."
+    },
+    "recovery": {
+      "type": "string",
+      "description": "Typed recovery value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained_tests set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value."
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value."
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted supersedes set.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value."
+    }
+  }
+}
