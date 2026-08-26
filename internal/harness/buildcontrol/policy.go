@@ -86,7 +86,7 @@ var expectedWavePaths = map[string]pathExpectation{
 	"internal/harness/buildcontrol/trace.go":          {"add", "harness-integrator", "SCOPE-321"},
 	"internal/harness/buildcontrol/trace_test.go":     {"add", "harness-integrator", "SCOPE-321"},
 	"scripts/harness/check-import-boundaries.sh":      {"modify", "harness-integrator", "SCOPE-320"},
-	"scripts/harness/prepare-cache.sh":                 {"add", "harness-integrator", "SCOPE-321"},
+	"scripts/harness/prepare-cache.sh":                {"add", "harness-integrator", "SCOPE-321"},
 }
 
 var approvedWaveInputs = map[string]string{
