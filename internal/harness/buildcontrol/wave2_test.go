@@ -119,6 +119,21 @@ func TestWave02EvaluatorControlsLandAtomically(t *testing.T) {
 	}
 }
 
+func TestWave02SemanticCompilerLandsAtomicallyAndValidates(t *testing.T) {
+	current := make(map[string]snapshotFile, len(wave02SemanticSlicePaths))
+	for _, relative := range wave02SemanticSlicePaths {
+		current[relative] = snapshotFile{regular: true, links: 1}
+	}
+	if findings := checkWave02Semantic(repositoryRoot(t), current); len(findings) != 0 {
+		t.Fatalf("complete semantic compiler findings: %+v", findings)
+	}
+
+	partial := map[string]snapshotFile{wave02SemanticSlicePaths[0]: {regular: true, links: 1}}
+	if rules := findingRules(checkWave02Semantic(t.TempDir(), partial)); rules["SCOPE-570"] == 0 {
+		t.Fatalf("partial semantic compiler was accepted: %+v", rules)
+	}
+}
+
 func TestWave02UnknownPathAndProductPrefixRemainDenied(t *testing.T) {
 	t.Parallel()
 	base := map[string]string{"protected": strings.Repeat("a", 64)}

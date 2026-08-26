@@ -1,0 +1,284 @@
+{
+  "schema_version": "1.0.0",
+  "cases": [
+    {
+      "id": "L7-CASE-BL002-BOUNDARY",
+      "fixture_kind": "valid",
+      "scenario": "boundary",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-GENERIC"
+      ],
+      "projection": "stock-a0",
+      "goal": "Compile at the declared valid boundary.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "ready",
+      "applicability_context": "provider-neutral-semantic-compilation",
+      "expected_decision": "pass",
+      "expected_rule_id": "",
+      "expected_compilation_sha256": "b6f7d79aa7339a7286ecca6506627a4916f41a1f3ecc3b325a743e156515df55"
+    },
+    {
+      "id": "L7-CASE-BL002-CONTEXT-EXHAUSTION",
+      "fixture_kind": "broken",
+      "scenario": "context-exhaustion",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-GENERIC"
+      ],
+      "projection": "stock-a0",
+      "goal": "Reject a request exceeding its bounded context.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "context-exhausted",
+      "applicability_context": "provider-neutral-semantic-compilation",
+      "expected_decision": "blocked",
+      "expected_rule_id": "SEM-190",
+      "expected_compilation_sha256": ""
+    },
+    {
+      "id": "L7-CASE-BL002-DEGRADED",
+      "fixture_kind": "valid",
+      "scenario": "degraded",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-GENERIC"
+      ],
+      "projection": "stock-a0",
+      "goal": "Compile without optional delegation.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "delegation-unavailable",
+      "applicability_context": "provider-neutral-semantic-compilation",
+      "expected_decision": "pass",
+      "expected_rule_id": "",
+      "expected_compilation_sha256": "87cb5c8e065771ee0c2939a4eb7815b57e5843709406c1049db54dc8249df926"
+    },
+    {
+      "id": "L7-CASE-BL002-INTERRUPTION",
+      "fixture_kind": "broken",
+      "scenario": "interruption",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-GENERIC"
+      ],
+      "projection": "stock-a0",
+      "goal": "Do not resume from mutable fixture authority.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "interrupted",
+      "applicability_context": "provider-neutral-semantic-compilation",
+      "expected_decision": "blocked",
+      "expected_rule_id": "SEM-189",
+      "expected_compilation_sha256": ""
+    },
+    {
+      "id": "L7-CASE-BL002-INVALID-PROFILE",
+      "fixture_kind": "broken",
+      "scenario": "invalid",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-UNKNOWN"
+      ],
+      "projection": "stock-a0",
+      "goal": "Reject an unknown profile.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "ready",
+      "applicability_context": "unknown",
+      "expected_decision": "blocked",
+      "expected_rule_id": "SEM-186",
+      "expected_compilation_sha256": ""
+    },
+    {
+      "id": "L7-CASE-BL002-NONAPPLICABLE",
+      "fixture_kind": "broken",
+      "scenario": "non-applicable-profile",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-BEHAVIOR-PRESERVING-REFACTOR"
+      ],
+      "projection": "stock-a0",
+      "goal": "Compile a feature change under a refactor-only profile.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "ready",
+      "applicability_context": "feature-change",
+      "expected_decision": "blocked",
+      "expected_rule_id": "SEM-187",
+      "expected_compilation_sha256": ""
+    },
+    {
+      "id": "L7-CASE-BL002-SERIALIZATION",
+      "fixture_kind": "valid",
+      "scenario": "serialization-order",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-GENERIC"
+      ],
+      "projection": "stock-a0",
+      "goal": "Preserve typed semantics across input field order.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "ready",
+      "applicability_context": "provider-neutral-semantic-compilation",
+      "expected_decision": "pass",
+      "expected_rule_id": "",
+      "expected_compilation_sha256": "b8ca36ab5765c76695e6eb7dbf79817649bde1992710b6db323233dbfedf3e0b"
+    },
+    {
+      "id": "L7-CASE-BL002-VALID-CONTROLLED",
+      "fixture_kind": "valid",
+      "scenario": "applicable-profile",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-FEATURE-CHANGE"
+      ],
+      "projection": "controlled-client",
+      "goal": "Compile an approved feature-change semantic contract.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "ready",
+      "applicability_context": "feature-change",
+      "expected_decision": "pass",
+      "expected_rule_id": "",
+      "expected_compilation_sha256": "97a5f8e1211bc50a5c24475d25e1f1f72aa2f5b5c5ba5fce355aee00338a2f4f"
+    },
+    {
+      "id": "L7-CASE-BL002-VALID-STOCK",
+      "fixture_kind": "valid",
+      "scenario": "valid",
+      "workflow_id": "L7-WF-REFERENCE",
+      "profile_ids": [
+        "L7-PROF-GENERIC"
+      ],
+      "projection": "stock-a0",
+      "goal": "Compile the approved provider-neutral semantic contract.",
+      "inputs": [
+        {
+          "id": "L7-INPUT-001",
+          "source": {
+            "path": "docs/artifacts/requirements.md",
+            "sha256": "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"
+          },
+          "version": "0.2.0",
+          "provenance": "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+          "trust": "authoritative",
+          "sensitivity": "internal",
+          "freshness": "current",
+          "inclusion_reason": "Bind the approved normative source."
+        }
+      ],
+      "request_state": "ready",
+      "applicability_context": "provider-neutral-semantic-compilation",
+      "expected_decision": "pass",
+      "expected_rule_id": "",
+      "expected_compilation_sha256": "e2144771987a983ba5cc97585c5056780a3fb7f5dbb943181058fb9bd57b9cc3"
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/prompt-ir.schema.json",
+  "title": "Level 7 semantic prompt-ir record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "change_gate",
+    "compatibility",
+    "definition",
+    "earliest_removal",
+    "id",
+    "introduced_by",
+    "obligation_accounting",
+    "output_schema_id",
+    "owner",
+    "profile_ids",
+    "projection",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "sections",
+    "source_digests",
+    "status",
+    "supersedes",
+    "version",
+    "workflow_id"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "obligation_accounting": {
+      "type": "array",
+      "description": "Bounded ordered or sorted obligation_accounting collection.",
+      "minItems": 29,
+      "maxItems": 29,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "description": "Closed obligation accounting object.",
+        "additionalProperties": false,
+        "required": [
+          "disposition",
+          "grader_ids",
+          "obligation_id",
+          "public_case_ids",
+          "rule_sha256",
+          "source_requirement"
+        ],
+        "properties": {
+          "disposition": {
+            "type": "string",
+            "description": "Typed disposition value.",
+            "enum": [
+              "machine-only",
+              "not-applicable",
+              "rendered"
+            ]
+          },
+          "grader_ids": {
+            "type": "array",
+            "description": "Bounded ordered or sorted grader_ids collection.",
+            "minItems": 0,
+            "maxItems": 512,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "description": "grader_ids item."
+            }
+          },
+          "obligation_id": {
+            "type": "string",
+            "description": "Typed obligation_id value.",
+            "pattern": "^L7-OBL-[A-Z]+-[0-9]{3}$"
+          },
+          "public_case_ids": {
+            "type": "array",
+            "description": "Bounded ordered or sorted public_case_ids collection.",
+            "minItems": 0,
+            "maxItems": 512,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "description": "public_case_ids item."
+            }
+          },
+          "rule_sha256": {
+            "type": "string",
+            "description": "Typed rule_sha256 value.",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "source_requirement": {
+            "type": "string",
+            "description": "Typed source_requirement value.",
+            "pattern": "^L7-[A-Z]+-[0-9]{3}$"
+          }
+        }
+      }
+    },
+    "output_schema_id": {
+      "type": "string",
+      "description": "Typed output_schema_id value.",
+      "enum": [
+        "schemas/semantic/output.schema.json"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "profile_ids": {
+      "type": "array",
+      "description": "Bounded ordered or sorted profile_ids collection.",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "profile_ids item.",
+        "pattern": "^L7-PROF-[A-Z0-9]+(-[A-Z0-9]+)*$"
+      }
+    },
+    "projection": {
+      "type": "string",
+      "description": "Typed projection value.",
+      "enum": [
+        "controlled-client",
+        "stock-a0"
+      ]
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Bounded ordered or sorted replacement collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted retained_tests collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "sections": {
+      "type": "array",
+      "description": "Bounded ordered or sorted sections collection.",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "description": "Closed prompt section object.",
+        "additionalProperties": false,
+        "required": [
+          "content",
+          "name"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Typed content value."
+          },
+          "name": {
+            "type": "string",
+            "description": "Typed name value.",
+            "enum": [
+              "acceptance_evidence",
+              "authoritative_inputs",
+              "authority_tools_capabilities_risk_effect",
+              "budgets_stopping_escalation",
+              "goal_transition",
+              "invariants_prohibited_effects",
+              "typed_output"
+            ]
+          }
+        }
+      }
+    },
+    "source_digests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted source_digests collection.",
+      "minItems": 19,
+      "maxItems": 19,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "description": "Closed source digest object.",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Typed path value."
+          },
+          "sha256": {
+            "type": "string",
+            "description": "Typed sha256 value.",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Bounded ordered or sorted supersedes collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "workflow_id": {
+      "type": "string",
+      "description": "Typed workflow_id value.",
+      "pattern": "^L7-WF-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    }
+  }
+}

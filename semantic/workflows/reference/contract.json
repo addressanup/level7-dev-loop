@@ -1,0 +1,266 @@
+{
+  "schema_version": "1.0.0",
+  "workflows": [
+    {
+      "id": "L7-WF-REFERENCE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Provider-neutral reference workflow for exact semantic contract compilation.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-170",
+        "SEM-184",
+        "SEM-188",
+        "SEM-190",
+        "SEM-192",
+        "SEM-193",
+        "SEM-194"
+      ],
+      "description": "Compile provider-neutral semantic contracts: validate and render exact obligations for stock-A0 or a declared controlled client.",
+      "positive_triggers": [
+        "compile provider-neutral semantic contract",
+        "render controlled-client semantic projection",
+        "render stock-a0 semantic projection"
+      ],
+      "negative_triggers": [
+        "audit frozen evaluator controls",
+        "deploy or expose production behavior"
+      ],
+      "prerequisites": [
+        "accountable approval bound to the source tuple",
+        "strict semantic bundle validation"
+      ],
+      "inputs": [
+        "authoritative input identities, versions, provenance, trust, sensitivity, freshness, and inclusion reasons",
+        "bounded goal transition",
+        "selected active profiles"
+      ],
+      "lifecycle": {
+        "entry": "Approved semantic sources, workflow, profiles, and schemas validate.",
+        "exit": "The typed projection and all 29 obligation dispositions are digest-bound.",
+        "transition": "frame-to-verify provider-neutral semantic compilation",
+        "allowed_repeat": [
+          "execute",
+          "verify"
+        ],
+        "allowed_skip": [
+          "deploy",
+          "expose",
+          "package"
+        ]
+      },
+      "profiles": [
+        "L7-PROF-BEHAVIOR-PRESERVING-REFACTOR",
+        "L7-PROF-FEATURE-CHANGE",
+        "L7-PROF-GENERIC"
+      ],
+      "obligation_ids": [
+        "L7-OBL-AGENT-001",
+        "L7-OBL-AGENT-002",
+        "L7-OBL-AGENT-003",
+        "L7-OBL-EVAL-001",
+        "L7-OBL-EVAL-003",
+        "L7-OBL-EVAL-004",
+        "L7-OBL-EVAL-006",
+        "L7-OBL-EVAL-008",
+        "L7-OBL-EVAL-009",
+        "L7-OBL-FLOW-001",
+        "L7-OBL-FLOW-002",
+        "L7-OBL-FLOW-003",
+        "L7-OBL-FLOW-004",
+        "L7-OBL-FLOW-005",
+        "L7-OBL-FLOW-006",
+        "L7-OBL-FLOW-008",
+        "L7-OBL-FLOW-009",
+        "L7-OBL-FLOW-010",
+        "L7-OBL-HOST-001",
+        "L7-OBL-HOST-005",
+        "L7-OBL-KNOW-001",
+        "L7-OBL-KNOW-002",
+        "L7-OBL-KNOW-003",
+        "L7-OBL-KNOW-004",
+        "L7-OBL-NFR-033",
+        "L7-OBL-PROMPT-001",
+        "L7-OBL-PROMPT-002",
+        "L7-OBL-SKILL-001",
+        "L7-OBL-SKILL-002"
+      ],
+      "risk_floor": "R1",
+      "effect_ceiling": "A2",
+      "approval_gate": "AP1",
+      "authority": [
+        "no-approval-power",
+        "repository-bounded-pure-compilation"
+      ],
+      "capabilities": [
+        "controlled-client-declaration",
+        "single-agent-fallback",
+        "stock-a0-projection"
+      ],
+      "references": [
+        "L7-KNOW-EMPIRICAL-001",
+        "L7-KNOW-GUIDANCE-001",
+        "L7-KNOW-LAW-001",
+        "L7-KNOW-PATTERN-001"
+      ],
+      "budget": "L7-BUDGET-W02-DEV-001",
+      "output_schema": "schemas/semantic/output.schema.json",
+      "success": [
+        "byte-deterministic typed output",
+        "complete obligation accounting",
+        "source and output digest framing"
+      ],
+      "failure": [
+        "bounded sorted diagnostic set",
+        "no admitted partial projection"
+      ],
+      "stopping": [
+        "context or output budget exhausted",
+        "identical semantic failure repeated twice",
+        "two-state semantic oscillation repeated twice"
+      ],
+      "recovery": [
+        "correct the authoritative typed input",
+        "narrow the bounded compilation request"
+      ],
+      "fixtures": [
+        "fixtures/public/bl-002/broken-candidates.json",
+        "fixtures/public/bl-002/semantic-cases.json"
+      ]
+    }
+  ],
+  "budgets": [
+    {
+      "id": "L7-BUDGET-W02-DEV-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Contextual budget for Wave 2 local semantic and evaluator development.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-175",
+        "SEM-190"
+      ],
+      "measurement_scope": "one visible transition",
+      "tool_calls": 64,
+      "subagents": 4,
+      "retries_per_operation": 2,
+      "identical_failures": 2,
+      "wall_time_seconds": 900,
+      "tokens": 200000,
+      "context_bytes": 1048576,
+      "context_items": 256,
+      "output_bytes": 131072,
+      "monetary_micro_usd": 0,
+      "exhaustion": "blocked",
+      "recovery": "Record the exhausted dimension and narrow or separately authorize the next transition."
+    }
+  ],
+  "delegations": [
+    {
+      "id": "L7-WF-DELEGATION-REFERENCE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Validation-only optional delegation manifest with a serial fallback.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-176",
+        "SEM-195"
+      ],
+      "objective": "Validate one disjoint semantic scope without acquiring authority.",
+      "disjoint_scope": [
+        "read-only semantic validation",
+        "typed diagnostic production"
+      ],
+      "inputs": [
+        "bound source digests",
+        "explicit validation objective"
+      ],
+      "authority": "no credentials, approval power, protected controls, or mutation authority",
+      "effect_ceiling": "A2",
+      "allowed_tools": [
+        "repository-bounded-read-only-validation"
+      ],
+      "budget_id": "L7-BUDGET-W02-DEV-001",
+      "output_schema_id": "schemas/semantic/output.schema.json",
+      "evidence": [
+        "bounded diagnostics",
+        "source digest set",
+        "typed validation result"
+      ],
+      "verifier": "wave-integrator",
+      "integration_owner": "wave-integrator",
+      "termination": [
+        "budget exhaustion",
+        "duplicate failure twice",
+        "objective complete",
+        "scope or authority mismatch"
+      ],
+      "single_agent_fallback": "The wave integrator performs the identical bounded validation serially."
+    }
+  ],
+  "outputs": [
+    {
+      "id": "L7-WF-SEMANTIC-OUTPUT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Typed decision-first output contract for semantic compilations.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-181",
+        "SEM-191"
+      ],
+      "decision": [
+        "blocked",
+        "fail",
+        "not_evaluated",
+        "pass"
+      ],
+      "rule_ids": "Sorted unique stable rule IDs supporting the decision.",
+      "scope": "Exact workflow, profile, goal, input, and projection scope.",
+      "source_identity": "Sorted raw source-file digests and compilation framing version.",
+      "evidence": "Typed evidence state with exact pointers and no fabricated pass.",
+      "uncertainty": "Explicit uncertainty or not_applicable reason.",
+      "assumptions": "Explicit bounded assumptions, possibly empty but never omitted.",
+      "defeaters": "Explicit counterevidence or defeaters, possibly empty but never omitted.",
+      "residual_risk": "Highest remaining material risk after composition.",
+      "blocker": "One stable blocker when decision is blocked.",
+      "decision_owner": "Accountable decision owner or explicit unknown.",
+      "next_action": "Exactly one permitted recovery or next action.",
+      "effect": "Requested and observed effect class within the admitted ceiling.",
+      "authority": "Bound approval and capability authority; generated text grants none.",
+      "diagnostics": "Bounded lexically sorted stable diagnostics."
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/output.schema.json",
+  "title": "Level 7 semantic output record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assumptions",
+    "authority",
+    "blocker",
+    "change_gate",
+    "compatibility",
+    "decision",
+    "decision_owner",
+    "defeaters",
+    "definition",
+    "diagnostics",
+    "earliest_removal",
+    "effect",
+    "evidence",
+    "id",
+    "introduced_by",
+    "next_action",
+    "owner",
+    "replacement",
+    "residual_risk",
+    "retained_tests",
+    "reviewer",
+    "rule_ids",
+    "schema_version",
+    "scope",
+    "source_identity",
+    "status",
+    "supersedes",
+    "uncertainty",
+    "version"
+  ],
+  "properties": {
+    "assumptions": {
+      "type": "string",
+      "description": "Typed assumptions value."
+    },
+    "authority": {
+      "type": "string",
+      "description": "Typed authority value."
+    },
+    "blocker": {
+      "type": "string",
+      "description": "Typed blocker value."
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "decision": {
+      "type": "array",
+      "description": "Bounded ordered or sorted decision collection.",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "decision item.",
+        "enum": [
+          "blocked",
+          "fail",
+          "not_evaluated",
+          "pass"
+        ]
+      }
+    },
+    "decision_owner": {
+      "type": "string",
+      "description": "Typed decision_owner value."
+    },
+    "defeaters": {
+      "type": "string",
+      "description": "Typed defeaters value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "diagnostics": {
+      "type": "string",
+      "description": "Typed diagnostics value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "effect": {
+      "type": "string",
+      "description": "Typed effect value."
+    },
+    "evidence": {
+      "type": "string",
+      "description": "Typed evidence value."
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Typed next_action value."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Bounded ordered or sorted replacement collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "residual_risk": {
+      "type": "string",
+      "description": "Typed residual_risk value."
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted retained_tests collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "rule_ids": {
+      "type": "string",
+      "description": "Typed rule_ids value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "scope": {
+      "type": "string",
+      "description": "Typed scope value."
+    },
+    "source_identity": {
+      "type": "string",
+      "description": "Typed source_identity value."
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Bounded ordered or sorted supersedes collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "uncertainty": {
+      "type": "string",
+      "description": "Typed uncertainty value."
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    }
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/budget.schema.json",
+  "title": "Level 7 semantic budget record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "change_gate",
+    "compatibility",
+    "context_bytes",
+    "context_items",
+    "definition",
+    "earliest_removal",
+    "exhaustion",
+    "id",
+    "identical_failures",
+    "introduced_by",
+    "measurement_scope",
+    "monetary_micro_usd",
+    "output_bytes",
+    "owner",
+    "recovery",
+    "replacement",
+    "retained_tests",
+    "retries_per_operation",
+    "reviewer",
+    "schema_version",
+    "status",
+    "subagents",
+    "supersedes",
+    "tokens",
+    "tool_calls",
+    "version",
+    "wall_time_seconds"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "context_bytes": {
+      "type": "integer",
+      "description": "Nonnegative bounded context_bytes value.",
+      "minimum": 0,
+      "maximum": 1048576
+    },
+    "context_items": {
+      "type": "integer",
+      "description": "Nonnegative bounded context_items value.",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "exhaustion": {
+      "type": "string",
+      "description": "Typed exhaustion value.",
+      "enum": [
+        "blocked"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "identical_failures": {
+      "type": "integer",
+      "description": "Nonnegative bounded identical_failures value.",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "measurement_scope": {
+      "type": "string",
+      "description": "Typed measurement_scope value.",
+      "enum": [
+        "one visible transition"
+      ]
+    },
+    "monetary_micro_usd": {
+      "type": "integer",
+      "description": "Nonnegative bounded monetary_micro_usd value.",
+      "minimum": 0,
+      "maximum": 0
+    },
+    "output_bytes": {
+      "type": "integer",
+      "description": "Nonnegative bounded output_bytes value.",
+      "minimum": 0,
+      "maximum": 131072
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "recovery": {
+      "type": "string",
+      "description": "Typed recovery value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Bounded ordered or sorted replacement collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted retained_tests collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "retries_per_operation": {
+      "type": "integer",
+      "description": "Nonnegative bounded retries_per_operation value.",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "subagents": {
+      "type": "integer",
+      "description": "Nonnegative bounded subagents value.",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Bounded ordered or sorted supersedes collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "tokens": {
+      "type": "integer",
+      "description": "Nonnegative bounded tokens value.",
+      "minimum": 0,
+      "maximum": 200000
+    },
+    "tool_calls": {
+      "type": "integer",
+      "description": "Nonnegative bounded tool_calls value.",
+      "minimum": 0,
+      "maximum": 64
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "wall_time_seconds": {
+      "type": "integer",
+      "description": "Nonnegative bounded wall_time_seconds value.",
+      "minimum": 0,
+      "maximum": 900
+    }
+  }
+}

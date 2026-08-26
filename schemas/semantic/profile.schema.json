@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/profile.schema.json",
+  "title": "Level 7 semantic profile record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "applicability",
+    "approval_floor",
+    "budget_id",
+    "change_gate",
+    "compatibility",
+    "composition",
+    "contraindications",
+    "definition",
+    "description",
+    "earliest_removal",
+    "effect_ceiling",
+    "id",
+    "introduced_by",
+    "obligation_ids",
+    "owner",
+    "reference_ids",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "risk_floor",
+    "schema_version",
+    "status",
+    "supersedes",
+    "version"
+  ],
+  "properties": {
+    "applicability": {
+      "type": "array",
+      "description": "Bounded ordered or sorted applicability collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "applicability item."
+      }
+    },
+    "approval_floor": {
+      "type": "string",
+      "description": "Typed approval_floor value.",
+      "enum": [
+        "AP0",
+        "AP1",
+        "AP2",
+        "AP3"
+      ]
+    },
+    "budget_id": {
+      "type": "string",
+      "description": "Typed budget_id value.",
+      "enum": [
+        "L7-BUDGET-W02-DEV-001"
+      ]
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "composition": {
+      "type": "string",
+      "description": "Typed composition value.",
+      "enum": [
+        "obligation-union-highest-risk-approval-minimum-effect"
+      ]
+    },
+    "contraindications": {
+      "type": "array",
+      "description": "Bounded ordered or sorted contraindications collection.",
+      "minItems": 0,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "contraindications item."
+      }
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "description": {
+      "type": "string",
+      "description": "Typed description value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "effect_ceiling": {
+      "type": "string",
+      "description": "Typed effect_ceiling value.",
+      "enum": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "obligation_ids": {
+      "type": "array",
+      "description": "Bounded ordered or sorted obligation_ids collection.",
+      "minItems": 1,
+      "maxItems": 29,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "obligation_ids item.",
+        "pattern": "^L7-OBL-[A-Z]+-[0-9]{3}$"
+      }
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "reference_ids": {
+      "type": "array",
+      "description": "Bounded ordered or sorted reference_ids collection.",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "reference_ids item.",
+        "pattern": "^L7-KNOW-[A-Z0-9]+(-[A-Z0-9]+)*$"
+      }
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Bounded ordered or sorted replacement collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted retained_tests collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "risk_floor": {
+      "type": "string",
+      "description": "Typed risk_floor value.",
+      "enum": [
+        "R0",
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Bounded ordered or sorted supersedes collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    }
+  }
+}

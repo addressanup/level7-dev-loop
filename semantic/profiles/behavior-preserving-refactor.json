@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "profiles": [
+    {
+      "id": "L7-PROF-BEHAVIOR-PRESERVING-REFACTOR",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "semantic-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "owner approval plus wave-02-design",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Behavior-preserving refactor profile.",
+      "compatibility": "major-version changes require a new stable record identity",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "SEM-177",
+        "SEM-179",
+        "SEM-188"
+      ],
+      "description": "Use only when observable behavior is invariant; feature changes and new exposure are contraindicated.",
+      "applicability": [
+        "behavior-preserving-refactor",
+        "provider-neutral-semantic-compilation"
+      ],
+      "contraindications": [
+        "feature-change",
+        "new-user-visible-behavior"
+      ],
+      "obligation_ids": [
+        "L7-OBL-AGENT-001",
+        "L7-OBL-AGENT-002",
+        "L7-OBL-AGENT-003",
+        "L7-OBL-FLOW-001",
+        "L7-OBL-FLOW-002",
+        "L7-OBL-FLOW-003",
+        "L7-OBL-FLOW-004",
+        "L7-OBL-FLOW-005",
+        "L7-OBL-FLOW-006",
+        "L7-OBL-FLOW-008",
+        "L7-OBL-FLOW-009",
+        "L7-OBL-FLOW-010",
+        "L7-OBL-HOST-001",
+        "L7-OBL-HOST-005",
+        "L7-OBL-NFR-033",
+        "L7-OBL-PROMPT-001",
+        "L7-OBL-PROMPT-002"
+      ],
+      "risk_floor": "R1",
+      "effect_ceiling": "A1",
+      "approval_floor": "AP1",
+      "reference_ids": [
+        "L7-KNOW-EMPIRICAL-001",
+        "L7-KNOW-GUIDANCE-001",
+        "L7-KNOW-PATTERN-001"
+      ],
+      "budget_id": "L7-BUDGET-W02-DEV-001",
+      "composition": "obligation-union-highest-risk-approval-minimum-effect"
+    }
+  ]
+}

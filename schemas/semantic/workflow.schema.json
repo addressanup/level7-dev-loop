@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/workflow.schema.json",
+  "title": "Level 7 semantic workflow record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "approval_gate",
+    "authority",
+    "budget",
+    "capabilities",
+    "change_gate",
+    "compatibility",
+    "definition",
+    "description",
+    "earliest_removal",
+    "effect_ceiling",
+    "failure",
+    "fixtures",
+    "id",
+    "inputs",
+    "introduced_by",
+    "lifecycle",
+    "negative_triggers",
+    "obligation_ids",
+    "output_schema",
+    "owner",
+    "positive_triggers",
+    "prerequisites",
+    "profiles",
+    "recovery",
+    "references",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "risk_floor",
+    "schema_version",
+    "status",
+    "stopping",
+    "success",
+    "supersedes",
+    "version"
+  ],
+  "properties": {
+    "approval_gate": {
+      "type": "string",
+      "description": "Typed approval_gate value.",
+      "enum": [
+        "AP0",
+        "AP1",
+        "AP2",
+        "AP3"
+      ]
+    },
+    "authority": {
+      "type": "array",
+      "description": "Bounded ordered or sorted authority collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "authority item."
+      }
+    },
+    "budget": {
+      "type": "string",
+      "description": "Typed budget value.",
+      "enum": [
+        "L7-BUDGET-W02-DEV-001"
+      ]
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Bounded ordered or sorted capabilities collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "capabilities item."
+      }
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "description": {
+      "type": "string",
+      "description": "Typed description value."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "effect_ceiling": {
+      "type": "string",
+      "description": "Typed effect_ceiling value.",
+      "enum": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4"
+      ]
+    },
+    "failure": {
+      "type": "array",
+      "description": "Bounded ordered or sorted failure collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "failure item."
+      }
+    },
+    "fixtures": {
+      "type": "array",
+      "description": "Bounded ordered or sorted fixtures collection.",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "fixtures item.",
+        "enum": [
+          "fixtures/public/bl-002/broken-candidates.json",
+          "fixtures/public/bl-002/semantic-cases.json"
+        ]
+      }
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "inputs": {
+      "type": "array",
+      "description": "Bounded ordered or sorted inputs collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "inputs item."
+      }
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Closed lifecycle object.",
+      "additionalProperties": false,
+      "required": [
+        "allowed_repeat",
+        "allowed_skip",
+        "entry",
+        "exit",
+        "transition"
+      ],
+      "properties": {
+        "allowed_repeat": {
+          "type": "array",
+          "description": "Bounded ordered or sorted allowed_repeat collection.",
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "allowed_repeat item."
+          }
+        },
+        "allowed_skip": {
+          "type": "array",
+          "description": "Bounded ordered or sorted allowed_skip collection.",
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "allowed_skip item."
+          }
+        },
+        "entry": {
+          "type": "string",
+          "description": "Typed entry value."
+        },
+        "exit": {
+          "type": "string",
+          "description": "Typed exit value."
+        },
+        "transition": {
+          "type": "string",
+          "description": "Typed transition value."
+        }
+      }
+    },
+    "negative_triggers": {
+      "type": "array",
+      "description": "Bounded ordered or sorted negative_triggers collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "negative_triggers item."
+      }
+    },
+    "obligation_ids": {
+      "type": "array",
+      "description": "Bounded ordered or sorted obligation_ids collection.",
+      "minItems": 29,
+      "maxItems": 29,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "obligation_ids item.",
+        "pattern": "^L7-OBL-[A-Z]+-[0-9]{3}$"
+      }
+    },
+    "output_schema": {
+      "type": "string",
+      "description": "Typed output_schema value.",
+      "enum": [
+        "schemas/semantic/output.schema.json"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "positive_triggers": {
+      "type": "array",
+      "description": "Bounded ordered or sorted positive_triggers collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "positive_triggers item."
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "description": "Bounded ordered or sorted prerequisites collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "prerequisites item."
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "description": "Bounded ordered or sorted profiles collection.",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "profiles item.",
+        "pattern": "^L7-PROF-[A-Z0-9]+(-[A-Z0-9]+)*$"
+      }
+    },
+    "recovery": {
+      "type": "array",
+      "description": "Bounded ordered or sorted recovery collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "recovery item."
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "Bounded ordered or sorted references collection.",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "references item.",
+        "pattern": "^L7-KNOW-[A-Z0-9]+(-[A-Z0-9]+)*$"
+      }
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Bounded ordered or sorted replacement collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted retained_tests collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "risk_floor": {
+      "type": "string",
+      "description": "Typed risk_floor value.",
+      "enum": [
+        "R0",
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "stopping": {
+      "type": "array",
+      "description": "Bounded ordered or sorted stopping collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "stopping item."
+      }
+    },
+    "success": {
+      "type": "array",
+      "description": "Bounded ordered or sorted success collection.",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "success item."
+      }
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Bounded ordered or sorted supersedes collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    }
+  }
+}

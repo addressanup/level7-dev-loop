@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/addressanup/level7-dev-loop/internal/render"
 )
 
 const (
@@ -122,6 +124,46 @@ var approvedWave02Inputs = map[string]string{
 	"docs/artifacts/wave-01-audit.md":           "491c686dc57f3ca4050646826b8919d6239a5b8d971c051bb77f9ff12167034f",
 }
 
+var wave02SemanticSlicePaths = []string{
+	"fixtures/public/bl-002/broken-candidates.json",
+	"fixtures/public/bl-002/semantic-cases.json",
+	"internal/render/compile.go",
+	"internal/render/compile_test.go",
+	"schemas/semantic/budget.schema.json",
+	"schemas/semantic/delegation.schema.json",
+	"schemas/semantic/output.schema.json",
+	"schemas/semantic/profile.schema.json",
+	"schemas/semantic/prompt-ir.schema.json",
+	"schemas/semantic/workflow.schema.json",
+	"semantic/profiles/behavior-preserving-refactor.json",
+	"semantic/profiles/feature-change.json",
+	"semantic/profiles/generic.json",
+	"semantic/workflows/reference/contract.json",
+	"semantic/workflows/reference/prompt.md.tmpl",
+}
+
+var wave02SemanticSourcePaths = []string{
+	"schemas/semantic/budget.schema.json",
+	"schemas/semantic/delegation.schema.json",
+	"schemas/semantic/guardrail.schema.json",
+	"schemas/semantic/knowledge.schema.json",
+	"schemas/semantic/obligation.schema.json",
+	"schemas/semantic/output.schema.json",
+	"schemas/semantic/profile.schema.json",
+	"schemas/semantic/prompt-ir.schema.json",
+	"schemas/semantic/taxonomy.schema.json",
+	"schemas/semantic/workflow.schema.json",
+	"semantic/profiles/behavior-preserving-refactor.json",
+	"semantic/profiles/feature-change.json",
+	"semantic/profiles/generic.json",
+	"semantic/taxonomy/guardrails.json",
+	"semantic/taxonomy/knowledge.json",
+	"semantic/taxonomy/obligations.json",
+	"semantic/taxonomy/registry.json",
+	"semantic/workflows/reference/contract.json",
+	"semantic/workflows/reference/prompt.md.tmpl",
+}
+
 var wave02ApprovalBindings = []string{
 	"Artifact ID | `L7-APR-W02-001`",
 	"Status | **RECORDED AP0",
@@ -141,6 +183,7 @@ var wave02ApprovalBindings = []string{
 func checkWave02Admission(root string, base map[string]string, current map[string]snapshotFile, rules map[string]pathExpectation, finalCandidate bool) []finding {
 	var findings []finding
 	findings = appendFindings(findings, checkWave02Approval(root)...)
+	findings = appendFindings(findings, checkWave02Semantic(root, current)...)
 	findings = appendFindings(findings, checkWave02EvaluatorFreeze(root, current)...)
 	if finalCandidate {
 		findings = appendFindings(findings, validateCandidateManifest(root, base, current, rules, candidateClosure{
@@ -149,6 +192,79 @@ func checkWave02Admission(root string, base map[string]string, current map[strin
 			auditPath:    wave02AuditPath,
 			expectedRows: 69,
 		})...)
+	}
+	return findings
+}
+
+func checkWave02Semantic(root string, current map[string]snapshotFile) []finding {
+	present := 0
+	for _, relative := range wave02SemanticSlicePaths {
+		if current[relative].regular {
+			present++
+		}
+	}
+	if present == 0 {
+		return nil
+	}
+	if present != len(wave02SemanticSlicePaths) {
+		return []finding{newFinding("SCOPE-570", "internal/render/compile.go", fmt.Sprintf("partial semantic compiler slice has %d of %d additions", present, len(wave02SemanticSlicePaths)), "land or recover the complete approved semantic compiler slice")}
+	}
+
+	files := make([]render.SourceFile, 0, len(wave02SemanticSourcePaths))
+	var findings []finding
+	for _, relative := range wave02SemanticSourcePaths {
+		data, readFindings := readStrictFile(root, relative)
+		findings = appendFindings(findings, readFindings...)
+		if len(readFindings) == 0 {
+			files = append(files, render.SourceFile{Path: relative, Data: data})
+		}
+	}
+	for _, relative := range []string{"fixtures/public/bl-002/broken-candidates.json", "fixtures/public/bl-002/semantic-cases.json"} {
+		_, readFindings := readStrictFile(root, relative)
+		findings = appendFindings(findings, readFindings...)
+	}
+	if len(findings) != 0 {
+		return findings
+	}
+	bundle, diagnostics := render.Decode(files)
+	if len(diagnostics) == 0 {
+		diagnostics = render.Validate(bundle)
+	}
+	requirementsData, requirementFindings := readStrictFile(root, "docs/artifacts/requirements.md")
+	backlogData, backlogFindings := readStrictFile(root, "docs/artifacts/feature-backlog.md")
+	findings = appendFindings(findings, requirementFindings...)
+	findings = appendFindings(findings, backlogFindings...)
+	if len(diagnostics) == 0 && len(requirementFindings)+len(backlogFindings) == 0 {
+		requirements, coverageDiagnostics := render.DeriveWave02Requirements(requirementsData, backlogData)
+		diagnostics = append(diagnostics, coverageDiagnostics...)
+		if len(coverageDiagnostics) == 0 {
+			diagnostics = append(diagnostics, render.ValidateRequirementCoverage(bundle, requirements)...)
+		}
+	}
+	if len(diagnostics) == 0 {
+		for _, projection := range []render.ProjectionKind{render.ProjectionStockA0, render.ProjectionControlledClient} {
+			_, compileDiagnostics := render.Compile(render.CompileRequest{
+				Bundle:     bundle,
+				WorkflowID: "L7-WF-REFERENCE",
+				ProfileIDs: []string{"L7-PROF-GENERIC"},
+				Projection: projection,
+				Goal:       "Validate the admitted provider-neutral semantic compiler.",
+				Inputs: []render.AuthoritativeInput{{
+					ID:              "L7-INPUT-001",
+					Source:          render.Digest{Path: "docs/artifacts/requirements.md", SHA256: "a9ff0f30c62ba74bdb9cdbc81d06663642d468f2c8795341f83b9662be59922f"},
+					Version:         "0.2.0",
+					Provenance:      "Approved artifact L7-REQ-001 in the Wave 2 source tuple.",
+					Trust:           "authoritative",
+					Sensitivity:     "internal",
+					Freshness:       "current",
+					InclusionReason: "Bind the approved normative source.",
+				}},
+			})
+			diagnostics = append(diagnostics, compileDiagnostics...)
+		}
+	}
+	for _, diagnostic := range diagnostics {
+		findings = appendFindings(findings, newFinding("SCOPE-571", diagnostic.Subject, diagnostic.Rule+" "+diagnostic.Message, diagnostic.Next))
 	}
 	return findings
 }

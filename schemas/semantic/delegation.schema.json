@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/semantic/delegation.schema.json",
+  "title": "Level 7 semantic delegation record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "allowed_tools",
+    "authority",
+    "budget_id",
+    "change_gate",
+    "compatibility",
+    "definition",
+    "disjoint_scope",
+    "earliest_removal",
+    "effect_ceiling",
+    "evidence",
+    "id",
+    "inputs",
+    "integration_owner",
+    "introduced_by",
+    "objective",
+    "output_schema_id",
+    "owner",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "single_agent_fallback",
+    "status",
+    "supersedes",
+    "termination",
+    "verifier",
+    "version"
+  ],
+  "properties": {
+    "allowed_tools": {
+      "type": "array",
+      "description": "Bounded ordered or sorted allowed_tools collection.",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "allowed_tools item."
+      }
+    },
+    "authority": {
+      "type": "string",
+      "description": "Typed authority value."
+    },
+    "budget_id": {
+      "type": "string",
+      "description": "Typed budget_id value.",
+      "enum": [
+        "L7-BUDGET-W02-DEV-001"
+      ]
+    },
+    "change_gate": {
+      "type": "string",
+      "description": "Typed change_gate value."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Typed compatibility value."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Typed definition value."
+    },
+    "disjoint_scope": {
+      "type": "array",
+      "description": "Bounded ordered or sorted disjoint_scope collection.",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "disjoint_scope item."
+      }
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Typed earliest_removal value."
+    },
+    "effect_ceiling": {
+      "type": "string",
+      "description": "Typed effect_ceiling value.",
+      "enum": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Bounded ordered or sorted evidence collection.",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "evidence item."
+      }
+    },
+    "id": {
+      "type": "string",
+      "description": "Typed id value.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "inputs": {
+      "type": "array",
+      "description": "Bounded ordered or sorted inputs collection.",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "inputs item."
+      }
+    },
+    "integration_owner": {
+      "type": "string",
+      "description": "Typed integration_owner value."
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Typed introduced_by value."
+    },
+    "objective": {
+      "type": "string",
+      "description": "Typed objective value."
+    },
+    "output_schema_id": {
+      "type": "string",
+      "description": "Typed output_schema_id value.",
+      "enum": [
+        "schemas/semantic/output.schema.json"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "description": "Typed owner value."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Bounded ordered or sorted replacement collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "replacement item."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Bounded ordered or sorted retained_tests collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "retained_tests item."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Typed reviewer value."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Typed schema_version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "single_agent_fallback": {
+      "type": "string",
+      "description": "Typed single_agent_fallback value."
+    },
+    "status": {
+      "type": "string",
+      "description": "Typed status value.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Bounded ordered or sorted supersedes collection.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "supersedes item."
+      }
+    },
+    "termination": {
+      "type": "array",
+      "description": "Bounded ordered or sorted termination collection.",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "termination item."
+      }
+    },
+    "verifier": {
+      "type": "string",
+      "description": "Typed verifier value."
+    },
+    "version": {
+      "type": "string",
+      "description": "Typed version value.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    }
+  }
+}
