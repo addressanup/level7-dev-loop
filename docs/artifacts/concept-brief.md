@@ -3,17 +3,17 @@
 | Field | Value |
 |---|---|
 | Artifact ID | `L7-CB-001` |
-| Version | `0.1.1` |
-| State | `draft` |
+| Version | `0.1.2` |
+| State | `approved` |
 | Product identity | `Level 7 Dev Loop` |
 | Discovery path | `docs/artifacts/concept-discovery.md` |
 | Discovery SHA-256 | `6330342fe9929297252114bcec0636a45c7384ac149f039a17ac8716addd51c6` |
 | Payload SHA-256 | `7373151a35bccf79b4e31e38cfc9a555bab4cd3376767dc129114954867e9a1b` |
-| Approved payload SHA-256 | `UNSET` |
-| Approval assurance | `none` |
-| Owner decision | `UNSET` |
-| Approved scope | `UNSET` |
-| Decision reason | `UNSET` |
+| Approved payload SHA-256 | `7373151a35bccf79b4e31e38cfc9a555bab4cd3376767dc129114954867e9a1b` |
+| Approval assurance | `AP0` |
+| Owner decision | Anup Pandey explicitly approved `L7-CB-001` payload `7373151a35bccf79b4e31e38cfc9a555bab4cd3376767dc129114954867e9a1b` in the current conversation on 2026-08-26 |
+| Approved scope | Entire seven-section problem-contract payload; persist this approval and prepare a foundation-rebaseline candidate only |
+| Decision reason | Owner accepted the documented strategic bet and authorized the next-stage candidate without authorizing phase admission or protected-foundation edits |
 
 ## Working identity
 
