@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/addressanup/level7-dev-loop/internal/evaluator"
 	"github.com/addressanup/level7-dev-loop/internal/render"
 )
 
@@ -184,7 +185,11 @@ func checkWave02Admission(root string, base map[string]string, current map[strin
 	var findings []finding
 	findings = appendFindings(findings, checkWave02Approval(root)...)
 	findings = appendFindings(findings, checkWave02Semantic(root, current)...)
-	findings = appendFindings(findings, checkWave02EvaluatorFreeze(root, current)...)
+	freezeFindings := checkWave02EvaluatorFreeze(root, current)
+	findings = appendFindings(findings, freezeFindings...)
+	if len(freezeFindings) == 0 {
+		findings = appendFindings(findings, checkWave02EvaluatorControls(root, current)...)
+	}
 	if finalCandidate {
 		findings = appendFindings(findings, validateCandidateManifest(root, base, current, rules, candidateClosure{
 			manifestPath: wave02CandidateManifest,
@@ -319,6 +324,49 @@ func checkWave02EvaluatorFreeze(root string, current map[string]snapshotFile) []
 		if !expected[relative] {
 			findings = appendFindings(findings, newFinding("SCOPE-563", relative, "evaluator manifest contains a non-control path", "retain only the exact 21 evaluator controls"))
 		}
+	}
+	return findings
+}
+
+func checkWave02EvaluatorControls(root string, current map[string]snapshotFile) []finding {
+	if !current[wave02EvaluatorManifest].regular {
+		return nil
+	}
+	files := make([]evaluator.ControlFile, 0, 13)
+	var findings []finding
+	for _, relative := range evaluator.ExpectedControlPaths() {
+		if !strings.HasSuffix(relative, ".json") {
+			continue
+		}
+		data, readFindings := readStrictFile(root, relative)
+		findings = appendFindings(findings, readFindings...)
+		if len(readFindings) == 0 {
+			files = append(files, evaluator.ControlFile{Path: relative, Data: data})
+		}
+	}
+	semanticCases, semanticFindings := readStrictFile(root, "fixtures/public/bl-002/semantic-cases.json")
+	brokenCandidates, brokenFindings := readStrictFile(root, "fixtures/public/bl-002/broken-candidates.json")
+	findings = appendFindings(findings, semanticFindings...)
+	findings = appendFindings(findings, brokenFindings...)
+	if len(findings) != 0 {
+		return findings
+	}
+	controls, diagnostics := evaluator.DecodeControls(files)
+	if len(diagnostics) == 0 {
+		manifest, manifestFindings := readStrictFile(root, wave02EvaluatorManifest)
+		findings = appendFindings(findings, manifestFindings...)
+		if len(manifestFindings) == 0 {
+			controls, diagnostics = evaluator.BindControlManifest(controls, manifest)
+		}
+	}
+	if len(diagnostics) == 0 && len(findings) == 0 {
+		diagnostics = evaluator.ValidateControls(controls)
+	}
+	if len(diagnostics) == 0 {
+		diagnostics = evaluator.ValidateInputBindings(controls, semanticCases, brokenCandidates)
+	}
+	for _, diagnostic := range diagnostics {
+		findings = appendFindings(findings, newFinding("SCOPE-564", diagnostic.Subject, diagnostic.Rule+" "+diagnostic.Message, diagnostic.Next))
 	}
 	return findings
 }

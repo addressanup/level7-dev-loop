@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/evaluation/case.schema.json",
+  "title": "Level 7 evaluation case record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "allowed_capabilities",
+    "allowed_effects",
+    "allowed_tools",
+    "axes",
+    "change_gate",
+    "compatibility",
+    "definition",
+    "earliest_removal",
+    "expected_output_schema",
+    "feature_owner",
+    "grader_ids",
+    "id",
+    "input_digest",
+    "input_fixture",
+    "introduced_by",
+    "isolation",
+    "owner",
+    "prohibited_effects",
+    "replacement",
+    "resource_limits",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "sensitivity",
+    "setup",
+    "status",
+    "supersedes",
+    "teardown",
+    "truth_ids",
+    "version"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Separate evaluator-control change gate."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Compatibility and invalidation rule."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Provider-neutral normative record definition."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Earliest compatible removal gate."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable evaluator record identity.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Approved introducing design identity."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Exactly one evaluator-governance owner."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Replacement identity."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained stable-rule tests.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable retained-test rule."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Independent read-only reviewer role."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Record schema version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Record lifecycle status.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted superseded identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Superseded identity."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic record version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "allowed_capabilities": {
+      "type": "array",
+      "description": "Sorted allowed capabilities.",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Allowed capability."
+      }
+    },
+    "allowed_effects": {
+      "type": "array",
+      "description": "Sorted allowed effects.",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Allowed effect."
+      }
+    },
+    "allowed_tools": {
+      "type": "array",
+      "description": "Sorted allowed tools.",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Allowed tool."
+      }
+    },
+    "axes": {
+      "type": "object",
+      "description": "Closed scenario, risk, effect, and profile axes.",
+      "additionalProperties": false,
+      "required": [
+        "effect",
+        "profile",
+        "risk",
+        "scenario"
+      ],
+      "properties": {
+        "effect": {
+          "type": "string",
+          "description": "Declared case effect axis."
+        },
+        "profile": {
+          "type": "string",
+          "description": "Declared case profile axis."
+        },
+        "risk": {
+          "type": "string",
+          "description": "Declared case risk axis."
+        },
+        "scenario": {
+          "type": "string",
+          "description": "Declared scenario axis."
+        }
+      }
+    },
+    "expected_output_schema": {
+      "type": "string",
+      "description": "Expected typed output schema path."
+    },
+    "feature_owner": {
+      "type": "string",
+      "description": "Owning backlog feature."
+    },
+    "grader_ids": {
+      "type": "array",
+      "description": "Sorted frozen grader identities.",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Grader identity."
+      }
+    },
+    "input_digest": {
+      "type": "string",
+      "description": "Exact lowercase raw SHA-256 input digest.",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_fixture": {
+      "type": "string",
+      "description": "Exact public input fixture path."
+    },
+    "isolation": {
+      "type": "string",
+      "description": "Explicit local isolation assumption."
+    },
+    "prohibited_effects": {
+      "type": "array",
+      "description": "Sorted prohibited effects.",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Prohibited effect."
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "description": "Closed deterministic resource limits.",
+      "additionalProperties": false,
+      "required": [
+        "max_cases",
+        "max_latency_millis",
+        "max_output_bytes",
+        "max_trials_per_case"
+      ],
+      "properties": {
+        "max_cases": {
+          "type": "integer",
+          "description": "Maximum public cases.",
+          "minimum": 1,
+          "maximum": 1
+        },
+        "max_latency_millis": {
+          "type": "integer",
+          "description": "Maximum caller-recorded latency.",
+          "minimum": 5000,
+          "maximum": 5000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "description": "Maximum output bytes.",
+          "minimum": 131072,
+          "maximum": 131072
+        },
+        "max_trials_per_case": {
+          "type": "integer",
+          "description": "Maximum deterministic trials per case.",
+          "minimum": 2,
+          "maximum": 2
+        }
+      }
+    },
+    "sensitivity": {
+      "type": "string",
+      "description": "Synthetic public sensitivity classification."
+    },
+    "setup": {
+      "type": "string",
+      "description": "Deterministic setup limitation."
+    },
+    "teardown": {
+      "type": "string",
+      "description": "Deterministic teardown limitation."
+    },
+    "truth_ids": {
+      "type": "array",
+      "description": "Sorted frozen truth identities.",
+      "minItems": 1,
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Truth identity."
+      }
+    }
+  }
+}

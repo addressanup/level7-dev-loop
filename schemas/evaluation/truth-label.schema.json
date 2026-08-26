@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/evaluation/truth-label.schema.json",
+  "title": "Level 7 evaluation truth-label record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adjudication_state",
+    "authority",
+    "case_id",
+    "change_gate",
+    "compatibility",
+    "definition",
+    "earliest_removal",
+    "expected_decision",
+    "expected_evidence",
+    "expected_rule_ids",
+    "exposure",
+    "id",
+    "introduced_by",
+    "owner",
+    "protocol_id",
+    "rationale",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "status",
+    "supersedes",
+    "version"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Separate evaluator-control change gate."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Compatibility and invalidation rule."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Provider-neutral normative record definition."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Earliest compatible removal gate."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable evaluator record identity.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Approved introducing design identity."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Exactly one evaluator-governance owner."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Replacement identity."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained stable-rule tests.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable retained-test rule."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Independent read-only reviewer role."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Record schema version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Record lifecycle status.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted superseded identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Superseded identity."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic record version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "adjudication_state": {
+      "type": "string",
+      "description": "Frozen adjudication state."
+    },
+    "authority": {
+      "type": "string",
+      "description": "Truth authority."
+    },
+    "case_id": {
+      "type": "string",
+      "description": "Exact public case identity."
+    },
+    "expected_decision": {
+      "type": "string",
+      "description": "Expected semantic decision.",
+      "enum": [
+        "blocked",
+        "pass"
+      ]
+    },
+    "expected_evidence": {
+      "type": "string",
+      "description": "Expected evidence state."
+    },
+    "expected_rule_ids": {
+      "type": "array",
+      "description": "Sorted expected stable rule identities.",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable rule identity."
+      }
+    },
+    "exposure": {
+      "type": "string",
+      "description": "Truth exposure class.",
+      "enum": [
+        "public"
+      ]
+    },
+    "protocol_id": {
+      "type": "string",
+      "description": "Frozen protocol identity."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Bounded source-derived truth rationale."
+    }
+  }
+}

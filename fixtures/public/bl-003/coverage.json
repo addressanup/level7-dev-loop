@@ -1,0 +1,616 @@
+{
+  "schema_version": "1.0.0",
+  "input_bindings": {
+    "semantic_cases": {
+      "path": "fixtures/public/bl-002/semantic-cases.json",
+      "sha256": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06"
+    },
+    "broken_candidates": {
+      "path": "fixtures/public/bl-002/broken-candidates.json",
+      "sha256": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f"
+    }
+  },
+  "coverage": [
+    {
+      "id": "L7-COV-PUBLIC-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Exact source-owned public requirement, obligation, axis, case, truth, and grader coverage.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-227",
+        "EVAL-228",
+        "EVAL-229"
+      ],
+      "requirement_ids": [
+        "L7-AGENT-001",
+        "L7-AGENT-002",
+        "L7-AGENT-003",
+        "L7-EVAL-001",
+        "L7-EVAL-003",
+        "L7-EVAL-004",
+        "L7-EVAL-006",
+        "L7-EVAL-008",
+        "L7-EVAL-009",
+        "L7-FLOW-001",
+        "L7-FLOW-002",
+        "L7-FLOW-003",
+        "L7-FLOW-004",
+        "L7-FLOW-005",
+        "L7-FLOW-006",
+        "L7-FLOW-008",
+        "L7-FLOW-009",
+        "L7-FLOW-010",
+        "L7-HOST-001",
+        "L7-HOST-005",
+        "L7-KNOW-001",
+        "L7-KNOW-002",
+        "L7-KNOW-003",
+        "L7-KNOW-004",
+        "L7-NFR-033",
+        "L7-PROMPT-001",
+        "L7-PROMPT-002",
+        "L7-SKILL-001",
+        "L7-SKILL-002"
+      ],
+      "obligation_ids": [
+        "L7-OBL-AGENT-001",
+        "L7-OBL-AGENT-002",
+        "L7-OBL-AGENT-003",
+        "L7-OBL-EVAL-001",
+        "L7-OBL-EVAL-003",
+        "L7-OBL-EVAL-004",
+        "L7-OBL-EVAL-006",
+        "L7-OBL-EVAL-008",
+        "L7-OBL-EVAL-009",
+        "L7-OBL-FLOW-001",
+        "L7-OBL-FLOW-002",
+        "L7-OBL-FLOW-003",
+        "L7-OBL-FLOW-004",
+        "L7-OBL-FLOW-005",
+        "L7-OBL-FLOW-006",
+        "L7-OBL-FLOW-008",
+        "L7-OBL-FLOW-009",
+        "L7-OBL-FLOW-010",
+        "L7-OBL-HOST-001",
+        "L7-OBL-HOST-005",
+        "L7-OBL-KNOW-001",
+        "L7-OBL-KNOW-002",
+        "L7-OBL-KNOW-003",
+        "L7-OBL-KNOW-004",
+        "L7-OBL-NFR-033",
+        "L7-OBL-PROMPT-001",
+        "L7-OBL-PROMPT-002",
+        "L7-OBL-SKILL-001",
+        "L7-OBL-SKILL-002"
+      ],
+      "axes": [
+        {
+          "axis": "authority",
+          "requirement_id": "L7-AGENT-001",
+          "obligation_id": "L7-OBL-AGENT-001",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-AGENT-001",
+            "L7-CASE-BL002-BOUNDARY",
+            "L7-CASE-BL002-BROKEN-SUBAGENT"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-AGENT-001",
+            "L7-TRUTH-BL002-BOUNDARY",
+            "L7-TRUTH-BL002-BROKEN-SUBAGENT"
+          ],
+          "grader_ids": [
+            "L7-EGR-AUTHORITY-EFFECT",
+            "L7-EGR-NO-SUBAGENT",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS",
+            "L7-EGR-TAXONOMY-COMBINATIONS"
+          ]
+        },
+        {
+          "axis": "budget-exhaustion",
+          "requirement_id": "L7-AGENT-002",
+          "obligation_id": "L7-OBL-AGENT-002",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-AGENT-002",
+            "L7-CASE-BL002-BROKEN-DROPPED",
+            "L7-CASE-BL002-CONTEXT-EXHAUSTION"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-AGENT-002",
+            "L7-TRUTH-BL002-BROKEN-DROPPED",
+            "L7-TRUTH-BL002-CONTEXT-EXHAUSTION"
+          ],
+          "grader_ids": [
+            "L7-EGR-COVERAGE-CLOSURE",
+            "L7-EGR-OBLIGATION-ACCOUNTING",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS"
+          ]
+        },
+        {
+          "axis": "degraded-modes",
+          "requirement_id": "L7-AGENT-003",
+          "obligation_id": "L7-OBL-AGENT-003",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-AGENT-003",
+            "L7-CASE-BL002-BROKEN-INVENTED",
+            "L7-CASE-BL002-DEGRADED"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-AGENT-003",
+            "L7-TRUTH-BL002-BROKEN-INVENTED",
+            "L7-TRUTH-BL002-DEGRADED"
+          ],
+          "grader_ids": [
+            "L7-EGR-NO-SUBAGENT",
+            "L7-EGR-OBLIGATION-ACCOUNTING",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS"
+          ]
+        },
+        {
+          "axis": "forbidden-effects",
+          "requirement_id": "L7-EVAL-001",
+          "obligation_id": "L7-OBL-EVAL-001",
+          "feature": "L7-BL-003",
+          "case_ids": [
+            "L7-CASE-BL002-BROKEN-EVIDENCE",
+            "L7-CASE-EVAL-001"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-BROKEN-EVIDENCE",
+            "L7-TRUTH-EVAL-001"
+          ],
+          "grader_ids": [
+            "L7-EGR-EVALUATOR-GOVERNANCE",
+            "L7-EGR-EVIDENCE-TRUTH",
+            "L7-EGR-FORBIDDEN-EFFECTS",
+            "L7-EGR-SEMANTIC-GUARDRAILS"
+          ]
+        },
+        {
+          "axis": "injection",
+          "requirement_id": "L7-EVAL-003",
+          "obligation_id": "L7-OBL-EVAL-003",
+          "feature": "L7-BL-003",
+          "case_ids": [
+            "L7-CASE-BL002-BROKEN-CANARY",
+            "L7-CASE-BL002-INVALID-PROFILE",
+            "L7-CASE-BL002-SERIALIZATION",
+            "L7-CASE-EVAL-003"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-BROKEN-CANARY",
+            "L7-TRUTH-BL002-INVALID-PROFILE",
+            "L7-TRUTH-BL002-SERIALIZATION",
+            "L7-TRUTH-EVAL-003"
+          ],
+          "grader_ids": [
+            "L7-EGR-CANARY-NONLEAK",
+            "L7-EGR-EVALUATOR-GOVERNANCE",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS",
+            "L7-EGR-SOURCE-ID-SCHEMA"
+          ]
+        },
+        {
+          "axis": "install-lifecycle-placeholder",
+          "requirement_id": "L7-EVAL-004",
+          "obligation_id": "L7-OBL-EVAL-004",
+          "feature": "L7-BL-003",
+          "case_ids": [
+            "L7-CASE-BL002-BROKEN-EFFECT",
+            "L7-CASE-BL002-VALID-STOCK",
+            "L7-CASE-EVAL-004"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-BROKEN-EFFECT",
+            "L7-TRUTH-BL002-VALID-STOCK",
+            "L7-TRUTH-EVAL-004"
+          ],
+          "grader_ids": [
+            "L7-EGR-AUTHORITY-EFFECT",
+            "L7-EGR-EVALUATOR-GOVERNANCE",
+            "L7-EGR-FORBIDDEN-EFFECTS",
+            "L7-EGR-OBLIGATION-ACCOUNTING",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS"
+          ]
+        },
+        {
+          "axis": "interruption-resume",
+          "requirement_id": "L7-EVAL-006",
+          "obligation_id": "L7-OBL-EVAL-006",
+          "feature": "L7-BL-003",
+          "case_ids": [
+            "L7-CASE-BL002-BROKEN-ROUTING",
+            "L7-CASE-BL002-INTERRUPTION",
+            "L7-CASE-EVAL-006"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-BROKEN-ROUTING",
+            "L7-TRUTH-BL002-INTERRUPTION",
+            "L7-TRUTH-EVAL-006"
+          ],
+          "grader_ids": [
+            "L7-EGR-EVALUATOR-GOVERNANCE",
+            "L7-EGR-ROUTING-FLOOR",
+            "L7-EGR-RUN-TRIAL-ACCOUNTING",
+            "L7-EGR-SEMANTIC-GUARDRAILS"
+          ]
+        },
+        {
+          "axis": "lifecycle-transitions",
+          "requirement_id": "L7-EVAL-008",
+          "obligation_id": "L7-OBL-EVAL-008",
+          "feature": "L7-BL-003",
+          "case_ids": [
+            "L7-CASE-BL002-BOUNDARY",
+            "L7-CASE-BL002-BROKEN-STALE-APPROVAL",
+            "L7-CASE-EVAL-008"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-BOUNDARY",
+            "L7-TRUTH-BL002-BROKEN-STALE-APPROVAL",
+            "L7-TRUTH-EVAL-008"
+          ],
+          "grader_ids": [
+            "L7-EGR-EVALUATOR-GOVERNANCE",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS",
+            "L7-EGR-STALE-APPROVAL",
+            "L7-EGR-TAXONOMY-COMBINATIONS"
+          ]
+        },
+        {
+          "axis": "parity-obligations",
+          "requirement_id": "L7-EVAL-009",
+          "obligation_id": "L7-OBL-EVAL-009",
+          "feature": "L7-BL-003",
+          "case_ids": [
+            "L7-CASE-BL002-BROKEN-DROPPED",
+            "L7-CASE-BL002-VALID-CONTROLLED",
+            "L7-CASE-BL002-VALID-STOCK",
+            "L7-CASE-EVAL-009"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-BROKEN-DROPPED",
+            "L7-TRUTH-BL002-VALID-CONTROLLED",
+            "L7-TRUTH-BL002-VALID-STOCK",
+            "L7-TRUTH-EVAL-009"
+          ],
+          "grader_ids": [
+            "L7-EGR-EVALUATOR-GOVERNANCE",
+            "L7-EGR-OBLIGATION-ACCOUNTING",
+            "L7-EGR-PROJECTION-PARITY",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS"
+          ]
+        },
+        {
+          "axis": "routing-negative-activation",
+          "requirement_id": "L7-FLOW-001",
+          "obligation_id": "L7-OBL-FLOW-001",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-BL002-NONAPPLICABLE",
+            "L7-CASE-FLOW-001"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-NONAPPLICABLE",
+            "L7-TRUTH-FLOW-001"
+          ],
+          "grader_ids": [
+            "L7-EGR-ROUTING-FLOOR",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SEMANTIC-GUARDRAILS",
+            "L7-EGR-TAXONOMY-COMBINATIONS"
+          ]
+        },
+        {
+          "axis": "secret-handling",
+          "requirement_id": "L7-FLOW-002",
+          "obligation_id": "L7-OBL-FLOW-002",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-002"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-002"
+          ],
+          "grader_ids": [
+            "L7-EGR-CANARY-NONLEAK",
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "stale-evidence-approval",
+          "requirement_id": "L7-FLOW-003",
+          "obligation_id": "L7-OBL-FLOW-003",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-003"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-003"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-STALE-APPROVAL"
+          ]
+        },
+        {
+          "axis": "write-collision-semantics",
+          "requirement_id": "L7-FLOW-004",
+          "obligation_id": "L7-OBL-FLOW-004",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-BL002-SERIALIZATION",
+            "L7-CASE-FLOW-004"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-BL002-SERIALIZATION",
+            "L7-TRUTH-FLOW-004"
+          ],
+          "grader_ids": [
+            "L7-EGR-AUTHORITY-EFFECT",
+            "L7-EGR-SEMANTIC-CONTRACT",
+            "L7-EGR-SOURCE-ID-SCHEMA"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-FLOW-005",
+          "obligation_id": "L7-OBL-FLOW-005",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-005"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-005"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-FLOW-006",
+          "obligation_id": "L7-OBL-FLOW-006",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-006"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-006"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-FLOW-008",
+          "obligation_id": "L7-OBL-FLOW-008",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-008"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-008"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-FLOW-009",
+          "obligation_id": "L7-OBL-FLOW-009",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-009"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-009"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-FLOW-010",
+          "obligation_id": "L7-OBL-FLOW-010",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-FLOW-010"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-FLOW-010"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-HOST-001",
+          "obligation_id": "L7-OBL-HOST-001",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-HOST-001"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-HOST-001"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-HOST-005",
+          "obligation_id": "L7-OBL-HOST-005",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-HOST-005"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-HOST-005"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-KNOW-001",
+          "obligation_id": "L7-OBL-KNOW-001",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-KNOW-001"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-KNOW-001"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-KNOW-002",
+          "obligation_id": "L7-OBL-KNOW-002",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-KNOW-002"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-KNOW-002"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-KNOW-003",
+          "obligation_id": "L7-OBL-KNOW-003",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-KNOW-003"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-KNOW-003"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-KNOW-004",
+          "obligation_id": "L7-OBL-KNOW-004",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-KNOW-004"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-KNOW-004"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-NFR-033",
+          "obligation_id": "L7-OBL-NFR-033",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-NFR-033"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-NFR-033"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-PROMPT-001",
+          "obligation_id": "L7-OBL-PROMPT-001",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-PROMPT-001"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-PROMPT-001"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-PROMPT-002",
+          "obligation_id": "L7-OBL-PROMPT-002",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-PROMPT-002"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-PROMPT-002"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-SKILL-001",
+          "obligation_id": "L7-OBL-SKILL-001",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-SKILL-001"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-SKILL-001"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        },
+        {
+          "axis": "semantic-obligation",
+          "requirement_id": "L7-SKILL-002",
+          "obligation_id": "L7-OBL-SKILL-002",
+          "feature": "L7-BL-002",
+          "case_ids": [
+            "L7-CASE-SKILL-002"
+          ],
+          "truth_ids": [
+            "L7-TRUTH-SKILL-002"
+          ],
+          "grader_ids": [
+            "L7-EGR-SEMANTIC-CONTRACT"
+          ]
+        }
+      ]
+    }
+  ]
+}

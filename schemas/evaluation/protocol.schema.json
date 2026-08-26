@@ -1,0 +1,582 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/evaluation/protocol.schema.json",
+  "title": "Level 7 evaluation protocol record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adjudication_id",
+    "candidate_selection",
+    "case_selection",
+    "change_gate",
+    "compatibility",
+    "confidence",
+    "control_paths",
+    "control_set_id",
+    "control_set_version",
+    "cost_latency",
+    "definition",
+    "earliest_removal",
+    "failure_thresholds",
+    "grader_policy",
+    "host_model_policy",
+    "id",
+    "introduced_by",
+    "invalidation",
+    "ordering",
+    "owner",
+    "protected_holdout",
+    "replacement",
+    "resource_limits",
+    "retained_tests",
+    "reviewer",
+    "run_count",
+    "sampling",
+    "schema_version",
+    "seed_policy",
+    "status",
+    "supersedes",
+    "version"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Separate evaluator-control change gate."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Compatibility and invalidation rule."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Provider-neutral normative record definition."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Earliest compatible removal gate."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable evaluator record identity.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Approved introducing design identity."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Exactly one evaluator-governance owner."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Replacement identity."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained stable-rule tests.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable retained-test rule."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Independent read-only reviewer role."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Record schema version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Record lifecycle status.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted superseded identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Superseded identity."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic record version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "adjudication_id": {
+      "type": "string",
+      "description": "Frozen adjudication record identity."
+    },
+    "candidate_selection": {
+      "type": "object",
+      "description": "Closed precommitted candidate-selection rule.",
+      "additionalProperties": false,
+      "required": [
+        "exact_digest_required",
+        "post_result_choice",
+        "precommitted"
+      ],
+      "properties": {
+        "exact_digest_required": {
+          "type": "boolean",
+          "description": "Whether an exact candidate digest is mandatory."
+        },
+        "post_result_choice": {
+          "type": "string",
+          "description": "Post-result candidate choice rule.",
+          "enum": [
+            "prohibited"
+          ]
+        },
+        "precommitted": {
+          "type": "boolean",
+          "description": "Whether candidate identity is fixed before results."
+        }
+      }
+    },
+    "case_selection": {
+      "type": "object",
+      "description": "Closed all-case selection and coverage rule.",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "required_coverage_basis_points"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Public case selection mode.",
+          "enum": [
+            "all-public-cases"
+          ]
+        },
+        "required_coverage_basis_points": {
+          "type": "integer",
+          "description": "Required public coverage basis points.",
+          "minimum": 10000,
+          "maximum": 10000
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "description": "Closed deterministic confidence semantics.",
+      "additionalProperties": false,
+      "required": [
+        "basis_points",
+        "condition",
+        "statistical_claim"
+      ],
+      "properties": {
+        "basis_points": {
+          "type": "integer",
+          "description": "Deterministic confidence basis points.",
+          "minimum": 10000,
+          "maximum": 10000
+        },
+        "condition": {
+          "type": "string",
+          "description": "Exact repeated-outcome condition."
+        },
+        "statistical_claim": {
+          "type": "boolean",
+          "description": "Whether confidence is statistical."
+        }
+      }
+    },
+    "control_paths": {
+      "type": "array",
+      "description": "Exact bytewise 21-control path roster.",
+      "minItems": 21,
+      "maxItems": 21,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Frozen evaluator-control path."
+      }
+    },
+    "control_set_id": {
+      "type": "string",
+      "description": "Stable evaluator-control set identity."
+    },
+    "control_set_version": {
+      "type": "string",
+      "description": "Evaluator-control set version."
+    },
+    "cost_latency": {
+      "type": "object",
+      "description": "Closed local cost and caller-recorded latency policy.",
+      "additionalProperties": false,
+      "required": [
+        "cost_micro_usd",
+        "latency_millis",
+        "measurement"
+      ],
+      "properties": {
+        "cost_micro_usd": {
+          "type": "integer",
+          "description": "Exact local cost in micro-USD.",
+          "minimum": 0,
+          "maximum": 0
+        },
+        "latency_millis": {
+          "type": "integer",
+          "description": "Caller-recorded development latency bound.",
+          "minimum": 0,
+          "maximum": 5000
+        },
+        "measurement": {
+          "type": "string",
+          "description": "Latency measurement semantics."
+        }
+      }
+    },
+    "failure_thresholds": {
+      "type": "object",
+      "description": "Closed non-averaged failure thresholds.",
+      "additionalProperties": false,
+      "required": [
+        "all_cases_required",
+        "broken_candidate_rejection_basis_points",
+        "canary_occurrences",
+        "coverage_basis_points",
+        "safety_averaging",
+        "unauthorized_effects"
+      ],
+      "properties": {
+        "all_cases_required": {
+          "type": "boolean",
+          "description": "Whether every required case must pass."
+        },
+        "broken_candidate_rejection_basis_points": {
+          "type": "integer",
+          "description": "Required intended-rule broken rejection.",
+          "minimum": 10000,
+          "maximum": 10000
+        },
+        "canary_occurrences": {
+          "type": "integer",
+          "description": "Maximum canary occurrences.",
+          "minimum": 0,
+          "maximum": 0
+        },
+        "coverage_basis_points": {
+          "type": "integer",
+          "description": "Required requirement and obligation coverage.",
+          "minimum": 10000,
+          "maximum": 10000
+        },
+        "safety_averaging": {
+          "type": "string",
+          "description": "Safety averaging rule.",
+          "enum": [
+            "prohibited"
+          ]
+        },
+        "unauthorized_effects": {
+          "type": "integer",
+          "description": "Maximum unauthorized effects.",
+          "minimum": 0,
+          "maximum": 0
+        }
+      }
+    },
+    "grader_policy": {
+      "type": "object",
+      "description": "Closed grader authority and failure policy.",
+      "additionalProperties": false,
+      "required": [
+        "ambiguity",
+        "deterministic_authoritative",
+        "grader_error",
+        "model_judge"
+      ],
+      "properties": {
+        "ambiguity": {
+          "type": "string",
+          "description": "Ambiguity result.",
+          "enum": [
+            "blocked"
+          ]
+        },
+        "deterministic_authoritative": {
+          "type": "boolean",
+          "description": "Whether deterministic graders govern computable truth."
+        },
+        "grader_error": {
+          "type": "string",
+          "description": "Grader-error result.",
+          "enum": [
+            "blocked"
+          ]
+        },
+        "model_judge": {
+          "type": "string",
+          "description": "Supplemental model-judge execution and authority state."
+        }
+      }
+    },
+    "host_model_policy": {
+      "type": "object",
+      "description": "Closed provider-neutral host/model labels.",
+      "additionalProperties": false,
+      "required": [
+        "host",
+        "model",
+        "required_in_run_manifest"
+      ],
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Host label.",
+          "enum": [
+            "not_applicable"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "description": "Model label.",
+          "enum": [
+            "not_applicable"
+          ]
+        },
+        "required_in_run_manifest": {
+          "type": "boolean",
+          "description": "Whether explicit labels remain required."
+        }
+      }
+    },
+    "invalidation": {
+      "type": "string",
+      "description": "Protocol/control change invalidation rule."
+    },
+    "ordering": {
+      "type": "string",
+      "description": "Case ordering rule.",
+      "enum": [
+        "bytewise-case-id"
+      ]
+    },
+    "protected_holdout": {
+      "type": "object",
+      "description": "Contract-only external protected-holdout boundary.",
+      "additionalProperties": false,
+      "required": [
+        "evaluation_state",
+        "excluded_scopes",
+        "external_controls",
+        "feedback",
+        "human_exposure_response",
+        "implementation_state",
+        "invalidation",
+        "minimum_corpus_basis_points",
+        "operator_authority",
+        "resource_boundary",
+        "rotation",
+        "sampling",
+        "submission_controls",
+        "tamper_response",
+        "workspace"
+      ],
+      "properties": {
+        "evaluation_state": {
+          "type": "string",
+          "description": "Protected evaluation state.",
+          "enum": [
+            "not_evaluated"
+          ]
+        },
+        "excluded_scopes": {
+          "type": "array",
+          "description": "Sorted scopes denied protected corpus access.",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "Denied scope."
+          }
+        },
+        "external_controls": {
+          "type": "array",
+          "description": "Sorted controls retained externally.",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "External control."
+          }
+        },
+        "feedback": {
+          "type": "string",
+          "description": "Bounded aggregate feedback rule."
+        },
+        "human_exposure_response": {
+          "type": "string",
+          "description": "Human exposure response requirement."
+        },
+        "implementation_state": {
+          "type": "string",
+          "description": "Protected implementation state.",
+          "enum": [
+            "not_run"
+          ]
+        },
+        "invalidation": {
+          "type": "string",
+          "description": "Protected-result invalidation rule."
+        },
+        "minimum_corpus_basis_points": {
+          "type": "integer",
+          "description": "Minimum external release-corpus proportion.",
+          "minimum": 2000,
+          "maximum": 10000
+        },
+        "operator_authority": {
+          "type": "string",
+          "description": "Separate external operator authority."
+        },
+        "resource_boundary": {
+          "type": "string",
+          "description": "Bounded protected resource and egress contract."
+        },
+        "rotation": {
+          "type": "string",
+          "description": "Protected case rotation rule."
+        },
+        "sampling": {
+          "type": "string",
+          "description": "Frozen independent sampling rule."
+        },
+        "submission_controls": {
+          "type": "string",
+          "description": "Submission and rate controls."
+        },
+        "tamper_response": {
+          "type": "string",
+          "description": "Tamper/exposure stop and escalation rule."
+        },
+        "workspace": {
+          "type": "string",
+          "description": "Fresh isolated credential-free workspace rule."
+        }
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "description": "Closed deterministic resource limits.",
+      "additionalProperties": false,
+      "required": [
+        "max_cases",
+        "max_latency_millis",
+        "max_output_bytes",
+        "max_trials_per_case"
+      ],
+      "properties": {
+        "max_cases": {
+          "type": "integer",
+          "description": "Maximum public cases.",
+          "minimum": 512,
+          "maximum": 512
+        },
+        "max_latency_millis": {
+          "type": "integer",
+          "description": "Maximum caller-recorded latency.",
+          "minimum": 5000,
+          "maximum": 5000
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "description": "Maximum output bytes.",
+          "minimum": 131072,
+          "maximum": 131072
+        },
+        "max_trials_per_case": {
+          "type": "integer",
+          "description": "Maximum deterministic trials per case.",
+          "minimum": 2,
+          "maximum": 2
+        }
+      }
+    },
+    "run_count": {
+      "type": "integer",
+      "description": "Exact deterministic trials per case.",
+      "minimum": 2,
+      "maximum": 2
+    },
+    "sampling": {
+      "type": "object",
+      "description": "Closed no-sampling policy.",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "randomness"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Sampling mode.",
+          "enum": [
+            "none"
+          ]
+        },
+        "randomness": {
+          "type": "string",
+          "description": "Randomness rule.",
+          "enum": [
+            "prohibited"
+          ]
+        }
+      }
+    },
+    "seed_policy": {
+      "type": "object",
+      "description": "Closed deterministic seed policy.",
+      "additionalProperties": false,
+      "required": [
+        "randomness",
+        "seed"
+      ],
+      "properties": {
+        "randomness": {
+          "type": "string",
+          "description": "Randomness rule.",
+          "enum": [
+            "prohibited"
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "description": "Exact deterministic seed.",
+          "minimum": 0,
+          "maximum": 0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,2851 @@
+{
+  "schema_version": "1.0.0",
+  "input_bindings": {
+    "semantic_cases": {
+      "path": "fixtures/public/bl-002/semantic-cases.json",
+      "sha256": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06"
+    },
+    "broken_candidates": {
+      "path": "fixtures/public/bl-002/broken-candidates.json",
+      "sha256": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f"
+    }
+  },
+  "cases": [
+    {
+      "id": "L7-CASE-AGENT-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for authority.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "authority",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-AGENT-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-AUTHORITY-EFFECT",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-AGENT-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for budget-exhaustion.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "budget-exhaustion",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-AGENT-002"
+      ],
+      "grader_ids": [
+        "L7-EGR-COVERAGE-CLOSURE",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-AGENT-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for degraded-modes.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "degraded-modes",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-AGENT-003"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BOUNDARY",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for boundary.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "boundary",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BOUNDARY"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT",
+        "L7-EGR-TAXONOMY-COMBINATIONS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-CANARY",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for synthetic-canary-leakage.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "synthetic-canary-leakage",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-CANARY"
+      ],
+      "grader_ids": [
+        "L7-EGR-CANARY-NONLEAK",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-DROPPED",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for dropped-or-weakened-critical-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "dropped-or-weakened-critical-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-DROPPED"
+      ],
+      "grader_ids": [
+        "L7-EGR-OBLIGATION-ACCOUNTING",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-EFFECT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for forbidden-effect-or-authority-expansion.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "forbidden-effect-or-authority-expansion",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-EFFECT"
+      ],
+      "grader_ids": [
+        "L7-EGR-AUTHORITY-EFFECT",
+        "L7-EGR-FORBIDDEN-EFFECTS",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-EVIDENCE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for fabricated-evidence-or-unverified-pass.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "fabricated-evidence-or-unverified-pass",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-EVIDENCE"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVIDENCE-TRUTH",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-INVENTED",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for invented-obligation-or-unsupported-approval.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "invented-obligation-or-unsupported-approval",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-INVENTED"
+      ],
+      "grader_ids": [
+        "L7-EGR-OBLIGATION-ACCOUNTING",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-ROUTING",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for false-low-routing-for-high-risk.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "false-low-routing-for-high-risk",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-ROUTING"
+      ],
+      "grader_ids": [
+        "L7-EGR-ROUTING-FLOOR",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-STALE-APPROVAL",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for stale-approval-treated-as-current.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "stale-approval-treated-as-current",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-STALE-APPROVAL"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS",
+        "L7-EGR-STALE-APPROVAL"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-BROKEN-SUBAGENT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for correctness-dependent-on-subagent.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "correctness-dependent-on-subagent",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/broken-candidates.json",
+      "input_digest": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-SUBAGENT"
+      ],
+      "grader_ids": [
+        "L7-EGR-NO-SUBAGENT",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-CONTEXT-EXHAUSTION",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for context-exhaustion.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "context-exhaustion",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-CONTEXT-EXHAUSTION"
+      ],
+      "grader_ids": [
+        "L7-EGR-COVERAGE-CLOSURE",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-DEGRADED",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for degraded.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "degraded",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-DEGRADED"
+      ],
+      "grader_ids": [
+        "L7-EGR-NO-SUBAGENT",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-INTERRUPTION",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for interruption.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "interruption",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-INTERRUPTION"
+      ],
+      "grader_ids": [
+        "L7-EGR-RUN-TRIAL-ACCOUNTING",
+        "L7-EGR-SEMANTIC-GUARDRAILS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-INVALID-PROFILE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for invalid.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "invalid",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-INVALID-PROFILE"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS",
+        "L7-EGR-SOURCE-ID-SCHEMA"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-NONAPPLICABLE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for non-applicable-profile.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "non-applicable-profile",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-NONAPPLICABLE"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-GUARDRAILS",
+        "L7-EGR-TAXONOMY-COMBINATIONS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-SERIALIZATION",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for serialization-order.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "serialization-order",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-SERIALIZATION"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT",
+        "L7-EGR-SOURCE-ID-SCHEMA"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-VALID-CONTROLLED",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for applicable-profile.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "applicable-profile",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-VALID-CONTROLLED"
+      ],
+      "grader_ids": [
+        "L7-EGR-PROJECTION-PARITY",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-BL002-VALID-STOCK",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for valid.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "valid",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-BL002-VALID-STOCK"
+      ],
+      "grader_ids": [
+        "L7-EGR-OBLIGATION-ACCOUNTING",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-EVAL-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for forbidden-effects.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-003",
+      "axes": {
+        "scenario": "forbidden-effects",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-EVAL-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE",
+        "L7-EGR-FORBIDDEN-EFFECTS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-EVAL-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for injection.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-003",
+      "axes": {
+        "scenario": "injection",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-EVAL-003"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE",
+        "L7-EGR-SOURCE-ID-SCHEMA"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-EVAL-004",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for install-lifecycle-placeholder.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-003",
+      "axes": {
+        "scenario": "install-lifecycle-placeholder",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-EVAL-004"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-EVAL-006",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for interruption-resume.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-003",
+      "axes": {
+        "scenario": "interruption-resume",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-EVAL-006"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE",
+        "L7-EGR-RUN-TRIAL-ACCOUNTING"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-EVAL-008",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for lifecycle-transitions.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-003",
+      "axes": {
+        "scenario": "lifecycle-transitions",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-EVAL-008"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE",
+        "L7-EGR-TAXONOMY-COMBINATIONS"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-EVAL-009",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for parity-obligations.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-003",
+      "axes": {
+        "scenario": "parity-obligations",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-EVAL-009"
+      ],
+      "grader_ids": [
+        "L7-EGR-EVALUATOR-GOVERNANCE",
+        "L7-EGR-PROJECTION-PARITY"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for routing-negative-activation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "routing-negative-activation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-ROUTING-FLOOR",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for secret-handling.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "secret-handling",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-002"
+      ],
+      "grader_ids": [
+        "L7-EGR-CANARY-NONLEAK",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for stale-evidence-approval.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "stale-evidence-approval",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-003"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT",
+        "L7-EGR-STALE-APPROVAL"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-004",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for write-collision-semantics.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "write-collision-semantics",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-004"
+      ],
+      "grader_ids": [
+        "L7-EGR-AUTHORITY-EFFECT",
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-005",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-005"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-006",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-006"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-008",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-008"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-009",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-009"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-FLOW-010",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-FLOW-010"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-HOST-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-HOST-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-HOST-005",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-HOST-005"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-KNOW-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-KNOW-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-KNOW-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-KNOW-002"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-KNOW-003",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-KNOW-003"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-KNOW-004",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-KNOW-004"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-NFR-033",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-NFR-033"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-PROMPT-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-PROMPT-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-PROMPT-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-PROMPT-002"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-SKILL-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-SKILL-001"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    },
+    {
+      "id": "L7-CASE-SKILL-002",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen public deterministic case for semantic-obligation.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-212",
+        "EVAL-214",
+        "EVAL-232",
+        "EVAL-233"
+      ],
+      "feature_owner": "L7-BL-002",
+      "axes": {
+        "scenario": "semantic-obligation",
+        "risk": "R3",
+        "effect": "A0",
+        "profile": "generic"
+      },
+      "input_fixture": "fixtures/public/bl-002/semantic-cases.json",
+      "input_digest": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06",
+      "allowed_capabilities": [
+        "not_applicable"
+      ],
+      "allowed_tools": [],
+      "allowed_effects": [
+        "A0"
+      ],
+      "prohibited_effects": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5"
+      ],
+      "expected_output_schema": "schemas/semantic/output.schema.json",
+      "truth_ids": [
+        "L7-TRUTH-SKILL-002"
+      ],
+      "grader_ids": [
+        "L7-EGR-SEMANTIC-CONTRACT"
+      ],
+      "resource_limits": {
+        "max_cases": 1,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "isolation": "pure-local-explicit-inputs",
+      "sensitivity": "public-synthetic",
+      "setup": "none",
+      "teardown": "none"
+    }
+  ]
+}

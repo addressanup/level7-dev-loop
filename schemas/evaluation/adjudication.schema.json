@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/evaluation/adjudication.schema.json",
+  "title": "Level 7 evaluation adjudication record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ambiguity_result",
+    "candidate_exclusion",
+    "change_gate",
+    "compatibility",
+    "conflict_result",
+    "decision_values",
+    "definition",
+    "earliest_removal",
+    "eligible_role",
+    "id",
+    "inputs",
+    "introduced_by",
+    "invalidation",
+    "owner",
+    "record",
+    "replacement",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "status",
+    "supersedes",
+    "trigger",
+    "version"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Separate evaluator-control change gate."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Compatibility and invalidation rule."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Provider-neutral normative record definition."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Earliest compatible removal gate."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable evaluator record identity.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Approved introducing design identity."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Exactly one evaluator-governance owner."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Replacement identity."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained stable-rule tests.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable retained-test rule."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Independent read-only reviewer role."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Record schema version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Record lifecycle status.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted superseded identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Superseded identity."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic record version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "ambiguity_result": {
+      "type": "string",
+      "description": "Fail-closed ambiguity result.",
+      "enum": [
+        "blocked"
+      ]
+    },
+    "candidate_exclusion": {
+      "type": "boolean",
+      "description": "Whether candidate and remediator are excluded."
+    },
+    "conflict_result": {
+      "type": "string",
+      "description": "Fail-closed truth-conflict result.",
+      "enum": [
+        "invalidated"
+      ]
+    },
+    "decision_values": {
+      "type": "array",
+      "description": "Sorted adjudication decision values.",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Adjudication decision."
+      }
+    },
+    "eligible_role": {
+      "type": "string",
+      "description": "Separately authorized eligible role."
+    },
+    "inputs": {
+      "type": "array",
+      "description": "Sorted bounded adjudication inputs.",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Adjudication input."
+      }
+    },
+    "invalidation": {
+      "type": "string",
+      "description": "Control revision invalidation rule."
+    },
+    "record": {
+      "type": "string",
+      "description": "Versioned adjudication record contract."
+    },
+    "trigger": {
+      "type": "array",
+      "description": "Sorted fail-closed adjudication triggers.",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Adjudication trigger."
+      }
+    }
+  }
+}

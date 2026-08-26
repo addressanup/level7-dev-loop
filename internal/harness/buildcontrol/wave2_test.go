@@ -119,6 +119,44 @@ func TestWave02EvaluatorControlsLandAtomically(t *testing.T) {
 	}
 }
 
+func TestWave02EvaluatorControlsValidateThroughHarness(t *testing.T) {
+	current := make(map[string]snapshotFile, len(wave02EvaluatorControlPaths)+1)
+	for _, relative := range wave02EvaluatorControlPaths {
+		current[relative] = snapshotFile{regular: true, links: 1}
+	}
+	current[wave02EvaluatorManifest] = snapshotFile{regular: true, links: 1}
+	if findings := checkWave02EvaluatorControls(repositoryRoot(t), current); len(findings) != 0 {
+		t.Fatalf("repository evaluator controls: %+v", findings)
+	}
+
+	fixture := fstest.MapFS{}
+	for _, relative := range append(append([]string(nil), wave02EvaluatorControlPaths...), wave02EvaluatorManifest, "fixtures/public/bl-002/semantic-cases.json", "fixtures/public/bl-002/broken-candidates.json") {
+		if relative == wave02EvaluatorManifest {
+			data, readFindings := readStrictFile(repositoryRoot(t), relative)
+			if len(readFindings) != 0 {
+				t.Fatalf("read %s: %+v", relative, readFindings)
+			}
+			fixture[relative] = &fstest.MapFile{Data: data}
+			continue
+		}
+		if !strings.HasSuffix(relative, ".json") {
+			continue
+		}
+		data, readFindings := readStrictFile(repositoryRoot(t), relative)
+		if len(readFindings) != 0 {
+			t.Fatalf("read %s: %+v", relative, readFindings)
+		}
+		if relative == "fixtures/public/bl-003/protocol.json" {
+			data = []byte(strings.Replace(string(data), `"run_count": 2`, `"run_count": 1`, 1))
+		}
+		fixture[relative] = &fstest.MapFile{Data: data}
+	}
+	root := materializeMapFS(t, fixture)
+	if rules := findingRules(checkWave02EvaluatorControls(root, current)); rules["SCOPE-564"] == 0 {
+		t.Fatalf("invalid evaluator protocol bypassed harness integration: %+v", rules)
+	}
+}
+
 func TestWave02SemanticCompilerLandsAtomicallyAndValidates(t *testing.T) {
 	current := make(map[string]snapshotFile, len(wave02SemanticSlicePaths))
 	for _, relative := range wave02SemanticSlicePaths {

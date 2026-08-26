@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/evaluation/grader.schema.json",
+  "title": "Level 7 evaluation grader record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adjudication",
+    "authority_limit",
+    "bounds",
+    "calibration",
+    "change_gate",
+    "class",
+    "compatibility",
+    "definition",
+    "earliest_removal",
+    "error_behavior",
+    "id",
+    "input_schema",
+    "introduced_by",
+    "obligation_ids",
+    "output_schema",
+    "owner",
+    "replacement",
+    "result_semantics",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "status",
+    "supersedes",
+    "truth_ids",
+    "version"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Separate evaluator-control change gate."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Compatibility and invalidation rule."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Provider-neutral normative record definition."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Earliest compatible removal gate."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable evaluator record identity.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Approved introducing design identity."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Exactly one evaluator-governance owner."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Replacement identity."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained stable-rule tests.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable retained-test rule."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Independent read-only reviewer role."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Record schema version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Record lifecycle status.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted superseded identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Superseded identity."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic record version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "adjudication": {
+      "type": "string",
+      "description": "Frozen adjudication identity."
+    },
+    "authority_limit": {
+      "type": "string",
+      "description": "Explicit non-release authority limit."
+    },
+    "bounds": {
+      "type": "object",
+      "description": "Closed deterministic grader bounds.",
+      "additionalProperties": false,
+      "required": [
+        "max_cases",
+        "max_diagnostics",
+        "max_output_bytes",
+        "max_trials"
+      ],
+      "properties": {
+        "max_cases": {
+          "type": "integer",
+          "description": "Maximum cases.",
+          "minimum": 512,
+          "maximum": 512
+        },
+        "max_diagnostics": {
+          "type": "integer",
+          "description": "Maximum diagnostics.",
+          "minimum": 64,
+          "maximum": 64
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "description": "Maximum output bytes.",
+          "minimum": 131072,
+          "maximum": 131072
+        },
+        "max_trials": {
+          "type": "integer",
+          "description": "Maximum trials.",
+          "minimum": 1024,
+          "maximum": 1024
+        }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "description": "Closed deterministic or model-judge calibration contract.",
+      "additionalProperties": false,
+      "required": [
+        "cross_family_sets",
+        "execution_state",
+        "order_reversal",
+        "verbosity_matched_pairs"
+      ],
+      "properties": {
+        "cross_family_sets": {
+          "type": "array",
+          "description": "Sorted cross-family calibration sets.",
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "description": "Calibration set identity."
+          }
+        },
+        "execution_state": {
+          "type": "string",
+          "description": "Explicit execution state.",
+          "enum": [
+            "not_applicable",
+            "not_evaluated"
+          ]
+        },
+        "order_reversal": {
+          "type": "boolean",
+          "description": "Whether order reversal calibration is required."
+        },
+        "verbosity_matched_pairs": {
+          "type": "boolean",
+          "description": "Whether verbosity-matched pairs are required."
+        }
+      }
+    },
+    "class": {
+      "type": "string",
+      "description": "Grader class.",
+      "enum": [
+        "deterministic",
+        "model"
+      ]
+    },
+    "error_behavior": {
+      "type": "string",
+      "description": "Fail-closed grader error behavior."
+    },
+    "input_schema": {
+      "type": "string",
+      "description": "Accepted typed input schema identity."
+    },
+    "obligation_ids": {
+      "type": "array",
+      "description": "Sorted covered obligation identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Obligation identity."
+      }
+    },
+    "output_schema": {
+      "type": "string",
+      "description": "Produced typed output schema identity."
+    },
+    "result_semantics": {
+      "type": "string",
+      "description": "Pass, blocked, and not-evaluated semantics."
+    },
+    "truth_ids": {
+      "type": "array",
+      "description": "Sorted covered truth identities.",
+      "minItems": 0,
+      "maxItems": 1024,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Truth identity."
+      }
+    }
+  }
+}

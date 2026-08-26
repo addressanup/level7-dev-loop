@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/evaluation/run-manifest.schema.json",
+  "title": "Level 7 evaluation run-manifest record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adjudication",
+    "authority",
+    "candidate",
+    "case_selection",
+    "change_gate",
+    "compatibility",
+    "cost",
+    "definition",
+    "earliest_removal",
+    "effects",
+    "environment",
+    "graders",
+    "harness",
+    "host",
+    "id",
+    "introduced_by",
+    "invalidation",
+    "latency",
+    "limitations",
+    "model",
+    "owner",
+    "producer",
+    "profiles",
+    "prompt",
+    "protocol",
+    "replacement",
+    "resources",
+    "results",
+    "retained_tests",
+    "reviewer",
+    "schema_version",
+    "semantic",
+    "status",
+    "supersedes",
+    "termination",
+    "tools",
+    "trials",
+    "uncertainty",
+    "version",
+    "workflow"
+  ],
+  "properties": {
+    "change_gate": {
+      "type": "string",
+      "description": "Separate evaluator-control change gate."
+    },
+    "compatibility": {
+      "type": "string",
+      "description": "Compatibility and invalidation rule."
+    },
+    "definition": {
+      "type": "string",
+      "description": "Provider-neutral normative record definition."
+    },
+    "earliest_removal": {
+      "type": "string",
+      "description": "Earliest compatible removal gate."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable evaluator record identity.",
+      "pattern": "^L7-(TAX|OBL|GUARD|KNOW|WF|PROF|BUDGET|EVAL|CASE|TRUTH|EGR|COV|ADJ)-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "introduced_by": {
+      "type": "string",
+      "description": "Approved introducing design identity."
+    },
+    "owner": {
+      "type": "string",
+      "description": "Exactly one evaluator-governance owner."
+    },
+    "replacement": {
+      "type": "array",
+      "description": "Sorted replacement identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Replacement identity."
+      }
+    },
+    "retained_tests": {
+      "type": "array",
+      "description": "Sorted retained stable-rule tests.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Stable retained-test rule."
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Independent read-only reviewer role."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Record schema version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "status": {
+      "type": "string",
+      "description": "Record lifecycle status.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft",
+        "retired",
+        "superseded"
+      ]
+    },
+    "supersedes": {
+      "type": "array",
+      "description": "Sorted superseded identities.",
+      "minItems": 0,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Superseded identity."
+      }
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic record version.",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "adjudication": {
+      "type": "string",
+      "description": "Adjudication identity and state."
+    },
+    "authority": {
+      "type": "string",
+      "description": "Evidence producer authority."
+    },
+    "candidate": {
+      "type": "object",
+      "description": "Closed candidate identity.",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Candidate identity path."
+        },
+        "sha256": {
+          "type": "string",
+          "description": "Exact lowercase candidate SHA-256.",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "case_selection": {
+      "type": "array",
+      "description": "Sorted selected case identities.",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Case identity."
+      }
+    },
+    "cost": {
+      "type": "integer",
+      "description": "Total recorded cost in micro-USD.",
+      "minimum": 0,
+      "maximum": 0
+    },
+    "effects": {
+      "type": "array",
+      "description": "Sorted allowed and observed effects.",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Effect record."
+      }
+    },
+    "environment": {
+      "type": "string",
+      "description": "Explicit bounded environment identity."
+    },
+    "graders": {
+      "type": "array",
+      "description": "Sorted grader identities and versions.",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Grader identity."
+      }
+    },
+    "harness": {
+      "type": "string",
+      "description": "Exact harness identity."
+    },
+    "host": {
+      "type": "string",
+      "description": "Explicit host label."
+    },
+    "invalidation": {
+      "type": "string",
+      "description": "Run invalidation state."
+    },
+    "latency": {
+      "type": "integer",
+      "description": "Caller-recorded latency in milliseconds.",
+      "minimum": 0,
+      "maximum": 5000
+    },
+    "limitations": {
+      "type": "string",
+      "description": "Bounded reproduction limitations."
+    },
+    "model": {
+      "type": "string",
+      "description": "Explicit model label."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Evidence producer identity."
+    },
+    "profiles": {
+      "type": "array",
+      "description": "Sorted selected profile identities.",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Profile identity."
+      }
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Prompt or IR digest identity."
+    },
+    "protocol": {
+      "type": "string",
+      "description": "Protocol version and digest identity."
+    },
+    "resources": {
+      "type": "string",
+      "description": "Bounded resource record."
+    },
+    "results": {
+      "type": "array",
+      "description": "Sorted per-case and aggregate results.",
+      "minItems": 1,
+      "maxItems": 1024,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Result record."
+      }
+    },
+    "semantic": {
+      "type": "string",
+      "description": "Semantic source-set digest identity."
+    },
+    "termination": {
+      "type": "string",
+      "description": "Termination state."
+    },
+    "tools": {
+      "type": "array",
+      "description": "Sorted explicit tool identities.",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "description": "Tool identity."
+      }
+    },
+    "trials": {
+      "type": "array",
+      "description": "Ordered bounded trial records.",
+      "minItems": 1,
+      "maxItems": 1024,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "description": "Closed run trial record.",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "cost_micro_usd",
+          "decision",
+          "duration_millis",
+          "output_sha256",
+          "seed",
+          "trial"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "description": "Public case identity."
+          },
+          "cost_micro_usd": {
+            "type": "integer",
+            "description": "Recorded trial cost.",
+            "minimum": 0,
+            "maximum": 0
+          },
+          "decision": {
+            "type": "string",
+            "description": "Typed trial decision."
+          },
+          "duration_millis": {
+            "type": "integer",
+            "description": "Caller-recorded trial duration.",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "output_sha256": {
+            "type": "string",
+            "description": "Exact lowercase output digest.",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "seed": {
+            "type": "integer",
+            "description": "Deterministic seed.",
+            "minimum": 0,
+            "maximum": 0
+          },
+          "trial": {
+            "type": "integer",
+            "description": "One-based deterministic trial number.",
+            "minimum": 1,
+            "maximum": 2
+          }
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "string",
+      "description": "Explicit uncertainty state."
+    },
+    "workflow": {
+      "type": "string",
+      "description": "Workflow identity and digest."
+    }
+  }
+}

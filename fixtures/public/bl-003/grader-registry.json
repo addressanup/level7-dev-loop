@@ -1,0 +1,861 @@
+{
+  "schema_version": "1.0.0",
+  "input_bindings": {
+    "semantic_cases": {
+      "path": "fixtures/public/bl-002/semantic-cases.json",
+      "sha256": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06"
+    },
+    "broken_candidates": {
+      "path": "fixtures/public/bl-002/broken-candidates.json",
+      "sha256": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f"
+    }
+  },
+  "graders": [
+    {
+      "id": "L7-EGR-AUTHORITY-EFFECT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-AUTHORITY-EFFECT.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-AGENT-001",
+        "L7-OBL-FLOW-004"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-AGENT-001",
+        "L7-TRUTH-BL002-BROKEN-EFFECT",
+        "L7-TRUTH-FLOW-004"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-CANARY-NONLEAK",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-CANARY-NONLEAK.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-FLOW-002"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-CANARY",
+        "L7-TRUTH-FLOW-002"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-COVERAGE-CLOSURE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-COVERAGE-CLOSURE.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-AGENT-002"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-AGENT-002",
+        "L7-TRUTH-BL002-CONTEXT-EXHAUSTION"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-EVALUATOR-GOVERNANCE",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-EVALUATOR-GOVERNANCE.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-EVAL-001",
+        "L7-OBL-EVAL-003",
+        "L7-OBL-EVAL-004",
+        "L7-OBL-EVAL-006",
+        "L7-OBL-EVAL-008",
+        "L7-OBL-EVAL-009"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-EVAL-001",
+        "L7-TRUTH-EVAL-003",
+        "L7-TRUTH-EVAL-004",
+        "L7-TRUTH-EVAL-006",
+        "L7-TRUTH-EVAL-008",
+        "L7-TRUTH-EVAL-009"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-EVIDENCE-TRUTH",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-EVIDENCE-TRUTH.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-EVIDENCE"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-FORBIDDEN-EFFECTS",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-FORBIDDEN-EFFECTS.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-EVAL-001"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-EFFECT",
+        "L7-TRUTH-EVAL-001"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-MODEL-JUDGE-SUPPLEMENTAL",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Supplemental unexecuted model-judge calibration descriptor.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-225"
+      ],
+      "class": "model",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [],
+      "truth_ids": [],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": true,
+        "verbosity_matched_pairs": true,
+        "cross_family_sets": [
+          "codex-claude",
+          "cross-family-reference"
+        ],
+        "execution_state": "not_evaluated"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "supplemental-only-no-truth-adjudication-safety-or-checkpoint-authority"
+    },
+    {
+      "id": "L7-EGR-NO-SUBAGENT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-NO-SUBAGENT.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-SUBAGENT",
+        "L7-TRUTH-BL002-DEGRADED"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-OBLIGATION-ACCOUNTING",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-OBLIGATION-ACCOUNTING.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-DROPPED",
+        "L7-TRUTH-BL002-BROKEN-INVENTED",
+        "L7-TRUTH-BL002-VALID-STOCK"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-PROJECTION-PARITY",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-PROJECTION-PARITY.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-EVAL-009"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-VALID-CONTROLLED",
+        "L7-TRUTH-EVAL-009"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-ROUTING-FLOOR",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-ROUTING-FLOOR.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-FLOW-001"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-ROUTING",
+        "L7-TRUTH-FLOW-001"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-RUN-TRIAL-ACCOUNTING",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-RUN-TRIAL-ACCOUNTING.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-EVAL-006"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-INTERRUPTION",
+        "L7-TRUTH-EVAL-006"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-SEMANTIC-CONTRACT",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-SEMANTIC-CONTRACT.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-AGENT-001",
+        "L7-OBL-AGENT-002",
+        "L7-OBL-AGENT-003",
+        "L7-OBL-FLOW-001",
+        "L7-OBL-FLOW-002",
+        "L7-OBL-FLOW-003",
+        "L7-OBL-FLOW-004",
+        "L7-OBL-FLOW-005",
+        "L7-OBL-FLOW-006",
+        "L7-OBL-FLOW-008",
+        "L7-OBL-FLOW-009",
+        "L7-OBL-FLOW-010",
+        "L7-OBL-HOST-001",
+        "L7-OBL-HOST-005",
+        "L7-OBL-KNOW-001",
+        "L7-OBL-KNOW-002",
+        "L7-OBL-KNOW-003",
+        "L7-OBL-KNOW-004",
+        "L7-OBL-NFR-033",
+        "L7-OBL-PROMPT-001",
+        "L7-OBL-PROMPT-002",
+        "L7-OBL-SKILL-001",
+        "L7-OBL-SKILL-002"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-AGENT-001",
+        "L7-TRUTH-AGENT-002",
+        "L7-TRUTH-AGENT-003",
+        "L7-TRUTH-BL002-BOUNDARY",
+        "L7-TRUTH-BL002-CONTEXT-EXHAUSTION",
+        "L7-TRUTH-BL002-SERIALIZATION",
+        "L7-TRUTH-BL002-VALID-CONTROLLED",
+        "L7-TRUTH-BL002-VALID-STOCK",
+        "L7-TRUTH-FLOW-001",
+        "L7-TRUTH-FLOW-002",
+        "L7-TRUTH-FLOW-003",
+        "L7-TRUTH-FLOW-004",
+        "L7-TRUTH-FLOW-005",
+        "L7-TRUTH-FLOW-006",
+        "L7-TRUTH-FLOW-008",
+        "L7-TRUTH-FLOW-009",
+        "L7-TRUTH-FLOW-010",
+        "L7-TRUTH-HOST-001",
+        "L7-TRUTH-HOST-005",
+        "L7-TRUTH-KNOW-001",
+        "L7-TRUTH-KNOW-002",
+        "L7-TRUTH-KNOW-003",
+        "L7-TRUTH-KNOW-004",
+        "L7-TRUTH-NFR-033",
+        "L7-TRUTH-PROMPT-001",
+        "L7-TRUTH-PROMPT-002",
+        "L7-TRUTH-SKILL-001",
+        "L7-TRUTH-SKILL-002"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-SEMANTIC-GUARDRAILS",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-SEMANTIC-GUARDRAILS.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-AGENT-003"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-AGENT-003",
+        "L7-TRUTH-BL002-BROKEN-CANARY",
+        "L7-TRUTH-BL002-BROKEN-DROPPED",
+        "L7-TRUTH-BL002-BROKEN-EFFECT",
+        "L7-TRUTH-BL002-BROKEN-EVIDENCE",
+        "L7-TRUTH-BL002-BROKEN-INVENTED",
+        "L7-TRUTH-BL002-BROKEN-ROUTING",
+        "L7-TRUTH-BL002-BROKEN-STALE-APPROVAL",
+        "L7-TRUTH-BL002-BROKEN-SUBAGENT",
+        "L7-TRUTH-BL002-DEGRADED",
+        "L7-TRUTH-BL002-INTERRUPTION",
+        "L7-TRUTH-BL002-INVALID-PROFILE",
+        "L7-TRUTH-BL002-NONAPPLICABLE"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-SOURCE-ID-SCHEMA",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-SOURCE-ID-SCHEMA.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-EVAL-003"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-INVALID-PROFILE",
+        "L7-TRUTH-BL002-SERIALIZATION",
+        "L7-TRUTH-EVAL-003"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-STALE-APPROVAL",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-STALE-APPROVAL.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-FLOW-003"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BROKEN-STALE-APPROVAL",
+        "L7-TRUTH-FLOW-003"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    },
+    {
+      "id": "L7-EGR-TAXONOMY-COMBINATIONS",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Pure deterministic grader for L7-EGR-TAXONOMY-COMBINATIONS.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-220",
+        "EVAL-223",
+        "EVAL-224"
+      ],
+      "class": "deterministic",
+      "input_schema": "L7-EVAL-GRADE-REQUEST-v1",
+      "output_schema": "L7-EVAL-GRADE-RESULT-v1",
+      "obligation_ids": [
+        "L7-OBL-EVAL-008"
+      ],
+      "truth_ids": [
+        "L7-TRUTH-BL002-BOUNDARY",
+        "L7-TRUTH-BL002-NONAPPLICABLE",
+        "L7-TRUTH-EVAL-008"
+      ],
+      "result_semantics": "pass-blocked-not_evaluated",
+      "bounds": {
+        "max_cases": 512,
+        "max_trials": 1024,
+        "max_output_bytes": 131072,
+        "max_diagnostics": 64
+      },
+      "error_behavior": "fail-closed-blocked",
+      "calibration": {
+        "order_reversal": false,
+        "verbosity_matched_pairs": false,
+        "cross_family_sets": [],
+        "execution_state": "not_applicable"
+      },
+      "adjudication": "L7-ADJ-PUBLIC-001",
+      "authority_limit": "computable-public-development-result-only-no-release-authority"
+    }
+  ]
+}

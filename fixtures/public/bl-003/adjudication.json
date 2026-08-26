@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "input_bindings": {
+    "semantic_cases": {
+      "path": "fixtures/public/bl-002/semantic-cases.json",
+      "sha256": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06"
+    },
+    "broken_candidates": {
+      "path": "fixtures/public/bl-002/broken-candidates.json",
+      "sha256": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f"
+    }
+  },
+  "adjudications": [
+    {
+      "id": "L7-ADJ-PUBLIC-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen fail-closed public evaluator adjudication contract.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-226",
+        "EVAL-230",
+        "EVAL-231"
+      ],
+      "trigger": [
+        "ambiguity",
+        "grader-error",
+        "truth-conflict"
+      ],
+      "eligible_role": "separately-authorized-evaluator-owner",
+      "inputs": [
+        "bounded-diagnostics",
+        "candidate-digest",
+        "case-id",
+        "grader-id",
+        "protocol-version",
+        "truth-id"
+      ],
+      "decision_values": [
+        "blocked",
+        "invalidated",
+        "not_evaluated"
+      ],
+      "ambiguity_result": "blocked",
+      "conflict_result": "invalidated",
+      "candidate_exclusion": true,
+      "record": "versioned-public-adjudication-record",
+      "invalidation": "revision-versions-controls-and-invalidates-affected-results"
+    }
+  ]
+}

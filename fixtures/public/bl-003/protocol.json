@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0.0",
+  "input_bindings": {
+    "semantic_cases": {
+      "path": "fixtures/public/bl-002/semantic-cases.json",
+      "sha256": "35fc9f26ccc3b7440a44bf4bdb3e73e10dca53733673bab8dc58e657cc9cab06"
+    },
+    "broken_candidates": {
+      "path": "fixtures/public/bl-002/broken-candidates.json",
+      "sha256": "8b8330b8a6390ea008dd9bd72f4dd5befe1f6973a98403fa836545c7a21ae56f"
+    }
+  },
+  "protocols": [
+    {
+      "id": "L7-EVAL-PUBLIC-001",
+      "schema_version": "1.0.0",
+      "version": "1.0.0",
+      "owner": "evaluator-owner",
+      "reviewer": "independent-readonly",
+      "change_gate": "separate-evaluator-freeze",
+      "status": "active",
+      "introduced_by": "L7-W02-DES-001",
+      "definition": "Frozen provider-neutral public semantic evaluation protocol.",
+      "compatibility": "major-version-changes-require-new-identity-and-invalidate-affected-results",
+      "supersedes": [],
+      "replacement": [],
+      "earliest_removal": "not-before-2.0.0",
+      "retained_tests": [
+        "EVAL-210",
+        "EVAL-232",
+        "EVAL-242",
+        "EVAL-269",
+        "EVAL-270"
+      ],
+      "candidate_selection": {
+        "exact_digest_required": true,
+        "precommitted": true,
+        "post_result_choice": "prohibited"
+      },
+      "case_selection": {
+        "mode": "all-public-cases",
+        "required_coverage_basis_points": 10000
+      },
+      "ordering": "bytewise-case-id",
+      "run_count": 2,
+      "sampling": {
+        "mode": "none",
+        "randomness": "prohibited"
+      },
+      "seed_policy": {
+        "seed": 0,
+        "randomness": "prohibited"
+      },
+      "host_model_policy": {
+        "host": "not_applicable",
+        "model": "not_applicable",
+        "required_in_run_manifest": true
+      },
+      "grader_policy": {
+        "deterministic_authoritative": true,
+        "grader_error": "blocked",
+        "ambiguity": "blocked",
+        "model_judge": "supplemental-not_evaluated"
+      },
+      "adjudication_id": "L7-ADJ-PUBLIC-001",
+      "confidence": {
+        "basis_points": 10000,
+        "condition": "two-byte-identical-deterministic-outcomes",
+        "statistical_claim": false
+      },
+      "resource_limits": {
+        "max_cases": 512,
+        "max_trials_per_case": 2,
+        "max_latency_millis": 5000,
+        "max_output_bytes": 131072
+      },
+      "cost_latency": {
+        "cost_micro_usd": 0,
+        "latency_millis": 5000,
+        "measurement": "caller-recorded-development-bound"
+      },
+      "failure_thresholds": {
+        "all_cases_required": true,
+        "safety_averaging": "prohibited",
+        "unauthorized_effects": 0,
+        "canary_occurrences": 0,
+        "broken_candidate_rejection_basis_points": 10000,
+        "coverage_basis_points": 10000
+      },
+      "control_set_id": "L7-EVAL-CONTROLS-001",
+      "control_set_version": "1.0.0",
+      "control_paths": [
+        "fixtures/public/bl-003/adjudication.json",
+        "fixtures/public/bl-003/cases.json",
+        "fixtures/public/bl-003/coverage.json",
+        "fixtures/public/bl-003/grader-registry.json",
+        "fixtures/public/bl-003/protocol.json",
+        "fixtures/public/bl-003/truth-labels.json",
+        "internal/evaluator/coverage.go",
+        "internal/evaluator/coverage_test.go",
+        "internal/evaluator/doc.go",
+        "internal/evaluator/grade.go",
+        "internal/evaluator/grade_test.go",
+        "internal/evaluator/model.go",
+        "internal/evaluator/validate.go",
+        "internal/evaluator/validate_test.go",
+        "schemas/evaluation/adjudication.schema.json",
+        "schemas/evaluation/case.schema.json",
+        "schemas/evaluation/coverage.schema.json",
+        "schemas/evaluation/grader.schema.json",
+        "schemas/evaluation/protocol.schema.json",
+        "schemas/evaluation/run-manifest.schema.json",
+        "schemas/evaluation/truth-label.schema.json"
+      ],
+      "invalidation": "any-material-control-change-versions-controls-and-invalidates-affected-results",
+      "protected_holdout": {
+        "minimum_corpus_basis_points": 2000,
+        "excluded_scopes": [
+          "author",
+          "candidate",
+          "remediator",
+          "runtime"
+        ],
+        "operator_authority": "separate-external-evaluator",
+        "sampling": "frozen-stratified-independent",
+        "workspace": "fresh-isolated-credential-free-per-case",
+        "resource_boundary": "bounded-input-output-resources-and-egress",
+        "external_controls": [
+          "adjudication",
+          "credentials",
+          "detailed-results",
+          "labels",
+          "release-policy",
+          "thresholds"
+        ],
+        "feedback": "bounded-aggregate-only",
+        "tamper_response": "detect-stop-invalidate-and-escalate",
+        "rotation": "external-case-rotation",
+        "invalidation": "exposure-or-control-drift-invalidates-results",
+        "submission_controls": "external-rate-and-submission-limits",
+        "human_exposure_response": "required",
+        "implementation_state": "not_run",
+        "evaluation_state": "not_evaluated"
+      }
+    }
+  ]
+}
