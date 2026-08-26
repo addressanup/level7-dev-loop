@@ -18,10 +18,14 @@ func TestCurrentPolicyContract(t *testing.T) {
 	if len(findings) != 0 {
 		t.Fatalf("policy findings: %+v", findings)
 	}
-	validClosure := (result.files == 164 && result.changed == 70) ||
-		(result.files == 165 && result.changed == 71) ||
-		(result.files == 166 && result.changed == 72)
-	if result.phase != "wave-02" || result.checkpoint != "final-candidate" || !validClosure {
+	validClosure := (result.files == 172 && result.changed == 17) ||
+		(result.files == 173 && result.changed == 18) ||
+		(result.files == 174 && result.changed == 19)
+	validCheckpoint := map[string]bool{
+		"open": true, "researching": true, "ready-for-brief": true, "blocked": true, "superseded": true,
+		"brief-draft": true, "brief-approved": true, "brief-rejected": true, "brief-stale": true, "brief-superseded": true,
+	}[result.checkpoint]
+	if result.phase != "concept-discovery" || !validCheckpoint || !validClosure {
 		t.Fatalf("unexpected policy result: %+v", result)
 	}
 }
@@ -61,13 +65,13 @@ func TestPhaseRowsRejectMissingDuplicateAndChangedBindings(t *testing.T) {
 func TestPathRowsRejectUnknownDuplicateAndChangedRules(t *testing.T) {
 	t.Parallel()
 	var rows []tsvRow
-	for relative, expected := range expectedWave02Paths {
+	for relative, expected := range expectedConceptPaths {
 		rows = append(rows, tsvRow{"path": relative, "change": expected.change, "owner": expected.owner, "rule": expected.rule})
 	}
 	rows[0]["owner"] = "unknown"
 	rows = append(rows, rows[1])
 	rows = append(rows, tsvRow{"path": "unapproved/file", "change": "add", "owner": "wave-integrator", "rule": "SCOPE-321"})
-	rules := findingRules(func() []finding { _, findings := validatePathRows(rows, expectedWave02Paths); return findings }())
+	rules := findingRules(func() []finding { _, findings := validatePathRows(rows, expectedConceptPaths); return findings }())
 	for _, rule := range []string{"SCOPE-312", "SCOPE-314", "SCOPE-315"} {
 		if rules[rule] == 0 {
 			t.Errorf("rules %+v do not contain %s", rules, rule)

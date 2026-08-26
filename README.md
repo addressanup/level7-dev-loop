@@ -1,14 +1,22 @@
 # Level 7 Dev Loop
 
-> Wave 2 semantic-evaluation development candidate. This repository is not a released, supported, security-qualified, or self-healing product.
+> Concept Discovery rebaseline admission. This repository is not a released, supported, security-qualified, or self-healing product.
 
 Level 7 Dev Loop is being designed as a dual-host development-governance system for Codex and Claude Code. Its intended scope spans greenfield, brownfield, and legacy work while preserving evidence, explicit approval, small changes, and safe degraded behavior.
 
 The current host manifests and skills are prototype inputs. They provide an advisory workflow only; they do not enforce filesystem isolation, trusted approval, mutation control, provider privacy, deployment safety, or release readiness. The approved architecture separates future advisory host packages from a separately installed controlled client. Neither controlled mode nor product behavior exists in this harness.
 
-## Wave 2 candidate status
+## Active Concept Discovery rebaseline
 
-The current Wave 2 candidate freezes provider-neutral semantic/reference compiler interfaces and public local deterministic evaluation controls for development. It includes:
+The active `concept-discovery` phase preserves commit `34c3ba9` as historical, unevidenced candidate state and inserts an explicit problem-discovery gate before greenfield requirements. Its initial checkpoint is `open`: the governance contract admits only a bounded public-research dossier and an exact-digest owner-approved Concept Brief plus the controls needed to validate them.
+
+The canonical future sequence is Concept Discovery → Concept Brief approval → requirements → backlog → architecture/product-form tradeoff → technology impact/selection → harness → orchestration → execution. The current prototype skills and plugin manifests remain protected and unchanged. Downstream planning, canonical product implementation, generated `l7-greenfield`, provider/host trials, release, and deployment remain unauthorized until their separate gates.
+
+Only public read-only Concept Discovery research is authorized in the active session, with cumulative ceilings of four hours and 25 deduplicated material sources. Missing network authority or capability is `BLOCKED`; weak, conflicting, negative, or absent evidence may still complete the bounded search but cannot be relabeled as strong validation. Only the accountable owner may approve the exact Concept Brief payload digest, and the persisted record is historical `AP0`, not requirements authority.
+
+## Historical Wave 2 candidate
+
+The retained Wave 2 candidate freezes provider-neutral semantic/reference compiler interfaces and public local deterministic evaluation controls for development. It includes:
 
 - versioned taxonomy, obligation, guardrail, knowledge, workflow, profile, prompt-IR, and output contracts derived from the approved 29-requirement scope;
 - a pure, bounded, zero-production-dependency reference compiler with provider-neutral terminal and JSON projections;
@@ -18,7 +26,7 @@ The current Wave 2 candidate freezes provider-neutral semantic/reference compile
 
 The public protocol is local development evidence only. Its supplemental model-judge descriptor is `NOT_EVALUATED`, and its protected-holdout record is a contract boundary only: no protected corpus, labels, thresholds, credentials, operator, or result exists. No prompt, workflow, routing, model, grader, truth, adjudication, or threshold tuning was performed from comparative candidate outcomes.
 
-This candidate has no user-facing command, host package or support result, model run, protected-corpus result, controlled mutation, security qualification, stable release, deployment, or exposure. It does not complete Wave 2: a direct evidence-only child and a fresh structurally separate independent audit are still required.
+This candidate has no user-facing command, host package or support result, model run, protected-corpus result, controlled mutation, security qualification, stable release, deployment, or exposure. It did not complete Wave 2. Its former evidence/audit scope is stale: no Wave 2 evidence or audit child will be created, and no completion, promotion, release, or support claim follows from it.
 
 ## Historical Wave 1 checkpoint
 
@@ -73,11 +81,11 @@ make bootstrap GO_VERSION=1.27.0
 make verify GO_VERSION=1.27.0
 ```
 
-`make policy-check` runs the active phase-aware controller with the pinned local Go toolchain and validates the Wave 2 final-candidate closure when its manifest is present. `make candidate-check` combines the phase/scope controller and import-boundary gate. `make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
+`make policy-check` runs the active phase-aware controller with the pinned local Go toolchain and validates the exact Concept Discovery admission and any present bootstrap concept artifacts. `make candidate-check` combines the phase/scope controller and import-boundary gate. `make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
 
 The offline settings close Go module and VCS resolution for these commands; they are not an operating-system network sandbox. The proving tests have no network import or call. Go telemetry is redirected into the ignored repository cache and pinned `off`; verification fails if either exact compiler no longer exposes that tested isolation mechanism.
 
-The GitHub workflow is configured but remains `NOT_RUN` because no remote workflow run is part of this candidate. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity. The historical Wave 1 checkpoint retains its distinct evidence and audit lineage. This Wave 2 candidate remains incomplete until its direct evidence-only child and separately authorized independent read-only audit; it creates no product behavior or support claim.
+The GitHub workflow is configured but remains `NOT_RUN` because no remote workflow run is part of this branch. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity. The historical Wave 1 checkpoint retains its distinct evidence and audit lineage. The historical Wave 2 candidate creates no product behavior or support claim and will not receive stale completion evidence.
 
 ## Prototype skill entry point
 

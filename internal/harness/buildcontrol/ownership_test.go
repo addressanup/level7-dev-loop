@@ -119,6 +119,24 @@ func TestRequirementAndAllocationSourcesHaveDistinctOwners(t *testing.T) {
 	}
 }
 
+func TestConceptBootstrapOwnershipIsExactAndSeparated(t *testing.T) {
+	t.Parallel()
+	for control, want := range map[string]ownershipExpectation{
+		"concept-discovery": {"exact", conceptDossierPath, "concept-owner", "independent-readonly", "bounded-public-research"},
+		"concept-brief":     {"exact", conceptBriefPath, "concept-owner", "owner-review", "owner+digest-approval"},
+	} {
+		if got := expectedOwnership[control]; got != want {
+			t.Fatalf("%s ownership: got %+v, want %+v", control, got, want)
+		}
+		if orchestrationClassForControl[control] != "wave-records" {
+			t.Fatalf("%s is not mapped to the bootstrap wave-record class", control)
+		}
+	}
+	if ownershipPathsOverlap(expectedOwnership["concept-discovery"], expectedOwnership["concept-brief"]) {
+		t.Fatal("concept dossier and brief ownership paths overlap")
+	}
+}
+
 func TestWave02SemanticEvaluatorAndFutureFeatureOwnershipIsDisjoint(t *testing.T) {
 	t.Parallel()
 	for _, removed := range []string{"schema-source", "public-fixtures"} {

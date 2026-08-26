@@ -117,12 +117,14 @@ var approvedWave01Inputs = map[string]string{
 
 var expectedPhases = []phaseExpectation{
 	{"wave-01", "historical", wave01BaseCommit, wave01BaseTree, "harness/wave-01-base.sha256", "harness/wave-01-paths.tsv"},
-	{"wave-02", "active", wave02BaseCommit, wave02BaseTree, "harness/wave-02-base.sha256", "harness/wave-02-paths.tsv"},
+	{"wave-02", "historical", wave02BaseCommit, wave02BaseTree, "harness/wave-02-base.sha256", "harness/wave-02-paths.tsv"},
+	{"concept-discovery", "active", conceptBaseCommit, conceptBaseTree, "harness/concept-discovery-base.sha256", "harness/concept-discovery-paths.tsv"},
 }
 
 var expectedBaseManifestSHA256 = map[string]string{
-	"wave-01": "fdf5f29f3986a52aecff57fa02fb99397a35ac0abbbff0b3af3ebcdde018cd9f",
-	"wave-02": wave02BaseManifestSHA256,
+	"wave-01":           "fdf5f29f3986a52aecff57fa02fb99397a35ac0abbbff0b3af3ebcdde018cd9f",
+	"wave-02":           wave02BaseManifestSHA256,
+	"concept-discovery": conceptBaseManifestSHA256,
 }
 
 var forbiddenWave02ProductPaths = []string{
@@ -135,8 +137,9 @@ func checkPolicy(root string) (policyResult, []finding) {
 		return policyResult{}, findings
 	}
 	expectedPaths, ok := map[string]map[string]pathExpectation{
-		"wave-01": expectedWave01Paths,
-		"wave-02": expectedWave02Paths,
+		"wave-01":           expectedWave01Paths,
+		"wave-02":           expectedWave02Paths,
+		"concept-discovery": expectedConceptPaths,
 	}[phase.phase]
 	if !ok {
 		return policyResult{}, []finding{newFinding("SCOPE-301", phase.phase, "active phase has no compiled path expectations", "restore the approved phase registry")}
@@ -160,10 +163,15 @@ func checkPolicy(root string) (policyResult, []finding) {
 	findings = appendFindings(findings, checkApprovedWaveInputs(root)...)
 	finalCandidate := false
 	checkpoint := "in-progress"
-	if phase.phase == "wave-02" {
+	switch phase.phase {
+	case "concept-discovery":
+		conceptCheckpoint, conceptFindings := checkConceptAdmission(root, current)
+		checkpoint = conceptCheckpoint
+		findings = appendFindings(findings, conceptFindings...)
+	case "wave-02":
 		finalCandidate = current[wave02CandidateManifest].regular
 		findings = appendFindings(findings, checkWave02Admission(root, base, current, rules, finalCandidate)...)
-	} else {
+	case "wave-01":
 		finalCandidate = current["docs/artifacts/wave-01-candidate.sha256"].regular
 		if finalCandidate {
 			findings = appendFindings(findings, validateCandidateManifest(root, base, current, rules, candidateClosure{
@@ -174,7 +182,7 @@ func checkPolicy(root string) (policyResult, []finding) {
 			})...)
 		}
 	}
-	if finalCandidate {
+	if finalCandidate && phase.phase != "concept-discovery" {
 		checkpoint = "final-candidate"
 	}
 	findings = appendFindings(findings, checkHarnessInvariants(root, phase.phase, finalCandidate)...)
@@ -581,11 +589,14 @@ func checkProtectedInputs(root string) []finding {
 
 func checkApprovedWaveInputs(root string) []finding {
 	var findings []finding
-	approved := make(map[string]string, len(approvedWave01Inputs)+len(approvedWave02Inputs))
+	approved := make(map[string]string, len(approvedWave01Inputs)+len(approvedWave02Inputs)+len(approvedConceptInputs))
 	for relative, expected := range approvedWave01Inputs {
 		approved[relative] = expected
 	}
 	for relative, expected := range approvedWave02Inputs {
+		approved[relative] = expected
+	}
+	for relative, expected := range approvedConceptInputs {
 		approved[relative] = expected
 	}
 	for relative, expected := range approved {
@@ -620,7 +631,7 @@ func checkHarnessInvariants(root, phase string, finalCandidate bool) []finding {
 	}
 	findings = appendFindings(findings, checkForbiddenProductPaths(root)...)
 	workflow := read(".github/workflows/harness.yml")
-	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify active Wave 2 build controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
+	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify active concept rebaseline controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
 		if !strings.Contains(workflow, required) {
 			findings = appendFindings(findings, newFinding("SCOPE-380", ".github/workflows/harness.yml", "configured CI lost a required safety or matrix binding", "restore the approved configured control"))
 		}
@@ -652,8 +663,8 @@ func checkHarnessInvariants(root, phase string, finalCandidate bool) []finding {
 			findings = appendFindings(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
 		}
 	}
-	if phase != "wave-02" {
-		findings = appendFindings(findings, newFinding("SCOPE-386", phase, "runtime controller selected a non-successor phase", "restore Wave 2 as the sole active phase"))
+	if phase != "concept-discovery" {
+		findings = appendFindings(findings, newFinding("SCOPE-386", phase, "runtime controller selected a non-successor phase", "restore concept-discovery as the sole active phase"))
 	}
 	return findings
 }
@@ -662,7 +673,7 @@ func checkForbiddenProductPaths(root string) []finding {
 	var findings []finding
 	for _, relative := range forbiddenWave02ProductPaths {
 		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path is outside the exact Wave 2 admission", "remove it through an authorized recovery action"))
+			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path is outside the exact concept-discovery admission", "remove it through an authorized recovery action"))
 		}
 	}
 	return findings

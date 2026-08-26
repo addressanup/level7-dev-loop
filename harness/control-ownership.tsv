@@ -21,6 +21,12 @@ wave-02-contract	exact	docs/artifacts/wave-02-change-contract.md	wave-integrator
 wave-02-design	exact	docs/artifacts/wave-02-design.md	wave-integrator	owner-review	owner+design
 wave-02-evidence	exact	docs/artifacts/wave-02-evidence.md	wave-integrator	independent-readonly	owner+scope-audit
 wave-02-specification	exact	docs/artifacts/wave-02-specification.md	wave-integrator	owner-review	owner+design
+concept-brief	exact	docs/artifacts/concept-brief.md	concept-owner	owner-review	owner+digest-approval
+concept-discovery	exact	docs/artifacts/concept-discovery.md	concept-owner	independent-readonly	bounded-public-research
+concept-rebaseline-approval	exact	docs/artifacts/concept-rebaseline-approval.md	wave-integrator	owner-review	owner+design
+concept-rebaseline-contract	exact	docs/artifacts/concept-rebaseline-change-contract.md	wave-integrator	owner-review	owner+design
+concept-rebaseline-design	exact	docs/artifacts/concept-rebaseline-design.md	wave-integrator	owner-review	owner+design
+concept-rebaseline-specification	exact	docs/artifacts/concept-rebaseline-specification.md	wave-integrator	owner-review	owner+design
 requirements-source	exact	docs/artifacts/requirements.md	requirements-owner	owner-review	owner+requirements-decision
 release-allocation	exact	docs/artifacts/feature-backlog.md	backlog-owner	owner-review	owner+impact-decision
 harness-data	prefix	harness/	harness-integrator	independent-readonly	owner+scope-audit

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const buildControlVersion = "wave-02-v1"
+const buildControlVersion = "concept-rebaseline-v1"
 
 type successSource struct {
 	id   string
@@ -91,7 +91,21 @@ func loadSuccessSourceDigests(root string) (string, []finding) {
 			successSource{"paths", phase.pathPolicy},
 			successSource{"base", phase.baseManifest},
 		)
-		if phase.phase == "wave-02" {
+		switch phase.phase {
+		case "concept-discovery":
+			sources = append(sources,
+				successSource{"rebaseline-approval", "docs/artifacts/concept-rebaseline-approval.md"},
+				successSource{"rebaseline-contract", "docs/artifacts/concept-rebaseline-change-contract.md"},
+				successSource{"rebaseline-specification", "docs/artifacts/concept-rebaseline-specification.md"},
+				successSource{"rebaseline-design", "docs/artifacts/concept-rebaseline-design.md"},
+				successSource{"historical-wave-02-candidate", wave02CandidateManifest},
+			)
+			for _, optional := range []successSource{{"concept-discovery", conceptDossierPath}, {"concept-brief", conceptBriefPath}} {
+				if info, err := os.Lstat(filepath.Join(root, optional.path)); err == nil && info.Mode().IsRegular() {
+					sources = append(sources, optional)
+				}
+			}
+		case "wave-02":
 			sources = append(sources,
 				successSource{"approval", "docs/artifacts/wave-02-approval.md"},
 				successSource{"contract", "docs/artifacts/wave-02-change-contract.md"},
