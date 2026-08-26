@@ -1,158 +1,136 @@
-# Level 7 Dev Loop — Wave 1 Second-Successor Independent Audit
+# Level 7 Dev Loop — Wave 1 Third-Successor Independent Audit
 
 | Field | Value |
 |---|---|
-| Artifact ID | `L7-AUD-W01-003` |
-| Artifact type | Fresh independent read-only Principal Engineer audit; Level 7 Release Validation Mode B |
+| Artifact ID | `L7-AUD-W01-004` |
+| Artifact type | Independent Principal Engineer release audit — `level7-dev-loop:l7-release` Mode B |
+| Version | 0.4.0 |
 | Date | 2026-08-26 |
-| Review mode | Structurally separate second-successor reviewer; exact frozen candidate and evidence inspection |
-| Scope | Wave 1 build-control development checkpoint and clearance of `W01-AC-012` only |
+| Accountable owner | Anup Pandey |
+| Reviewer role | Fresh, structurally separate, read-only Principal Engineer reviewer |
+| Audited candidate | Commit `3f6daebee32d16b38497e74235c25f3b6a443fe1`; tree `77e731b269612cbeee078a25fffde443b8fafbe5`; parent `47f8e7af4e942964f8a8046864fdcb8dc267ffa1` |
+| Evidence-only child | Commit `cca98593bd63c7ebbd869a9ed34e41e71923f164`; tree `85d93ece84104ad227f5e3060b85858908d23675`; parent `3f6daebee32d16b38497e74235c25f3b6a443fe1` |
+| Approved base | Commit `ee181b759c346055b0fb5b2fa1b3b1e676dd83e4`; tree `2f23a0810660995b6f562c361ab38cd4faafa3b3` |
+| Source audit | Commit `910c21406b717da13a7bdfe8ac73357b5078b251`; artifact SHA-256 `27b255f6cbdaaf050c7268828f26cd24be9b5120aa38db85ea2fb63fc9288039` |
+| Audit scope | Exact Wave 1 third-successor R3 development-gate candidate and evidence chain only |
 | Verdict | **NO-GO** |
-| Production/release meaning | None; this is not product support, deployment, publication, AP2, AP3, or production-release authority |
-| Candidate remediation | Not authorized and not performed |
-| Audit effect | This reviewer-owned file update only; no candidate, evidence, Git ref/index/config, environment, cache, toolchain, remote, or external mutation |
 
 ## 1. Decision
 
-The exact Wave 1 second-successor candidate does **not** clear the R3 development checkpoint. Every supplied Git and artifact identity reproduces; all `34` candidate-manifest rows and the exact `37`-path closure reproduce; the evidence-only child changes only `docs/artifacts/wave-01-evidence.md`; and source inspection supports closure of `AUD-W01-008`.
+`W01-AC-012` is **not cleared** for the exact candidate. All supplied commit, tree, parent, artifact-digest, 34-row manifest, and 37-path closure identities reproduce, and `AUD-W01-012` is adequately closed. The `AUD-W01-013` remediation bounds directory enumeration before materialization, but it does not make the bounded failure deterministic: `(*os.File).ReadDir(n)` selects up to `n` entries in filesystem order and the controller sorts only that already-truncated subset. An oversized directory can therefore change the emitted failure subject, and a mixed directory can change the first rule between `SCOPE-346` and `SCOPE-348`, for the same repository path-and-byte set. This violates the explicit no-unordered-filesystem-traversal contract and leaves one unresolved `MEDIUM` finding.
 
-Two `MEDIUM` correctness/reliability findings remain:
+Passing same-user local tests cannot waive that finding. The release rule in `wave-01-specification.md:291,310` and the design audit seam at `wave-01-design.md:321-322` require zero unresolved `BLOCKER`, `CRITICAL`, `HIGH`, or `MEDIUM` findings.
 
-1. `AUD-W01-009` is not fully closed because the fixed protected prototype inventory directory is still opened with plain `os.Open` before repository shape validation. A FIFO at `skills/` can block the controller, and a symlink can expose out-of-root directory entries, before the later policy scan can return a stable failure.
-2. Repository file/directory count limits are enforced only after `filepath.WalkDir` has materialized an entire directory through `os.ReadDir`; a large single directory can therefore consume memory and time before `SCOPE-346` or `SCOPE-348` is reached.
+This audit authorizes no remediation, candidate change, merge, release, deployment, publication, hosted CI, external action, or later phase.
 
-Neither defect creates a demonstrated pass, mutation, or authority widening. Both violate the mandatory bounded, fail-closed degraded behavior and permanent-fixture contracts for the first scope-relaxation gate. Under `wave-01-specification.md:230-234,252-261,282-291,299-310` and `wave-01-design.md:383-389,421-425`, either unresolved `MEDIUM` finding prevents `W01-AC-006`, `W01-AC-007`, and `W01-AC-012` from clearing. Passing recorded tests cannot waive those findings.
+## 2. Audit method, authority, and repository map
 
-This decision is limited to the local Wave 1 build-control checkpoint. It does not assess or authorize product behavior, controlled mutation, host support, grant activation, security qualification, publication, release, deployment, exposure, or Wave 2.
+The complete `level7-dev-loop:l7-release` skill and repository `AGENTS.md` were read before audit actions. Mode B was applied: the candidate, evidence, code, tests, configuration, Git state, caches, toolchains, remotes, and external systems were not mutated or executed. The only write is this registered `audit-only` reviewer path. The protected historical `docs/artifacts/principal-engineer-release-audit.md` was not edited.
 
-## 2. Exact identity and closure reproduction
+The initial worktree and index were clean on local branch `feat/wave-01-build-control`; `git worktree list --porcelain` showed one worktree; `git remote -v` showed no remote. Read-only mapping of the candidate found 103 blobs:
 
-### 2.1 Git identities
+| Area | Files / role |
+|---|---|
+| Root | 10 governance, module, harness, and plugin metadata files |
+| `.claude-plugin/`, `.codex-plugin/`, `.github/` | 3 host/plugin/workflow records |
+| `docs/` | 46 specification, design, foundation, audit, evidence, and planning artifacts |
+| `harness/` | 12 phase, path, support, ownership, module, and digest registries |
+| `internal/` | 16 Go files in exactly two packages: `internal/harness` and `internal/harness/buildcontrol` |
+| `skills/` | 12 user-invocable prototype skills |
+| `scripts/` | 3 harness scripts |
+| `references/` | 1 reference file |
 
-| Identity | Reproduced value | Result |
-|---|---|---|
-| Approved base commit | `ee181b759c346055b0fb5b2fa1b3b1e676dd83e4` | `PASS` |
-| Approved base tree | `2f23a0810660995b6f562c361ab38cd4faafa3b3` | `PASS` |
-| Candidate commit | `64eee794519e381a69d284c32cc35ac58897aa2f` | `PASS` |
-| Candidate tree | `5829f97b1ef9e29a9c61d5872ed725920be65f84` | `PASS` |
-| Candidate parent | `f5f197cd76db474f3c3e8085ea611255b54585fb` | `PASS` |
-| Evidence-child commit / audit-start `HEAD` | `8f82512fd4eb3e24ba6033427badaa3439e06450` | `PASS` |
-| Evidence-child tree | `a005a29728114fc7cf7f7d3243b4c988619d5836` | `PASS` |
-| Evidence-child parent | `64eee794519e381a69d284c32cc35ac58897aa2f` | `PASS` |
-| Source audit commit | `4a0685ad0e1c7950152f3af55c98789710f61693`; ancestor of the candidate | `PASS` |
+There is no `go.sum`, `vendor/`, `cmd/`, `internal/product/`, `pkg/`, product runtime, updater, or product dependency. Git modes are 100 regular `100644` blobs and three regular `100755` scripts; no symlink or submodule entry exists. A filesystem inventory excluding `.git` and `.cache` found no symlink, FIFO, socket, or device. `git diff --check ee181b7..3f6daeb` passed.
 
-The two finding-specific commits reproduce with the required subjects and scopes:
+The audit inspected:
 
-| Commit | Subject | Exact changed paths |
-|---|---|---|
-| `86a0a477f0418d8813657cbe2d1a6ba86085b97f` | `fix(audit-AUD-W01-008): stabilize capped diagnostics` | `report.go`, `testutil_test.go` |
-| `f5f197cd76db474f3c3e8085ea611255b54585fb` | `fix(audit-AUD-W01-009): harden fixed input reads` | `load.go`, `claims_test.go` |
-| `64eee794519e381a69d284c32cc35ac58897aa2f` | `docs(wave-01): bind second audit remediation` | only `wave-01-audit-remediation.md` and `wave-01-candidate.sha256` |
+- `docs/artifacts/wave-01-change-contract.md`, `wave-01-specification.md`, `wave-01-design.md`, `wave-01-design-amendment.md`, `wave-01-approval.md`, `wave-01-module-identity-decision.md`, and the inert `wave-01-grant-ladder-amendment.md`;
+- source audit `L7-AUD-W01-003` at commit `910c214`, remediation record `L7-REM-W01-003`, and evidence `L7-EVD-W01-004`;
+- `Makefile`, `.github/workflows/harness.yml`, all Wave 1 registry/manifests, `go.mod`, the complete `internal/harness/buildcontrol` implementation and permanent tests, `internal/harness/proving_test.go`, and the import-boundary script; and
+- the pinned Go 1.26.7 and 1.27.0 `os.File.ReadDir` implementation and the existing ignored reproducibility binaries, read-only.
 
-### 2.2 Artifact digests
+## 3. Identity, digest, manifest, and closure reproduction
 
-All values were computed from the named Git object, not inferred from current prose:
+### 3.1 Git and artifact identities
 
-| Artifact | Git object | Reproduced SHA-256 | Result |
-|---|---|---|---|
-| Candidate manifest | candidate | `60212b7bf49bc8a1435dd723ed72c45b110798317d602418f8a2f570abc44bdd` | `PASS` |
-| Remediation record | candidate | `49ce412bd29791c3fde86cac0a1084ad19ff0d1c85187a51001ab1c949c406d2` | `PASS` |
-| Evidence record | evidence child | `79a71e73c5f05fe83aa9a9e9a2c9db1d062a0c055b9c770b40d8c64fe4f2b6ed` | `PASS` |
-| Source successor audit | `4a0685a` | `bc58479c7626dd88ad4937eabfa0482b8c1e11a95f2a9c95ded114b379a1ef1b` | `PASS` |
+`git show -s --format='tree=%T parent=%P subject=%s' <commit>` reproduced:
 
-The protected generic skill-output record `docs/artifacts/principal-engineer-release-audit.md` remains byte-identical to the approved base at SHA-256 `e606e7ad8e756667c0bf560463f296232cbf8f74e7108c4bd31afd1c647ad24c`; it was inspected and not edited.
+| Object | Reproduced identity |
+|---|---|
+| Approved base | `ee181b759c346055b0fb5b2fa1b3b1e676dd83e4`; tree `2f23a0810660995b6f562c361ab38cd4faafa3b3` |
+| Candidate | `3f6daebee32d16b38497e74235c25f3b6a443fe1`; tree `77e731b269612cbeee078a25fffde443b8fafbe5`; parent `47f8e7af4e942964f8a8046864fdcb8dc267ffa1` |
+| Evidence child | `cca98593bd63c7ebbd869a9ed34e41e71923f164`; tree `85d93ece84104ad227f5e3060b85858908d23675`; parent `3f6daebee32d16b38497e74235c25f3b6a443fe1` |
+| Source audit | `910c21406b717da13a7bdfe8ac73357b5078b251`; tree `b5cd3064d63c8f3b138624bf80d7a006870ebc05`; parent `8f82512fd4eb3e24ba6033427badaa3439e06450` |
+| `AUD-W01-012` fix | `b9a48d5f55abbab9eeab1f0a4f1a536351a13a6e`; parent `910c214`; expected conventional subject |
+| `AUD-W01-013` fix | `47f8e7af4e942964f8a8046864fdcb8dc267ffa1`; parent `b9a48d5`; expected conventional subject |
 
-### 2.3 Manifest, path, and evidence closure
+`git show <commit>:<artifact> | shasum -a 256` reproduced:
 
-| Claim | Independent reproduction | Result |
-|---|---|---|
-| Candidate manifest | `34` data rows, bytewise path-sorted, zero digest mismatch against candidate blobs | `PASS` |
-| Registered candidate delta | Base-to-candidate delta has exactly `37` paths; path set exactly equals the `37` data rows in `harness/wave-01-paths.tsv` | `PASS` |
-| Three non-circular exclusions | Removing only `wave-01-candidate.sha256`, `wave-01-evidence.md`, and `wave-01-audit.md` from the `37`-path delta leaves exactly the `34` manifest paths | `PASS` |
-| Evidence-only child | Candidate-to-child delta is exactly one modified path: `docs/artifacts/wave-01-evidence.md` | `PASS` |
-| Approved base manifest | `72` rows; exact path closure over all base blobs; zero digest mismatch | `PASS` |
-| Foundation/prototype manifest | `26` data rows; zero candidate digest mismatch | `PASS` |
-| Protected paths | Zero base-to-candidate change across protected skills/manifests, `.go-version`, `.env.example`, `WORKFLOW.md`, Foundation locks, and the old Step 5 checker | `PASS` |
-| Deletion and whitespace | Zero deleted base path; `git diff --check ee181b7..64eee79` returned no finding | `PASS` |
+| Artifact | SHA-256 |
+|---|---|
+| Candidate manifest | `561d8ab3e6480435fbe0a4baa377ba098349e3766b0098edf5371b598620ae69` |
+| Remediation record | `fe8e4d3674a46d4342f239b0473c08803c0f3368a643eaa8bccdee9b21a70a93` |
+| Source audit | `27b255f6cbdaaf050c7268828f26cd24be9b5120aa38db85ea2fb63fc9288039` |
+| Evidence-only record | `ba2bdc8a34e8a79b286b4ad4dbb99d8710782ba9b600d79288bac1f6ab64797a` |
+| Protected generic audit | `e606e7ad8e756667c0bf560463f296232cbf8f74e7108c4bd31afd1c647ad24c` |
+| Protected generic remediation | `d124659ce655415252255e5e50cd117ba964d634720fd4d9ccd98a0dd9872ca2` |
 
-The candidate has `103` Git blobs totaling `1,245,127` bytes. Its base delta is `37` files, `5,167` insertions, `16` deletions, and no deletion. The only non-`100644` blob modes are three regular executable scripts; there is no symlink or submodule entry.
+### 3.2 Manifest and path closure
 
-## 3. Repository map and audit method
+Independent shell parsing and Git-blob hashing reproduced:
 
-At audit start the worktree was clean, on local branch `feat/wave-01-build-control`, at the evidence child. There is one worktree and no configured remote. The candidate repository comprises root build/plugin metadata plus `.github/`, `docs/`, `harness/`, `internal/`, `references/`, `scripts/`, and protected prototype `skills/`. The only Go package directories are `internal/harness` and `internal/harness/buildcontrol`.
+- 34 bytewise-sorted candidate-manifest data rows and zero digest mismatches;
+- exactly 37 base-to-candidate changed paths and exactly 37 data rows in `harness/wave-01-paths.tsv`, with zero set difference;
+- after excluding only `docs/artifacts/wave-01-candidate.sha256`, `docs/artifacts/wave-01-evidence.md`, and `docs/artifacts/wave-01-audit.md`, the 37-path delta reduces to the exact 34 manifest paths, with zero set difference;
+- 72 base-manifest rows, each reproducing against the approved base Git blob;
+- 26 protected foundation-manifest rows, each reproducing against the candidate Git blob; and
+- no deletion from the approved base.
 
-Wave 1 implementation is confined to `internal/harness/buildcontrol`, strict harness data, the Makefile/configured-CI/import-check integration, and Wave 1 governance artifacts. The candidate has no `go.sum`, `vendor/`, product command, updater path, product runtime package, generated product/package path, grant runtime, or production dependency. `go.mod` and `harness/modules.lock.tsv` agree on `github.com/addressanup/level7-dev-loop`; updater identity remains `reserved`/`UNSET`. A bounded credential-pattern scan returned no candidate match; that is not a comprehensive secret audit.
-
-The review inspected the complete `l7-release` skill and repository `AGENTS.md`, then inspected:
-
-- the change contract, specification, design, digest-binding amendment, approval, module decision, inert grant proposal, source NO-GO audit, remediation record, candidate evidence, and registered ownership/path records;
-- exact base, candidate, evidence-child, source-audit, and remediation Git objects;
-- all production build-controller source, both finding-specific patches, permanent tests, `Makefile`, configured workflow, import gate, module state, README claims, and the relevant Go 1.26.7 `filepath.WalkDir` implementation; and
-- recorded baseline/shadow evidence and existing ignored reproducibility artifacts, without executing cache-writing verification.
-
-Representative read-only commands were:
+`git diff --name-status 3f6daeb..cca9859` returned exactly:
 
 ```text
-git status --short --untracked-files=all
-git rev-parse <commit>^{commit|tree} ; git show -s --format='%H%n%T%n%P%n%s' <commit>
-git diff --name-status --stat ee181b7..64eee79
-git diff --name-status 64eee79..8f82512
-git diff --check ee181b7..64eee79
-git ls-tree -r -l <base|candidate|evidence-child>
-git show <commit>:<path> | shasum -a 256
-git diff-tree --no-commit-id --name-status -r <remediation-commit>
-git worktree list --porcelain ; git remote -v
-rg -n <identity, contract, source, test, special-node, bound, dependency, and claim queries>
-nl -ba <reviewed source/test/artifact>
-find .cache/repro ... -exec shasum -a 256 {} \;
+M	docs/artifacts/wave-01-evidence.md
 ```
 
-Corrected in-memory shell loops independently hashed every candidate/base/foundation manifest row and compared sorted path sets. A separate read-only parser derived `163` unique definitions and `163` unique owner/allocation records, zero duplicates/missing/unknown IDs, and allocation `140/18/5`. Direct inventories reproduce `19` support rows, `12` invocable skills, `12` disposition rows, `43` ownership rows, and `17` authoritative orchestration ownership classes.
+The evidence child therefore differs from the candidate only at the registered evidence path. The candidate contains 103 blobs and 1,259,997 bytes. `git diff --shortstat ee181b7..3f6daeb` reproduces 37 files changed, 5,544 insertions, and 16 deletions.
 
-Two preliminary read-only shell probes were discarded: one used zsh's special `path` variable inside a loop, and one omitted braces around a `commit:path` expansion. Corrected probes produced the results above. Neither probe mutated the filesystem, Git, caches, settings, or environment.
+Finding-specific commit scopes also reproduce: `b9a48d5` changes only `claims.go`, `claims_test.go`, `load.go`, `main.go`, and `testutil_test.go`; `47f8e7a` changes only `policy.go` and `policy_test.go`; candidate-binding commit `3f6daeb` changes only the remediation record and candidate manifest.
 
-## 4. Source NO-GO and remediation disposition
+## 4. Specification, design, and control evaluation
 
-### 4.1 `AUD-W01-008` — adequately closed
+The governing requirements are explicit:
 
-`internal/harness/buildcontrol/report.go:32-69` now keeps the lexicographically smallest `51` findings regardless of arrival order and uses one fieldwise comparator for collection and rendering. This removes the prior dependency on unordered map traversal while preserving the memory cap. `internal/harness/buildcontrol/testutil_test.go:112-141` creates `163` missing-owner findings from a Go map in two distinct child processes, requires nonzero status and byte-identical output, checks the retained boundary, and requires `BCTL-099`.
+- all repository data are untrusted; rooted paths and special-node rejection are mandatory (`wave-01-specification.md:218-223`);
+- identical admitted inputs must yield identical semantic results, and parsing must not depend on unordered filesystem traversal (`wave-01-specification.md:224-228`);
+- roots and file/byte/time bounds must be declared, and overflow must block without silent truncation (`wave-01-specification.md:230-234`);
+- every intended adversary must fail under its stable rule (`wave-01-specification.md:252-261`); and
+- one failed acceptance criterion or one material audit finding cannot be waived (`wave-01-specification.md:291,299-310`).
 
-The production algorithm, cap signaling, separate-process fixture, and finding-specific commit scope satisfy the source audit's required disposition for this exact candidate. No unresolved finding remains against `AUD-W01-008`.
+The design likewise requires lexically sorted deterministic diagnostics (`wave-01-design.md:136-163`), a complete no-follow repository walk (`wave-01-design.md:241-265`), stable intended-rule negative cases (`wave-01-design.md:351-363`), and zero unresolved material findings for audit admission (`wave-01-design.md:321-322`).
 
-### 4.2 `AUD-W01-009` — not fully closed
+Independent source-derived checks reproduced 163 unique normative definitions and ownership sums of total 163, `V1.0=140`, `V1.x=18`, `Later=5`. The candidate contains 19 exact support-matrix rows, 12 user-invocable skills, 12 prototype dispositions, and 43 ownership controls. Permanent tests cover malformed, missing, duplicate, unknown, stale, unowned, protected, module, path-shape, support-claim, diagnostic-cap, phase, import, and no-repair cases. The grant amendment is referenced by governance/ownership controls but no implementation loads or activates it.
 
-The remediation materially hardens regular fixed-file reads. `internal/harness/buildcontrol/load.go:27-149` validates canonical rooted paths; checks every component; rejects non-regular and multi-link inputs; uses `os.Root`, no-follow/nonblocking opening, and pre/open/post identity, mode, link-count, modification-time, and size comparisons. `internal/harness/buildcontrol/claims_test.go:232-297` covers final/intermediate symlink, FIFO, hardlink, and deterministic in-window mutation behavior.
+## 5. Source finding remediation disposition
 
-That protection is not applied to every fixed authoritative input path. `checkClaims` calls `loadSkillInventory` at `claims.go:82-98`; `loadSkillInventory` opens `filepath.Join(root, "skills")` with plain `os.Open` at `claims.go:169-175`. `main` completes `checkClaims` before calling `checkPolicy` at `main.go:42-45`. Therefore a FIFO substituted at the fixed `skills/` inventory root can block in `os.Open` before either the strict reader or the repository scan reports `BLOCKED`. A symlinked `skills/` root can cause out-of-root directory entries to be consumed before the per-file strict reader rejects the intermediate link.
-
-The new `TestStrictInputRejectsSymlinkFIFOAndHardlinkBeforeRead` invokes `readStrictFile` directly; `TestSkillInventoryRejectsEntryOverflowBeforeReadingSkills` at `claims_test.go:299-314` uses a normal directory and covers only the `65`-entry threshold. No committed fixture exercises `loadSkillInventory` or the full controller with a symlink/FIFO inventory root. The source audit's fixed-input, special-node, bounded completion, and end-to-end fixture requirements are therefore incomplete.
-
-### 4.3 Prior finding matrix
-
-| Source finding | Second-successor disposition |
+| Source finding | Independent disposition |
 |---|---|
-| `AUD-W01-001` — adversarial matrix | `NOT FULLY CLEARED`: most listed cases exist, but fixed inventory-root special-node behavior and pre-materialization repository bounds lack end-to-end proof (`AUD-W01-012`, `AUD-W01-013`). |
-| `AUD-W01-002` — resource bounds | `NOT FULLY CLEARED`: fixed-file, byte, line, expansion, finding, and post-enumeration counts are bounded; inventory-root opening and directory preloading remain unbounded. |
-| `AUD-W01-003` — claim boundary | `CLEARED` for the exact candidate: the `19` exact claim rows, source-bound priority semantics, and distinct false-claim fixtures remain present. |
-| `AUD-W01-004` — ownership completeness | `CLEARED` for the exact candidate: `43` disjoint controls cover all `17` authoritative orchestration classes, with distinct requirements/allocation owners. |
-| `AUD-W01-005` — success schema | `CLEARED` for the exact candidate: version plus `12` exact source digests remain emitted and fixture-bound. |
-| `AUD-W01-008` — capped failure determinism | `CLEARED` for the exact candidate. |
-| `AUD-W01-009` — fixed input reads | `NOT FULLY CLEARED`; see `AUD-W01-012`. |
+| `AUD-W01-012` — prototype inventory root | **ADEQUATELY CLOSED.** `load.go:31-90` validates a canonical rooted relative path, opens through `os.OpenRoot` with `O_NONBLOCK|O_NOFOLLOW|O_DIRECTORY`, and compares pre/open/post identity, type, mode, size, and modification time around a bounded `ReadDir`. `claims.go:171-202` uses that acquisition before reading individual strict `SKILL.md` files. Direct and full-controller real symlink, FIFO, and replacement cases at `claims_test.go:316-395` require `BCTL-022`/`BCTL-023` within one second. |
+| `AUD-W01-013` — repository enumeration bound | **NOT ADEQUATELY CLOSED.** `policy.go:17-26,203-328` adds fixed directory/file/byte/time/read-batch bounds and prevents whole-directory materialization. Rooted no-follow identity checks at `policy.go:331-408` are sound for the inspected handles. However, the capped subset is selected in filesystem order before sorting, so the required stable semantic result remains traversal-order-dependent. See `AUD-W01-016`. |
 
-## 5. Recorded verification evidence and limits
+## 6. Recorded verification and independent inspection
 
-The exact evidence child records:
+The evidence records these exact-candidate commands:
 
-| Recorded command | Recorded result | Reproduced recorded SHA-256 |
+| Command | Recorded result | Reproduced read-only evidence |
 |---|---|---|
-| `make verify GO_VERSION=1.26.7` | `PASS` | `e46823dcaebf66cb798f7da0d65aba345cabfe55bb375d072508341018ba26da` |
-| `make verify GO_VERSION=1.27.0` | `PASS` shadow development evidence | `da0ff13d148e68a648a4ee23fa35c4e173f8145bd97a5d1beddcc9422000f85a` |
+| `make verify GO_VERSION=1.26.7` | `PASS`, 11.02 s | SHA-256 `e46823dcaebf66cb798f7da0d65aba345cabfe55bb375d072508341018ba26da`; multiple existing `harness-a.test`/`harness-b.test` pairs in `.cache/repro/` match |
+| `make verify GO_VERSION=1.27.0` | `PASS`, 11.33 s shadow | SHA-256 `da0ff13d148e68a648a4ee23fa35c4e173f8145bd97a5d1beddcc9422000f85a`; multiple existing pairs match |
 
-The evidence records zero dependencies; controller success with `12` source digests and the exact candidate-manifest digest; `163/140/18/5`, `12`, `43`, `103`, and `37` totals; a two-package import graph; compile/typecheck/unit/adversarial/vet/format/shell success; and repeat-build equality. Source inspection confirms the named tests are committed and normal `go test ./...` tests. Existing ignored `.cache/repro` contains `22` binaries matching each recorded digest.
+`Makefile:39-76,115-154` pins offline Go settings, repository-scoped cache locations, build-control/import/format/vet/typecheck/test/repeat-build steps, and the printed `internal/harness` test-binary digest. `.github/workflows/harness.yml:15-42` configures Ubuntu 24.04 baseline/shadow jobs with read-only checkout credentials and a 15-minute job timeout, but no hosted job was invoked.
 
-This audit did not rerun `make`, Go build/test/vet, shell integration, or hosted CI because those commands intentionally write caches, temporary fixture roots, or environments outside the sole authorized audit-file mutation. The ignored cache is same-user mutable and does not independently prove run provenance. Also, `Makefile:145-152` computes the recorded reproducibility digest for `./internal/harness`, not for `internal/harness/buildcontrol`; the build-control package is compiled/tested elsewhere in `make verify`, but the reported binary digest is not a digest of the controller. These are evidence limitations, not independent test failures.
+The audit did not rerun either `make verify` command or any test because those commands intentionally create cache, temporary fixture, process, and reproducibility outputs beyond Mode B. Candidate test source and existing ignored binaries were inspected read-only. This is sufficient to evaluate implementation and evidence consistency, not to upgrade same-user local evidence to independent or hosted evidence.
 
-## 6. Severity model and findings
+## 7. Severity model and findings
 
 | Severity | Audit meaning |
 |---|---|
@@ -163,56 +141,52 @@ This audit did not rerun `make`, Go build/test/vet, shell integration, or hosted
 | `LOW` | Bounded conformance/maintainability defect that does not independently block the checkpoint. |
 | `INFO` | Verified fact, limitation, or future gate with no candidate defect established. |
 
-Finding counts: `BLOCKER 0`, `CRITICAL 0`, `HIGH 0`, `MEDIUM 2`, `LOW 0`, `INFO 2`.
+Finding counts: `BLOCKER 0`, `CRITICAL 0`, `HIGH 0`, `MEDIUM 1`, `LOW 1`, `INFO 2`.
 
-### `AUD-W01-012` — `MEDIUM` — Prototype inventory root bypasses strict fixed-input validation
+### `AUD-W01-016` — `MEDIUM` — Capped repository enumeration depends on the unordered pre-sort subset
 
-**Affected acceptance:** rooted/fail-closed/bounded portions of `W01-AC-006`; required special-node and degraded fixtures in `W01-AC-007`; consequently `W01-AC-012`.
+**Affected acceptance:** deterministic/fail-closed portions of `W01-AC-006`; stable-rule permanent fixtures in `W01-AC-007`; consequently `W01-AC-012`.
 
-**Evidence:** `claims.go:169-175` uses plain `os.Open` and `ReadDir` on `skills/`; `main.go:42-45` runs that path before `checkPolicy`; `claims_test.go:232-314` covers strict regular-file inputs and normal-directory entry overflow but not inventory-root type/link behavior.
+**Evidence:** `policy.go:226-243` computes a sentinel-sized request capped at 1,027, calls `readDirectory`, and only then sorts returned entries. `policy.go:331-365` calls `directory.ReadDir(entryLimit)`. In both pinned toolchains, `.cache/toolchains/go1.26.7/src/os/dir.go:91-106` and the byte-identical Go 1.27.0 file state that `(*File).ReadDir(n)` returns at most `n`; only the separate package function `os.ReadDir(name)` at lines 109-125 reads all entries and sorts them. The remediation therefore sorts a filesystem-selected partial set, not the complete set or a stable lexical prefix.
 
-**Impact:** a FIFO can block indefinitely before a stable nonzero diagnostic; a symlink can expose external directory-entry names before rejection. The current exact candidate contains a normal `skills/` directory, so no current external read or hang occurred. The defect is nevertheless material to the mandatory behavior under adversarial repository state.
+`policy_test.go:200-227` creates only regular files and asserts the maximum request, `SCOPE-346`, and retained-file count. It does not compare exact diagnostic subject/output across creation orders or exercise mixed file/directory overflow. With 1,227 regular files, a different 1,027-entry subset can change the 513th sorted file and therefore the `SCOPE-346` subject. With root names ordered as directories before files and 513 directories plus 515 files, omitting a directory from the capped subset yields `SCOPE-346`, while omitting a file yields `SCOPE-348`.
 
-**Required disposition:** acquire the fixed inventory root through a rooted, no-follow, nonblocking, identity-checked directory path; reject symlink/special/replaced directory state before enumeration; and add time-bounded `loadSkillInventory` plus end-to-end controller fixtures for symlink, FIFO/special-node, and replacement cases. Rebind and fully reverify a new candidate/evidence chain.
+**Impact:** the scanner remains memory-bounded and fails nonzero, but its semantic diagnostic can vary with unordered filesystem traversal for the same repository path-and-byte set. This directly violates `wave-01-specification.md:226-227` and the stable diagnostic/rule contract. A recovery action and test selection can therefore depend on ambient directory enumeration order.
 
-### `AUD-W01-013` — `MEDIUM` — Repository count bounds apply after whole-directory materialization
+**Required disposition:** detect a sentinel-filled/truncated batch before category-specific iteration and emit one directory-scoped, deterministic aggregate-bound rule, or use another bounded strategy that identifies a stable lexical set. Add permanent real-filesystem and injected-reader regressions for oversized all-file and mixed file/directory inventories created or supplied in different orders, asserting byte-identical rendered rule, subject, message, and exit result. Rebind, fully verify, freeze a new evidence child, and obtain a fresh independent Mode B audit.
 
-**Affected acceptance:** bounded/degraded portions of `W01-AC-006`; mandatory resource-bound fixtures in `W01-AC-007`; consequently `W01-AC-012`.
+### `AUD-W01-017` — `LOW` — Accepted fixture/effect description is stale
 
-**Evidence:** `policy.go:199-267` calls `filepath.WalkDir`; its `filesSeen` and `directoriesSeen` caps execute only inside the callback. The pinned Go 1.26.7 implementation at `.cache/toolchains/go1.26.7/src/path/filepath/path.go:310-319` calls `os.ReadDir(path)` before iterating callbacks, which materializes and sorts the entire directory. `policy_test.go:170-197` creates `513` entries and proves the later rule fires, but it does not prove a bound before enumeration/allocation. There is no controller wall-clock deadline.
+`wave-01-design.md:98-104` says test fixtures need only immutable `testing/fstest.MapFS` and no temporary files, external process, or clock. Current permanent regressions use `t.TempDir`, wall-clock deadlines, FIFO/symlink fixtures, and child processes (`claims_test.go:299-395`, `policy_test.go:171-272`, `testutil_test.go:150-180,217-245`). Evidence lines 67-81 truthfully disclose test-owned temporary roots and local child processes, which bounds the operational risk, but the accepted design is no longer an accurate effect/test architecture description. Record this evolution in an owner-approved successor amendment rather than rewriting protected historical design bytes.
 
-**Impact:** one directory with a sufficiently large entry set can consume memory and latency beyond the declared `512`-entry controller budget before `SCOPE-346`/`SCOPE-348` can return a bounded failure. This is denial of bounded diagnostic completion, not a demonstrated policy pass or mutation.
+### `AUD-W01-018` — `INFO` — Local verification was inspected, not rerun
 
-**Required disposition:** replace whole-directory materialization with rooted streaming/batched enumeration that stops before exceeding the global directory/file budget, define the required time/deadline behavior without creating a pass-on-timeout path, and add a fixture proving the pre-enumeration resource ceiling and stable nonzero result. Rebind and fully reverify a new candidate/evidence chain.
+Candidate/evidence bytes, committed tests, Make/workflow definitions, and matching ignored reproducibility binaries were inspected. No cache-writing or temporary-fixture command was rerun under Mode B. The recorded passes remain same-user local development evidence. The printed reproducibility digest binds `internal/harness`, not the `internal/harness/buildcontrol` test binary. The five-second scan deadline is checked around bounded syscalls but cannot portably cancel a filesystem syscall already in progress; evidence lines 160-162 disclose both limits.
 
-### `AUD-W01-014` — `INFO` — Recorded local verification was inspected, not rerun
+### `AUD-W01-019` — `INFO` — Later qualification and release gates remain separate
 
-Candidate/evidence bytes, committed tests, recorded digests, and matching ignored binary hashes were inspected. No cache-writing or temporary-fixture command was rerun under this audit authority. The recorded passes remain same-user local development evidence.
+Hosted Ubuntu CI, authenticated GitHub repository/account/remote identity, actual Codex/Claude lifecycle and differential conformance, Controlled Client qualification, protected evaluation, grant security review and adoption, pilot/stable grants, AP2/AP3, signing, TUF, promotion, publication, release, deployment, exposure, and monitoring remain `NOT_RUN` or absent. This Wave 1 development audit clears none of them.
 
-### `AUD-W01-015` — `INFO` — External qualification and release gates remain separate
-
-Hosted Ubuntu CI, authenticated GitHub repository/account/remote identity, actual Codex/Claude lifecycle and differential conformance, Controlled Client qualification, protected evaluation, grant security review and normative adoption, pilot/stable grants, AP2/AP3, signing, TUF, promotion, publication, release, deployment, exposure, and monitoring remain `NOT_RUN` or absent. The inert proposal and this audit clear none of them.
-
-## 7. Wave 1 acceptance disposition
+## 8. Wave 1 acceptance disposition
 
 | Acceptance | Independent disposition |
 |---|---|
-| `W01-AC-001` | `PASS`: independent parsing reproduced `163` definitions, one owner/allocation each, zero duplicate/missing/unknown IDs, totals `140/18/5`; permanent trace and summary-tamper fixtures are present. |
-| `W01-AC-002` | `PASS`: the `19` exact support rows preserve the two-product, A0-A2/A3-A5, three-profile, development-only boundary. |
-| `W01-AC-003` | `PASS`: `12` invocable prototype skills have exactly `12` dispositions; all protected manifest rows and bytes reproduce. |
-| `W01-AC-004` | `PASS`: stable version, dual-host, enforcement, compatibility, support, and release promotion remain withheld. |
-| `W01-AC-005` | `PASS`: P0/P1/P2 and scope/priority impact-approval rules remain source-bound. |
-| `W01-AC-006` | `NOT CLEARED`: inventory-root special-node handling can block/consume before rejection, and repository count bounds apply after entire-directory materialization (`AUD-W01-012`, `AUD-W01-013`). |
-| `W01-AC-007` | `NOT SATISFIED`: the permanent suite lacks the required end-to-end inventory-root special-node cases and a pre-materialization repository-bound case. |
-| `W01-AC-008` | `PASS` for local development identity only: module records agree; updater is reserved; GitHub identity remains `USER_ASSERTED`, remote-absent, and unpublished. |
-| `W01-AC-009` | `PASS` as an inert proposal only: non-interchangeability and separate review/adoption gates are explicit; no source loads or activates it. |
-| `W01-AC-010` | `PASS`: `43` disjoint controls cover `17` authoritative ownership classes and exclude candidate authority over protected controls. |
-| `W01-AC-011` | `PASS` as recorded same-user local evidence only: both exact matrices are recorded green with effects/limits; hosted CI remains truthful as `NOT_RUN`. |
-| `W01-AC-012` | `FAIL`: exact identities and audit separation reproduce, but two unresolved `MEDIUM` findings prevent the R3 development gate. |
-| `W01-AC-013` | `PASS` for the exact candidate: no dependency, product/runtime/updater path, prototype edit, unexpected registered path, external effect, stable claim, or bounded credential-pattern match was observed. |
+| `W01-AC-001` | `PASS`: independent parsing reproduced 163 unique definitions, one owner/allocation each, and totals `140/18/5`; permanent missing/duplicate/unknown/allocation fixtures exist. |
+| `W01-AC-002` | `PASS`: 19 exact support rows preserve the two-product distinction, A0-A2/A3-A5 boundary, three proof profiles, and development-only status. |
+| `W01-AC-003` | `PASS`: 12 invocable prototype skills have exactly 12 dispositions; all 26 protected foundation rows reproduce. |
+| `W01-AC-004` | `PASS`: stable version, dual-host, enforcement, compatibility, support, and release promotion claims remain withheld. |
+| `W01-AC-005` | `PASS`: priority/scope impact and accountable-approval rules remain source-bound; no metric/date waiver exists. |
+| `W01-AC-006` | `FAIL`: `AUD-W01-012` is closed, but oversized repository failure semantics still depend on unordered traversal (`AUD-W01-016`). |
+| `W01-AC-007` | `NOT SATISFIED`: the new inventory-root and pre-enumeration bound regressions are permanent, but no fixture proves exact deterministic output across oversized partial-batch order or mixed file/directory overflow. |
+| `W01-AC-008` | `PASS` for local development identity only: module records agree, updater remains reserved, and GitHub ownership/location remains `USER_ASSERTED`, remote-absent, and unpublished. |
+| `W01-AC-009` | `PASS` as an inert proposal only: controls preserve non-interchangeability and separate security/adoption approval; no implementation activates it. |
+| `W01-AC-010` | `PASS`: 43 disjoint controls cover the authoritative ownership classes and deny candidate authority over protected controls. |
+| `W01-AC-011` | `PASS` as recorded same-user local evidence only: exact baseline and shadow matrices are recorded green with environment/effect limits; hosted CI remains truthful as `NOT_RUN`. |
+| `W01-AC-012` | `FAIL`: exact identities, manifest closure, evidence separation, and independent audit separation reproduce, but one unresolved `MEDIUM` finding prevents the R3 development gate. |
+| `W01-AC-013` | `PASS` for the exact candidate: no dependency, product/runtime/updater path, prototype edit, unexpected registered path, grant activation, stable claim, external service effect, or bounded credential-pattern match was found. |
 
-No aggregate passing result waives an unsatisfied criterion or material audit finding.
+No aggregate passing result waives `W01-AC-006`, `W01-AC-007`, `W01-AC-012`, or `AUD-W01-016`.
 
-## 8. Stopping boundary
+## 9. Final boundary
 
-The candidate and evidence child remain frozen. Correcting either material finding requires a separately authorized remediator, a new finding-specific candidate, regenerated manifest, complete baseline/shadow verification, a new evidence-only child, and another fresh independent audit. This reviewer performed no remediation and authorizes no merge, Wave 2 work, remote/hosted action, publication, release, deployment, exposure, grant activation, or external effect.
+The exact candidate is not eligible for Wave 1 checkpoint clearance. The next authorized action, if the owner chooses, is a narrowly scoped Mode C remediation of `AUD-W01-016` (and the non-blocking design amendment for `AUD-W01-017`), followed by new candidate/evidence binding, complete baseline/shadow verification, and another structurally separate Mode B audit. Nothing in this record authorizes those actions automatically.
