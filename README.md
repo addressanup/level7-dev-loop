@@ -1,14 +1,28 @@
 # Level 7 Dev Loop
 
-> Wave 1 build-control candidate. This repository is not a released, supported, security-qualified, or self-healing product.
+> Wave 2 semantic-evaluation development candidate. This repository is not a released, supported, security-qualified, or self-healing product.
 
 Level 7 Dev Loop is being designed as a dual-host development-governance system for Codex and Claude Code. Its intended scope spans greenfield, brownfield, and legacy work while preserving evidence, explicit approval, small changes, and safe degraded behavior.
 
 The current host manifests and skills are prototype inputs. They provide an advisory workflow only; they do not enforce filesystem isolation, trusted approval, mutation control, provider privacy, deployment safety, or release readiness. The approved architecture separates future advisory host packages from a separately installed controlled client. Neither controlled mode nor product behavior exists in this harness.
 
-## Wave 1 candidate status
+## Wave 2 candidate status
 
-Requirements, backlog, architecture, and technology selection are recorded under `docs/artifacts/`. Foundation Step 5 established the inert developer harness. The local Wave 1 candidate adds a fail-closed, phase-aware build-control successor that:
+The current Wave 2 candidate freezes provider-neutral semantic/reference compiler interfaces and public local deterministic evaluation controls for development. It includes:
+
+- versioned taxonomy, obligation, guardrail, knowledge, workflow, profile, prompt-IR, and output contracts derived from the approved 29-requirement scope;
+- a pure, bounded, zero-production-dependency reference compiler with provider-neutral terminal and JSON projections;
+- public semantic, boundary, degraded, interruption, and seeded broken-candidate fixtures;
+- a frozen deterministic public protocol, truth labels, adjudication, grader registry, and exact 29-requirement/29-obligation coverage map; and
+- fail-closed build control over the exact candidate manifest and the separately owned 21-path evaluator-control freeze.
+
+The public protocol is local development evidence only. Its supplemental model-judge descriptor is `NOT_EVALUATED`, and its protected-holdout record is a contract boundary only: no protected corpus, labels, thresholds, credentials, operator, or result exists. No prompt, workflow, routing, model, grader, truth, adjudication, or threshold tuning was performed from comparative candidate outcomes.
+
+This candidate has no user-facing command, host package or support result, model run, protected-corpus result, controlled mutation, security qualification, stable release, deployment, or exposure. It does not complete Wave 2: a direct evidence-only child and a fresh structurally separate independent audit are still required.
+
+## Historical Wave 1 checkpoint
+
+Requirements, backlog, architecture, and technology selection are recorded under `docs/artifacts/`. Foundation Step 5 established the inert developer harness. The independently audited historical Wave 1 checkpoint added a fail-closed, phase-aware build-control successor that:
 
 - derives exactly 163 normative requirements and their `140 V1.0 / 18 V1.x / 5 Later` allocation from approved source records;
 - records a non-support claim matrix and one disposition for each of the 12 prototype skills;
@@ -59,11 +73,11 @@ make bootstrap GO_VERSION=1.27.0
 make verify GO_VERSION=1.27.0
 ```
 
-`make policy-check` runs the fixed-input Wave 1 controller with the pinned local Go toolchain. `make candidate-check` combines the phase/scope controller and import-boundary gate. `make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
+`make policy-check` runs the active phase-aware controller with the pinned local Go toolchain and validates the Wave 2 final-candidate closure when its manifest is present. `make candidate-check` combines the phase/scope controller and import-boundary gate. `make install` is intentionally offline and installs no production module: the current dependency count is zero. `make reproducible` compares two local builds with separate build caches; it is a smoke check, not the independent protected-build evidence required for release.
 
 The offline settings close Go module and VCS resolution for these commands; they are not an operating-system network sandbox. The proving tests have no network import or call. Go telemetry is redirected into the ignored repository cache and pinned `off`; verification fails if either exact compiler no longer exposes that tested isolation mechanism.
 
-The GitHub workflow is configured but remains `NOT_RUN` because no remote workflow run is part of this candidate. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity. The Wave 1 candidate remains incomplete until its manifest/evidence freeze and a separately authorized independent read-only audit; it creates no product behavior or support claim.
+The GitHub workflow is configured but remains `NOT_RUN` because no remote workflow run is part of this candidate. Its baseline job is blocking; Go 1.27.0 is an allowed-to-fail shadow observation. A mutable hosted-runner label is development evidence, not an exact production platform identity. The historical Wave 1 checkpoint retains its distinct evidence and audit lineage. This Wave 2 candidate remains incomplete until its direct evidence-only child and separately authorized independent read-only audit; it creates no product behavior or support claim.
 
 ## Prototype skill entry point
 

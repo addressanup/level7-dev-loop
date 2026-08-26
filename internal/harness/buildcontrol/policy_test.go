@@ -18,7 +18,7 @@ func TestCurrentPolicyContract(t *testing.T) {
 	if len(findings) != 0 {
 		t.Fatalf("policy findings: %+v", findings)
 	}
-	if result.phase != "wave-02" || result.checkpoint != "in-progress" || result.files == 0 || result.changed == 0 {
+	if result.phase != "wave-02" || result.checkpoint != "final-candidate" || result.files != 164 || result.changed != 70 {
 		t.Fatalf("unexpected policy result: %+v", result)
 	}
 }
