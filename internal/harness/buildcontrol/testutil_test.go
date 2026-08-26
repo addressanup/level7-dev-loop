@@ -22,6 +22,21 @@ func repositoryRoot(t *testing.T) string {
 	return root
 }
 
+func TestTemporaryRootsAreRepositoryScoped(t *testing.T) {
+	t.Parallel()
+	want := filepath.Join(repositoryRoot(t), ".cache", "go", "tmp")
+	temporaryRoot := os.Getenv("TMPDIR")
+	goTemporaryRoot := os.Getenv("GOTMPDIR")
+	if temporaryRoot != want || goTemporaryRoot != want || !filepath.IsAbs(temporaryRoot) {
+		t.Fatalf("temporary roots are not bound to repository GOTMPDIR: TMPDIR=%q GOTMPDIR=%q want=%q", temporaryRoot, goTemporaryRoot, want)
+	}
+	testTemporaryRoot := filepath.Clean(t.TempDir())
+	temporaryPrefix := filepath.Clean(want) + string(os.PathSeparator)
+	if !strings.HasPrefix(testTemporaryRoot, temporaryPrefix) {
+		t.Fatalf("testing temporary root %q is outside %q", testTemporaryRoot, want)
+	}
+}
+
 func findingRules(findings []finding) map[string]int {
 	rules := make(map[string]int)
 	for _, item := range findings {

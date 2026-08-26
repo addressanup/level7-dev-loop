@@ -91,7 +91,7 @@ var expectedWavePaths = map[string]pathExpectation{
 var approvedWaveInputs = map[string]string{
 	"docs/artifacts/wave-01-change-contract.md":  "f53d06d2b02760bcf6ca958b72e4d2473cc52edc3f4a2cb1471cadbd4ab42afc",
 	"docs/artifacts/wave-01-design.md":           "07953b2319635846505a018c3e4cc66705e0c263ab01b0a5c79e75cdaf1fb8e8",
-	"docs/artifacts/wave-01-design-amendment.md": "934a9b0fb2839425401d77ef53d9a7914a14812f3eadd4fa10e4f770ebe12e29",
+	"docs/artifacts/wave-01-design-amendment.md": "e10378f598098d5db8e9f20177324e917260e0ce016453903ac0159485526470",
 	"docs/artifacts/wave-01-specification.md":    "8715388fbe0185a3ae24d4c13d30704305a2393526fefcc71a82fce9bba119cc",
 }
 

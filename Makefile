@@ -57,6 +57,7 @@ override GOBIN := $(PROJECT_ROOT)/.cache/go/bin
 override GOCACHE := $(PROJECT_ROOT)/.cache/go/build
 override GOMODCACHE := $(PROJECT_ROOT)/.cache/go/mod
 override GOTMPDIR := $(PROJECT_ROOT)/.cache/go/tmp
+override TMPDIR := $(GOTMPDIR)
 override GOPROXY := off
 override GOSUMDB := off
 override GOPRIVATE :=
@@ -71,7 +72,7 @@ override LC_ALL := C
 override TZ := UTC
 
 export GOENV GOTOOLCHAIN GOWORK GO111MODULE GOFLAGS GOROOT CGO_ENABLED GOOS GOARCH GOEXPERIMENT GOFIPS140
-export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR GOPROXY GOSUMDB GOPRIVATE GONOPROXY
+export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY GOSUMDB GOPRIVATE GONOPROXY
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
@@ -109,6 +110,7 @@ toolchain-check: prepare
 	@test "$$("$(GO)" env GOMODCACHE)" = "$(GOMODCACHE)"
 	@test "$$("$(GO)" env GOPATH)" = "$(GOPATH)"
 	@test "$$("$(GO)" env GOTMPDIR)" = "$(GOTMPDIR)"
+	@test "$$TMPDIR" = "$(GOTMPDIR)"
 	@grep -Fq 'TEST_TELEMETRY_DIR' "$(GO_ROOT)/src/cmd/internal/telemetry/telemetry.go"
 	@grep -Fq 'TEST_TELEMETRY_DIR' "$(GO_ROOT)/src/cmd/internal/telemetry/counter/counter.go"
 
