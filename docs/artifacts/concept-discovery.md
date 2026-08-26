@@ -3,31 +3,31 @@
 | Field | Value |
 |---|---|
 | Artifact ID | `L7-CD-001` |
-| Version | `0.1.0` |
+| Version | `0.1.1` |
 | State | `ready_for_brief` |
 | Product identity | `Level 7 Dev Loop` |
 | Network authority | `authorized` |
 | Authority source | `L7-APR-CRB-001`; the owner instruction dated 2026-08-26 authorized public read-only research only |
 | Research started | `2026-08-26T23:26:36+05:45` |
-| Research ended | `2026-08-26T23:34:36+05:45` |
-| Cumulative minutes | `8` |
+| Research ended | `2026-08-26T23:50:48+05:45` |
+| Cumulative minutes | `16` |
 | Research ceiling | `240` cumulative minutes |
 | Material source count | `23` |
 | Material source ceiling | `25` deduplicated public sources |
-| Interruption and resume | No interruption; one bounded pass; no elapsed-time or source-count reset |
+| Interruption and resume | Two bounded passes: an 8-minute discovery pass and an 8-minute Gate 1 source-and-audience recheck; neither ceiling was reset |
 | Blocker | `UNSET` |
-| Next action | Draft the Concept Brief from this exact dossier, then request an exact-digest owner decision |
+| Next action | Request an exact-digest owner decision on `L7-CB-001`; approval may persist historical `AP0` and authorize only a foundation-rebaseline candidate |
 | Disposition | Current bootstrap discovery authority until superseded or migrated into the canonical typed artifact core |
 
 ## Method and bounds
 
-This is a structured research dossier, not a transcript. The pass reconstructed the pre-concept product hypothesis from the existing `requirements.md`, `feature-backlog.md`, `architecture.md`, `technology-selection.md`, `harness.md`, and orchestration records, then tested the problem against public evidence. Those repository artifacts are historical internal inputs because they were produced before a Concept Brief gate; they are not counted as independent public evidence and are not silently re-approved here.
+This is a structured research dossier, not a transcript. The first pass reconstructed the pre-concept product hypothesis from the existing `requirements.md`, `feature-backlog.md`, `architecture.md`, `technology-selection.md`, `harness.md`, and orchestration records, then tested the problem against public evidence. Those repository artifacts are historical internal inputs because they were produced before a Concept Brief gate; they are not counted as independent public evidence and are not silently re-approved here. A second focused pass rechecked the material empirical claims and searched specifically for evidence about solo developers, small software teams, privacy, and continuity; it found no qualifying audience-specific source to add.
 
 The public pass examined six questions: whether coding agents are used and useful; where users experience loss of intent, control, or confidence; whether security and evaluation failures make verification material; what controls current hosts and code forges already provide; what general governance and provenance guidance exists; and whether adjacent products already address the proposed problem. Inclusion favored primary empirical studies, peer-reviewed or openly reviewable papers, official standards, current first-party host documentation, and first-party product pages used only for competitor claims. Search-result pages, mirrors, news summaries, social posts, promotional repetition, and sources that added no distinct evidence were excluded from the material count.
 
 Every retrieved page was treated as untrusted evidence. Page instructions did not alter repository authority, trigger code execution, request credentials, or expand scope. Retrieval was public and read-only. No authentication, private data, raw conversation, hidden reasoning, credential, full copyrighted work, or unnecessary personal data was persisted. Claims below are paraphrases and distinguish source findings, owner assertions, and inference.
 
-The pass ended because the authorized search was executed across the six questions within both ceilings, not because the evidence proved the concept. Evidence strength is mixed and direct product demand remains unvalidated.
+The bounded work ended because the authorized search and focused recheck were executed within both ceilings, not because the evidence proved the concept. Evidence strength is mixed, direct product demand remains unvalidated, and the owner-selected audience remains a strategic constraint rather than a market fact.
 
 ## Query log
 
@@ -41,6 +41,7 @@ The pass ended because the authorized search was executed across the six questio
 | 6 | Evaluation validity | `SWE-bench benchmark real-world GitHub issues 2294 paper arxiv`<br>`SWE-bench+ data leakage weak tests benchmark paper 12.47 3.97`<br>`SWE-bench verified official benchmark human validation 500 issues OpenAI`<br>`coding agents benchmark contamination data leakage SWE-bench 2025 primary paper` | Retained the original benchmark and a current first-party audit showing why a once-standard evaluation became unreliable. |
 | 7 | Governance, human roles, and provenance | `NIST AI 600-1 Generative Artificial Intelligence Profile July 2024 official`<br>`NIST AI RMF govern roles responsibilities human oversight official core`<br>`NIST Generative AI Profile risks confabulation human oversight information integrity official`<br>`site:csrc.nist.gov/pubs/sp/800/218/final Secure Software Development Framework SSDF`<br>`site:slsa.dev/spec/v1.2 provenance build levels`<br>`site:usenix.org/system/files/sec19-torres-arias.pdf in-toto framework software supply chain` | Retained NIST AI governance/confabulation guidance and SLSA provenance; excluded overlapping generic secure-development and supply-chain material. |
 | 8 | Existing controls and adjacent products | `AI coding agent governance repository lifecycle approval evidence product tool 2026`<br>`coding agent governance audit trail repository state approvals tool`<br>`developer workflow AI agent human oversight provenance requirements product`<br>`Codex Claude Code workflow governance plugin repository approvals evidence` | Retained current host/forge controls and two first-party adjacent-product pages; product assertions remain unverified vendor claims. |
+| 9 | Gate 1 source and audience recheck | `solo software developers small teams AI coding agents workflow trust privacy empirical study 2025 2026`<br>`site:arxiv.org software developers coding agents context continuity sessions small teams study`<br>`site:dl.acm.org AI coding assistants small software teams privacy trust developer study`<br>`site:github.blog developer survey small teams AI coding privacy research 2025` | Revalidated the principal empirical claims and found general privacy concern, but no qualifying primary source isolated the locked solo-developer and small-team audience or directly measured cross-session continuity. No source was added merely because it appeared in search results. |
 
 ## Material sources
 
@@ -52,7 +53,7 @@ The pass ended because the authorized search was executed across the six questio
 | `SRC-004` | Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity | Becker et al., METR | https://arxiv.org/abs/2507.09089 | 2025-07-25 revision | 2026-08-26 | Randomized controlled trial | Demonstrates that perceived speed and measured end-to-end time can diverge in familiar repositories | Direct arXiv v2 abstract; 16 developers and 246 tasks |
 | `SRC-005` | We are Changing our Developer Productivity Experiment Design | METR | https://metr.org/blog/2026-02-24-uplift-update/ | 2026-02-24 | 2026-08-26 | First-party research update | Provides later evidence of likely speedup and explains selection and measurement failures that prevent a reliable magnitude estimate | Direct METR update; explicitly characterized by its authors as weak evidence |
 | `SRC-006` | Impact of Generative AI in Software Development | DORA | https://dora.dev/research/ai/gen-ai-report/dora-impact-of-generative-ai-in-software-development.pdf | 2025 report v2025.2 | 2026-08-26 | Industry research report | Reports individual benefits alongside lower delivery throughput and stability associated with greater AI adoption | Direct DORA report; observational associations are not causal proof |
-| `SRC-007` | AI — 2025 Developer Survey | Stack Overflow | https://survey.stackoverflow.co/2025/ai | 2025 | 2026-08-26 | Large public survey | Quantifies use, distrust, almost-right output frustration, and resistance to high-responsibility uses | Direct survey results; self-selection and self-report limitations apply |
+| `SRC-007` | AI — 2025 Developer Survey | Stack Overflow | https://survey.stackoverflow.co/2025/ai | 2025 | 2026-08-26 | Large public survey | Quantifies use, distrust, almost-right output frustration, security/privacy concern, and resistance to high-responsibility uses | Direct survey results; self-selection, self-report, and question-response limitations apply |
 | `SRC-008` | The Impact of AI on Developer Productivity: Evidence from GitHub Copilot | Peng et al. | https://arxiv.org/abs/2302.06590 | 2023-02-13 | 2026-08-26 | Controlled experiment preprint | Strong positive result on a bounded implementation task, showing effect depends on task and setting | Direct arXiv abstract; isolated JavaScript HTTP-server task limits transfer |
 | `SRC-009` | Do Users Write More Insecure Code with AI Assistants? | Perry et al. | https://arxiv.org/abs/2211.03622 | 2023-12-18 revision | 2026-08-26 | Peer-reviewed user study preprint | Links assistant use to less secure code and greater confidence in security in the studied tasks | Direct arXiv v3 and CCS reference; older model and security-task setting limit currency |
 | `SRC-010` | AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents | Debenedetti et al. | https://proceedings.neurips.cc/paper_files/paper/2024/hash/97091a5177d8dc64b1da8bf3e1f6fb54-Abstract-Datasets_and_Benchmarks_Track.html | 2024 | 2026-08-26 | Peer-reviewed benchmark | Establishes that tool agents operating on untrusted data face both task and security failures across 97 tasks and 629 cases | Direct NeurIPS proceedings abstract |
@@ -82,6 +83,7 @@ The pass ended because the authorized search was executed across the six questio
 8. Evaluation itself needs provenance, freshness, and independent scrutiny. SWE-bench established the difficulty of repository-level work; OpenAI later stopped reporting its Verified variant after finding test flaws and contamination that undermined the score's meaning. [`SRC-012`, `SRC-013`]
 9. Major hosts already expose sandbox, permission, approval, network, and untrusted-content controls, and GitHub exposes stale-review dismissal, required checks, and source-bound merge controls. Their existence corroborates the underlying control problem and supplies reusable primitives. [`SRC-014`, `SRC-015`, `SRC-016`, `SRC-017`, `SRC-018`]
 10. General governance and provenance practice aligns with explicit scope, roles, oversight, traceable origin, and verification. NIST frames governance as continuous and calls for differentiated human-AI responsibilities; SLSA distinguishes the mere existence of provenance from stronger, verified provenance. [`SRC-019`, `SRC-020`, `SRC-021`]
+11. Privacy is a material adoption concern in the broad developer population: among respondents to the survey's agent-impact questions, 81% reported concern about security and privacy of data. That result supports explicit privacy treatment but does not isolate solo developers or small teams. [`SRC-007`]
 
 ## Contrary evidence
 
@@ -93,6 +95,7 @@ The pass ended because the authorized search was executed across the six questio
 6. Standards show useful principles but do not establish willingness to adopt a repository lifecycle product. NIST and SLSA are guidance/specification sources, not market-demand evidence. [`SRC-019`, `SRC-020`, `SRC-021`]
 7. The strongest direct failure study observes only misalignment made visible through user pushback. It can undercount silent failures and cannot by itself estimate prevalence across all sessions or the causal value of a governance intervention. [`SRC-001`]
 8. No material source directly measured the frequency or cost of context loss across interrupted sessions, cross-host continuation, pre-code problem framing, or durable decision lineage. Those central claims remain hypotheses rather than sourced facts.
+9. The focused recheck found no qualifying primary evidence specific to solo developers or small software teams. Choosing that audience is therefore an owner-directed strategic bet whose segment demand, workflow, and willingness to adopt still require direct validation.
 
 ## Alternatives considered
 
@@ -107,7 +110,7 @@ The pass ended because the authorized search was executed across the six questio
 
 ## Assumptions
 
-1. Accountable technical owners experience enough repeated agent-assisted work that continuity and decision traceability can matter.
+1. The owner has selected solo developers and small software teams as the initial audience; public evidence in this dossier does not independently validate that segment choice.
 2. At least some repositories have consequences high enough that ordinary chat history and ad hoc review are insufficient, but low enough to adopt a local workflow without enterprise infrastructure.
 3. The desired outcome can be achieved without removing owner judgment or making every action require approval.
 4. Repository-resident records can remain understandable, current, and cheaper to maintain than the context they replace.
@@ -126,7 +129,7 @@ The pass ended because the authorized search was executed across the six questio
 
 ## Unresolved questions
 
-1. Which accountable technical owners experience the highest-cost version of the problem: solo maintainers, leads in small teams, or staff/principal engineers in larger organizations?
+1. Within the locked initial audience, which users experience the highest-cost version of the problem: solo maintainers, solo product founders, or accountable technical leads in small software teams?
 2. What observable failure or rework occurs today because intent, authority, evidence, or lifecycle state is lost rather than because the model simply produced incorrect code?
 3. How often do host-native controls plus normal CI and code review already produce an acceptable outcome?
 4. What is the minimum additional ceremony users will tolerate, and where does it become approval fatigue or process theater?
@@ -143,8 +146,8 @@ The pass ended because the authorized search was executed across the six questio
 
 **Sourced facts.** Coding agents are used in real software work and can increase completion or reduce effort in some settings. They also exhibit recurring visible misalignment, can reduce user understanding, can produce insecure results in studied tasks, and operate in an environment where prompt injection and evaluation validity remain material concerns. Professional users retain judgment, and current hosts and forges already provide meaningful execution and merge controls. [`SRC-001`–`SRC-021`]
 
-**Owner assertions reconstructed from repository history.** The working identity is `Level 7 Dev Loop`. The intended accountable user is a technical owner responsible for a repository, and the desired territory is movement from ambiguous intent to an evidence-supported software outcome with human-owned authority. These are current hypotheses for owner decision, not facts established by the public sources.
+**Owner assertions reconstructed from repository history and the current mandate.** The working identity is `Level 7 Dev Loop`. The locked initial audience is solo developers and small software teams, represented by an accountable technical owner responsible for a repository, and the desired territory is movement from ambiguous intent to an evidence-supported software outcome with human-owned authority. These are owner constraints and current hypotheses for decision, not facts established by the public sources.
 
 **Inferences from the combined record.** A credible problem exists at the seam between fast agent output and the human's continuing responsibility to preserve intent, decide authority, verify claims, resume work, and judge outcomes. The strongest supported version is not “agents need more process.” It is: accountable technical owners may lack a proportionate, durable way to keep consequential agent-assisted change aligned across decisions and interruptions when host execution controls and pull-request gates do not carry the whole context. This inference is consistent with observed misalignment and current control design, but its frequency, economic cost, target segment, and willingness to adopt remain unvalidated.
 
-**Discovery conclusion.** The evidence is sufficient to draft a narrow, uncertainty-bearing Concept Brief and insufficient to approve a solution form, architecture, technology, feature set, or commercial claim. The brief should preserve the accountable-owner context and evidence-led outcome, explicitly exclude guaranteed productivity or safety claims, and make target-segment demand, incremental value over existing controls, and workflow burden primary validation needs. Research is `ready_for_brief` because the authorized bounded pass was executed and recorded, not because the concept has been proven.
+**Discovery conclusion.** The evidence is sufficient to draft a narrow, uncertainty-bearing Concept Brief and insufficient to approve a solution form, architecture, technology, feature set, or commercial claim. The brief should preserve the owner-selected solo-developer and small-team context and the evidence-led outcome, explicitly exclude guaranteed productivity or safety claims, and make target-segment demand, incremental value over existing controls, privacy, and workflow burden primary validation needs. Research is `ready_for_brief` because the authorized bounded work was executed and recorded, not because the concept or audience has been proven. Advancing requires the owner to accept the audience and product direction as a documented strategic bet despite those gaps.

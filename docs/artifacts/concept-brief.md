@@ -3,12 +3,12 @@
 | Field | Value |
 |---|---|
 | Artifact ID | `L7-CB-001` |
-| Version | `0.1.0` |
+| Version | `0.1.1` |
 | State | `draft` |
 | Product identity | `Level 7 Dev Loop` |
 | Discovery path | `docs/artifacts/concept-discovery.md` |
-| Discovery SHA-256 | `bb3d9ce8738f08b157db6dc9d45342f9741ed8659bf549f2a71c3ec7b0472a2b` |
-| Payload SHA-256 | `0f18e828174dcc17c58e6b63e11a9ef1b53b29668a1562563ad19077b388bd47` |
+| Discovery SHA-256 | `6330342fe9929297252114bcec0636a45c7384ac149f039a17ac8716addd51c6` |
+| Payload SHA-256 | `7373151a35bccf79b4e31e38cfc9a555bab4cd3376767dc129114954867e9a1b` |
 | Approved payload SHA-256 | `UNSET` |
 | Approval assurance | `none` |
 | Owner decision | `UNSET` |
@@ -21,9 +21,9 @@
 
 ## Target users and context
 
-The initial target user is an accountable technical owner—such as a solo maintainer, technical lead, or staff/principal engineer—who is responsible for consequential change in a software repository while coding agents participate in the work. Implementing engineers may operate within authority granted by that owner, but accountability for what changes and what is accepted remains human.
+The owner-selected initial audience is solo developers and small software teams. Within that audience, the target user is the accountable technical owner—such as a solo maintainer, solo product founder, or technical lead in a small team—who is responsible for consequential change in a software repository while coding agents participate in the work. Other implementing engineers may operate within authority granted by that owner, but accountability for what changes and what is accepted remains human.
 
-The relevant context begins when intent is incomplete, work can span multiple decisions or interruptions, and the cost of losing problem context, scope, authority, or verification lineage is material. Low-consequence experiments and work already governed adequately by ordinary engineering practice are outside the initial target context.
+The relevant context begins when intent is incomplete, work can span multiple decisions or interruptions, and the cost of losing problem context, scope, authority, or verification lineage is material. Low-consequence experiments and work already governed adequately by ordinary engineering practice are outside the initial target context. Larger organizations are not the initial audience merely because they contain similar job titles; any later audience expansion requires evidence and a new owner decision.
 
 ## Evidenced problem
 
@@ -31,7 +31,7 @@ Coding agents can improve task completion and reduce effort, but faster output d
 
 Current hosts and code forges provide meaningful execution and merge controls. Those controls address important parts of the risk, but the research did not establish that they preserve the complete problem, decision, authority, evidence, and outcome context across a consequential change. Accountable owners may therefore have to reconstruct that context from conversations, repository fragments, and tool-specific state while still being asked to approve the result.
 
-The evidence establishes a credible problem hypothesis, not its market size or severity. No material source directly measured cross-interruption context loss, cross-host continuity, or demand for a full lifecycle intervention. The frequency, cost, and highest-need user segment remain unvalidated.
+The evidence establishes a credible problem hypothesis, not its market size or severity. No material source directly measured cross-interruption context loss, cross-host continuity, or demand for a full lifecycle intervention. The public evidence is also largely about professional or open-source developers in general rather than the owner-selected solo-developer and small-team audience. The frequency, cost, segment demand, and highest-need context remain unvalidated.
 
 ## Desired outcome
 
@@ -55,7 +55,7 @@ The concept should also show that users can resume and hand off consequential wo
 
 ## Assumptions, uncertainty, and validation needs
 
-The concept assumes that a meaningful subset of accountable technical owners repeatedly encounters continuity or decision-lineage failures that existing host and forge controls do not solve. It assumes that durable repository context can reduce those failures without becoming stale, burdensome, or misleading, and that common meaning can survive differences among coding-agent environments.
+The concept assumes that a meaningful subset of solo developers and accountable technical owners in small software teams repeatedly encounters continuity or decision-lineage failures that existing host and forge controls do not solve. The selected audience is an owner-directed strategic bet, not a conclusion established by the public research. The concept also assumes that durable repository context can reduce those failures without becoming stale, burdensome, or misleading, and that common meaning can survive differences among coding-agent environments.
 
 Direct demand is unknown. The highest-need segment, current workaround, willingness to adopt, acceptable ceremony, and incremental value over ordinary source control, continuous integration, host safeguards, and adjacent governance products need validation with representative users. The causal relationship between preserved context and better outcomes also needs validation; survey confidence and artifact counts are inadequate substitutes.
 
