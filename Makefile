@@ -82,8 +82,7 @@ bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
 
 prepare:
-	@mkdir -p "$(GOPATH)" "$(GOBIN)" "$(GOCACHE)" "$(GOMODCACHE)" "$(GOTMPDIR)" "$(TELEMETRY_DIR)" "$(PROJECT_ROOT)/.cache/repro"
-	@printf 'off 2026-08-24\n' >"$(TELEMETRY_DIR)/mode"
+	@"$(PROJECT_ROOT)/scripts/harness/prepare-cache.sh" "$(PROJECT_ROOT)" "$(GO_VERSION)"
 
 toolchain-check: prepare
 	@test -x "$(GO)" || { echo "missing pinned Go $(GO_VERSION); run: make bootstrap GO_VERSION=$(GO_VERSION)" >&2; exit 1; }

@@ -86,12 +86,13 @@ var expectedWavePaths = map[string]pathExpectation{
 	"internal/harness/buildcontrol/trace.go":          {"add", "harness-integrator", "SCOPE-321"},
 	"internal/harness/buildcontrol/trace_test.go":     {"add", "harness-integrator", "SCOPE-321"},
 	"scripts/harness/check-import-boundaries.sh":      {"modify", "harness-integrator", "SCOPE-320"},
+	"scripts/harness/prepare-cache.sh":                 {"add", "harness-integrator", "SCOPE-321"},
 }
 
 var approvedWaveInputs = map[string]string{
 	"docs/artifacts/wave-01-change-contract.md":  "f53d06d2b02760bcf6ca958b72e4d2473cc52edc3f4a2cb1471cadbd4ab42afc",
 	"docs/artifacts/wave-01-design.md":           "07953b2319635846505a018c3e4cc66705e0c263ab01b0a5c79e75cdaf1fb8e8",
-	"docs/artifacts/wave-01-design-amendment.md": "e10378f598098d5db8e9f20177324e917260e0ce016453903ac0159485526470",
+	"docs/artifacts/wave-01-design-amendment.md": "dccaa08b75d8a640b6a7355b29ff5876b3b8cab311a4fba9966aaa93f77cbaaf",
 	"docs/artifacts/wave-01-specification.md":    "8715388fbe0185a3ae24d4c13d30704305a2393526fefcc71a82fce9bba119cc",
 }
 
@@ -539,7 +540,7 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 		findings = appendFindings(findings, newFinding("SCOPE-381", ".github/workflows/harness.yml", "configured CI contains a forbidden trigger or secret reference", "remove the forbidden control"))
 	}
 	makefile := read("Makefile")
-	for _, required := range []string{"override CORE_MODULE_PATH :=", "$(PROJECT_ROOT)/harness/modules.lock.tsv", "override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness", "build-control-check: toolchain-check", "\"$(GO)\" run -mod=readonly ./internal/harness/buildcontrol", "policy-check: build-control-check", "candidate-check: policy-check import-check"} {
+	for _, required := range []string{"override CORE_MODULE_PATH :=", "$(PROJECT_ROOT)/harness/modules.lock.tsv", "override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness", "\"$(PROJECT_ROOT)/scripts/harness/prepare-cache.sh\" \"$(PROJECT_ROOT)\" \"$(GO_VERSION)\"", "build-control-check: toolchain-check", "\"$(GO)\" run -mod=readonly ./internal/harness/buildcontrol", "policy-check: build-control-check", "candidate-check: policy-check import-check"} {
 		if !strings.Contains(makefile, required) {
 			findings = appendFindings(findings, newFinding("SCOPE-383", "Makefile", "active build-control integration is incomplete", "restore the approved module-derived Wave 1 targets"))
 		}

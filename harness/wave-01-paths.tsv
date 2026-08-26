@@ -36,3 +36,4 @@ add	internal/harness/buildcontrol/testutil_test.go	harness-integrator	SCOPE-321
 add	internal/harness/buildcontrol/trace.go	harness-integrator	SCOPE-321
 add	internal/harness/buildcontrol/trace_test.go	harness-integrator	SCOPE-321
 modify	scripts/harness/check-import-boundaries.sh	harness-integrator	SCOPE-320
+add	scripts/harness/prepare-cache.sh	harness-integrator	SCOPE-321

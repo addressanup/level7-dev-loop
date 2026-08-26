@@ -30,10 +30,160 @@ func TestTemporaryRootsAreRepositoryScoped(t *testing.T) {
 	if temporaryRoot != want || goTemporaryRoot != want || !filepath.IsAbs(temporaryRoot) {
 		t.Fatalf("temporary roots are not bound to repository GOTMPDIR: TMPDIR=%q GOTMPDIR=%q want=%q", temporaryRoot, goTemporaryRoot, want)
 	}
-	testTemporaryRoot := filepath.Clean(t.TempDir())
-	temporaryPrefix := filepath.Clean(want) + string(os.PathSeparator)
-	if !strings.HasPrefix(testTemporaryRoot, temporaryPrefix) {
-		t.Fatalf("testing temporary root %q is outside %q", testTemporaryRoot, want)
+	physicalWant := physicalDirectory(t, want)
+	if physicalWant != want {
+		t.Fatalf("temporary root %q resolves outside its lexical repository path: %q", want, physicalWant)
+	}
+	testTemporaryRoot := physicalDirectory(t, t.TempDir())
+	relative, err := filepath.Rel(physicalWant, testTemporaryRoot)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		t.Fatalf("testing temporary root %q is outside physical root %q: relative=%q err=%v", testTemporaryRoot, physicalWant, relative, err)
+	}
+}
+
+func physicalDirectory(t *testing.T, directory string) string {
+	t.Helper()
+	info, err := os.Lstat(directory)
+	if err != nil {
+		t.Fatalf("lstat physical directory %q: %v", directory, err)
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("physical directory %q has mode %v", directory, info.Mode())
+	}
+	physical, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		t.Fatalf("resolve physical directory %q: %v", directory, err)
+	}
+	physical, err = filepath.Abs(physical)
+	if err != nil {
+		t.Fatalf("make physical directory absolute %q: %v", physical, err)
+	}
+	return filepath.Clean(physical)
+}
+
+func runPrepareCacheFixture(t *testing.T, root string) (string, error) {
+	t.Helper()
+	script := filepath.Join(repositoryRoot(t), "scripts", "harness", "prepare-cache.sh")
+	command := exec.Command("/bin/sh", script, root, "1.26.7")
+	command.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC"}
+	output, err := command.CombinedOutput()
+	return string(output), err
+}
+
+func TestPrepareCacheCreatesPhysicalRepositoryDirectories(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if output, err := runPrepareCacheFixture(t, root); err != nil {
+		t.Fatalf("prepare cache fixture: %v\n%s", err, output)
+	}
+	for _, relative := range []string{
+		".cache",
+		".cache/go",
+		".cache/go/path",
+		".cache/go/bin",
+		".cache/go/build",
+		".cache/go/mod",
+		".cache/go/tmp",
+		".cache/go/telemetry",
+		".cache/repro",
+	} {
+		directory := filepath.Join(root, filepath.FromSlash(relative))
+		if physical := physicalDirectory(t, directory); physical != directory {
+			t.Fatalf("prepared cache directory %q resolves to %q", directory, physical)
+		}
+	}
+	mode, err := os.ReadFile(filepath.Join(root, ".cache", "go", "telemetry", "mode"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(mode) != "off 2026-08-24\n" {
+		t.Fatalf("unexpected telemetry mode: %q", mode)
+	}
+}
+
+func TestPrepareCacheRejectsRedirectedComponentsBeforeWriting(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name  string
+		setup func(*testing.T, string, string)
+	}{
+		{
+			name: "cache-root",
+			setup: func(t *testing.T, root, outside string) {
+				if err := os.Symlink(outside, filepath.Join(root, ".cache")); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "temporary-root",
+			setup: func(t *testing.T, root, outside string) {
+				if err := os.MkdirAll(filepath.Join(root, ".cache", "go"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, filepath.Join(root, ".cache", "go", "tmp")); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "telemetry-mode",
+			setup: func(t *testing.T, root, outside string) {
+				telemetry := filepath.Join(root, ".cache", "go", "telemetry")
+				if err := os.MkdirAll(telemetry, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				target := filepath.Join(outside, "mode-target")
+				if err := os.WriteFile(target, []byte("sentinel\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(target, filepath.Join(telemetry, "mode")); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "toolchain-root",
+			setup: func(t *testing.T, root, outside string) {
+				if err := os.Mkdir(filepath.Join(root, ".cache"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, filepath.Join(root, ".cache", "toolchains")); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	}
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			outside := t.TempDir()
+			testCase.setup(t, root, outside)
+			output, err := runPrepareCacheFixture(t, root)
+			if err == nil || !strings.Contains(output, "prepare-cache: refusing symlinked") {
+				t.Fatalf("redirected cache component was accepted: err=%v output=%q", err, output)
+			}
+			entries, readErr := os.ReadDir(outside)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if testCase.name == "telemetry-mode" {
+				data, readErr := os.ReadFile(filepath.Join(outside, "mode-target"))
+				if readErr != nil || string(data) != "sentinel\n" {
+					t.Fatalf("redirected telemetry target changed: data=%q err=%v", data, readErr)
+				}
+				if len(entries) != 1 {
+					t.Fatalf("redirected telemetry directory changed: %v", entries)
+				}
+			} else if len(entries) != 0 {
+				t.Fatalf("redirected cache directory received writes: %v", entries)
+			}
+			if _, statErr := os.Lstat(filepath.Join(root, ".cache", "repro")); !os.IsNotExist(statErr) {
+				t.Fatalf("prepare wrote before rejecting redirect: %v", statErr)
+			}
+		})
 	}
 }
 
