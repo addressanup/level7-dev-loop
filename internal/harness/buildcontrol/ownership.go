@@ -34,6 +34,13 @@ var expectedOwnership = map[string]ownershipExpectation{
 	"wave-grant-amendment":   {"exact", "docs/artifacts/wave-01-grant-ladder-amendment.md", "wave-integrator", "independent-readonly", "separate-security-decision"},
 	"wave-module-decision":   {"exact", "docs/artifacts/wave-01-module-identity-decision.md", "wave-integrator", "owner-review", "owner+module-decision"},
 	"wave-specification":     {"exact", "docs/artifacts/wave-01-specification.md", "wave-integrator", "owner-review", "owner+design"},
+	"wave-02-approval":       {"exact", "docs/artifacts/wave-02-approval.md", "wave-integrator", "owner-review", "owner+design"},
+	"wave-02-audit":          {"exact", "docs/artifacts/wave-02-audit.md", "independent-reviewer", "owner-review", "separate-audit"},
+	"wave-02-candidate":      {"exact", "docs/artifacts/wave-02-candidate.sha256", "wave-integrator", "independent-readonly", "owner+scope-audit"},
+	"wave-02-contract":       {"exact", "docs/artifacts/wave-02-change-contract.md", "wave-integrator", "owner-review", "owner+design"},
+	"wave-02-design":         {"exact", "docs/artifacts/wave-02-design.md", "wave-integrator", "owner-review", "owner+design"},
+	"wave-02-evidence":       {"exact", "docs/artifacts/wave-02-evidence.md", "wave-integrator", "independent-readonly", "owner+scope-audit"},
+	"wave-02-specification":  {"exact", "docs/artifacts/wave-02-specification.md", "wave-integrator", "owner-review", "owner+design"},
 	"requirements-source":    {"exact", "docs/artifacts/requirements.md", "requirements-owner", "owner-review", "owner+requirements-decision"},
 	"release-allocation":     {"exact", "docs/artifacts/feature-backlog.md", "backlog-owner", "owner-review", "owner+impact-decision"},
 	"harness-data":           {"prefix", "harness/", "harness-integrator", "independent-readonly", "owner+scope-audit"},
@@ -45,8 +52,11 @@ var expectedOwnership = map[string]ownershipExpectation{
 	"root-plugin":            {"exact", "plugin.json", "protected-prototype-owner", "wave-10-owner", "wave-10-cutover"},
 	"marketplace":            {"exact", "marketplace.json", "protected-prototype-owner", "wave-10-owner", "wave-10-cutover"},
 	"workflow-reference":     {"exact", "references/WORKFLOW.md", "protected-prototype-owner", "wave-07-owner", "wave-07-cutover"},
-	"semantic-source":        {"prefix", "semantic/", "semantic-owner", "independent-readonly", "future-wave"},
-	"schema-source":          {"prefix", "schemas/", "state-owner", "independent-readonly", "future-wave"},
+	"semantic-source":        {"prefix", "semantic/", "semantic-owner", "independent-readonly", "owner+wave-02-design"},
+	"semantic-schema":        {"prefix", "schemas/semantic/", "semantic-owner", "independent-readonly", "owner+wave-02-design"},
+	"evaluation-schema":      {"prefix", "schemas/evaluation/", "evaluator-owner", "independent-readonly", "separate-evaluator-freeze"},
+	"artifact-schema":        {"prefix", "schemas/artifact/", "state-owner", "independent-readonly", "future-wave"},
+	"semantic-render":        {"prefix", "internal/render/", "semantic-owner", "independent-readonly", "owner+wave-02-design"},
 	"safety-policy":          {"prefix", "internal/policy/", "safety-owner", "independent-readonly", "future-wave"},
 	"context-safety":         {"prefix", "internal/context/", "context-owner", "independent-readonly", "future-wave"},
 	"transaction-plane":      {"prefix", "internal/transaction/", "effect-plane-owner", "independent-readonly", "future-wave"},
@@ -55,8 +65,10 @@ var expectedOwnership = map[string]ownershipExpectation{
 	"conductor-source":       {"prefix", "internal/conductor/", "conductor-owner", "independent-readonly", "future-wave"},
 	"codex-adapter":          {"prefix", "internal/adapter/codex/", "codex-owner", "independent-readonly", "future-wave"},
 	"claude-adapter":         {"prefix", "internal/adapter/claude/", "claude-owner", "independent-readonly", "future-wave"},
-	"public-fixtures":        {"prefix", "fixtures/", "feature-owner", "evaluator-owner", "future-wave"},
-	"public-evaluator":       {"prefix", "internal/evaluator/", "evaluator-owner", "independent-readonly", "future-wave"},
+	"semantic-fixtures":      {"prefix", "fixtures/public/bl-002/", "semantic-owner", "evaluator-owner", "evaluator-integration"},
+	"evaluator-fixtures":     {"prefix", "fixtures/public/bl-003/", "evaluator-owner", "independent-readonly", "separate-evaluator-freeze"},
+	"feature-fixtures":       {"prefix", "fixtures/public/features/", "feature-owner", "evaluator-owner", "future-feature-integration"},
+	"public-evaluator":       {"prefix", "internal/evaluator/", "evaluator-owner", "independent-readonly", "separate-evaluator-freeze"},
 	"generated-build":        {"prefix", "build/generated/", "generator-owner", "independent-readonly", "future-wave"},
 	"generated-packages":     {"prefix", "packages/", "generator-owner", "independent-readonly", "wave-10-cutover"},
 	"distribution-source":    {"prefix", "internal/distribution/", "distribution-owner", "independent-readonly", "future-wave"},
@@ -86,11 +98,11 @@ var expectedOrchestrationOwnership = map[string]orchestrationOwnershipExpectatio
 
 var orchestrationClassForControl = map[string]string{
 	"ci-workflow": "harness-build", "makefile": "harness-build", "module": "harness-build", "harness-data": "harness-build", "harness-scripts": "harness-build", "harness-code": "harness-build",
-	"requirements-source": "semantic-contract", "semantic-source": "semantic-contract",
-	"public-evaluator": "evaluator-governance", "public-fixtures": "feature-fixtures", "schema-source": "state-contract", "safety-policy": "safety-contract", "context-safety": "context-safety",
+	"requirements-source": "semantic-contract", "semantic-source": "semantic-contract", "semantic-schema": "semantic-contract", "semantic-render": "semantic-contract",
+	"public-evaluator": "evaluator-governance", "evaluation-schema": "evaluator-governance", "evaluator-fixtures": "evaluator-governance", "semantic-fixtures": "feature-fixtures", "feature-fixtures": "feature-fixtures", "artifact-schema": "state-contract", "safety-policy": "safety-contract", "context-safety": "context-safety",
 	"transaction-plane": "effect-plane", "executor-plane": "effect-plane", "receipt-plane": "effect-plane", "conductor-source": "conductor", "codex-adapter": "codex-adapter", "claude-adapter": "claude-adapter",
 	"generated-build": "generated", "generated-packages": "generated", "distribution-source": "distribution", "updater": "updater",
-	"readme": "wave-records", "release-allocation": "wave-records", "wave-approval": "wave-records", "wave-audit": "wave-records", "wave-audit-remediation": "wave-records", "wave-candidate": "wave-records", "wave-contract": "wave-records", "wave-design": "wave-records", "wave-design-amendment": "wave-records", "wave-evidence": "wave-records", "wave-grant-amendment": "wave-records", "wave-module-decision": "wave-records", "wave-specification": "wave-records",
+	"readme": "wave-records", "release-allocation": "wave-records", "wave-approval": "wave-records", "wave-audit": "wave-records", "wave-audit-remediation": "wave-records", "wave-candidate": "wave-records", "wave-contract": "wave-records", "wave-design": "wave-records", "wave-design-amendment": "wave-records", "wave-evidence": "wave-records", "wave-grant-amendment": "wave-records", "wave-module-decision": "wave-records", "wave-specification": "wave-records", "wave-02-approval": "wave-records", "wave-02-audit": "wave-records", "wave-02-candidate": "wave-records", "wave-02-contract": "wave-records", "wave-02-design": "wave-records", "wave-02-evidence": "wave-records", "wave-02-specification": "wave-records",
 	"prototype-skills": "prototype-assets", "codex-manifest": "prototype-assets", "claude-manifest": "prototype-assets", "root-plugin": "prototype-assets", "marketplace": "prototype-assets", "workflow-reference": "prototype-assets",
 	"protected-controls": "protected-controls",
 }
@@ -99,7 +111,9 @@ func checkOwnership(root string) (int, []finding) {
 	rows, findings := loadTSV(root, "harness/control-ownership.tsv", []string{"control", "path_kind", "path", "writer", "reviewer", "change_gate"})
 	rules, validationFindings := validateOwnershipRows(rows)
 	findings = appendFindings(findings, validationFindings...)
-	pathRows, pathFindings := loadTSV(root, "harness/wave-01-paths.tsv", []string{"change", "path", "owner", "rule"})
+	phase, phaseFindings := loadValidatedActivePhase(root)
+	findings = appendFindings(findings, phaseFindings...)
+	pathRows, pathFindings := loadTSV(root, phase.pathPolicy, []string{"change", "path", "owner", "rule"})
 	findings = appendFindings(findings, pathFindings...)
 	findings = appendFindings(findings, crossCheckPathOwnership(pathRows, rules)...)
 	orchestrationData, orchestrationFindings := readStrictFile(root, "docs/artifacts/orchestration-plan.md")

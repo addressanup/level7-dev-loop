@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	waveBaseCommit           = "ee181b759c346055b0fb5b2fa1b3b1e676dd83e4"
-	waveBaseTree             = "2f23a0810660995b6f562c361ab38cd4faafa3b3"
+	wave01BaseCommit         = "ee181b759c346055b0fb5b2fa1b3b1e676dd83e4"
+	wave01BaseTree           = "2f23a0810660995b6f562c361ab38cd4faafa3b3"
 	selectedModule           = "github.com/addressanup/level7-dev-loop"
 	legacyModule             = "continuallabs.ltd/level7-dev-loop"
 	maxRepositoryDirectories = 512
@@ -43,12 +43,31 @@ type snapshotFile struct {
 }
 
 type policyResult struct {
-	phase   string
-	files   int
-	changed int
+	phase        string
+	checkpoint   string
+	baseManifest string
+	pathPolicy   string
+	files        int
+	changed      int
 }
 
-var expectedWavePaths = map[string]pathExpectation{
+type phaseExpectation struct {
+	phase        string
+	state        string
+	baseCommit   string
+	baseTree     string
+	baseManifest string
+	pathPolicy   string
+}
+
+type candidateClosure struct {
+	manifestPath string
+	evidencePath string
+	auditPath    string
+	expectedRows int
+}
+
+var expectedWave01Paths = map[string]pathExpectation{
 	".github/workflows/harness.yml":                      {"modify", "harness-integrator", "SCOPE-320"},
 	"Makefile":                                           {"modify", "harness-integrator", "SCOPE-320"},
 	"README.md":                                          {"modify", "wave-integrator", "SCOPE-320"},
@@ -89,28 +108,49 @@ var expectedWavePaths = map[string]pathExpectation{
 	"scripts/harness/prepare-cache.sh":                {"add", "harness-integrator", "SCOPE-321"},
 }
 
-var approvedWaveInputs = map[string]string{
+var approvedWave01Inputs = map[string]string{
 	"docs/artifacts/wave-01-change-contract.md":  "f53d06d2b02760bcf6ca958b72e4d2473cc52edc3f4a2cb1471cadbd4ab42afc",
 	"docs/artifacts/wave-01-design.md":           "07953b2319635846505a018c3e4cc66705e0c263ab01b0a5c79e75cdaf1fb8e8",
 	"docs/artifacts/wave-01-design-amendment.md": "7162d7a05117374c0994f9a721e9930f0b27ec8527ccd51352a8749bf7119b67",
 	"docs/artifacts/wave-01-specification.md":    "8715388fbe0185a3ae24d4c13d30704305a2393526fefcc71a82fce9bba119cc",
 }
 
-var forbiddenWaveProductPaths = []string{
-	"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/render", "internal/evaluator", "semantic", "schemas", "fixtures", "packages", "build/generated",
+var expectedPhases = []phaseExpectation{
+	{"wave-01", "historical", wave01BaseCommit, wave01BaseTree, "harness/wave-01-base.sha256", "harness/wave-01-paths.tsv"},
+	{"wave-02", "active", wave02BaseCommit, wave02BaseTree, "harness/wave-02-base.sha256", "harness/wave-02-paths.tsv"},
+}
+
+var expectedBaseManifestSHA256 = map[string]string{
+	"wave-01": "fdf5f29f3986a52aecff57fa02fb99397a35ac0abbbff0b3af3ebcdde018cd9f",
+	"wave-02": wave02BaseManifestSHA256,
+}
+
+var forbiddenWave02ProductPaths = []string{
+	"cmd/l7", "cmd/l7up", "internal/supervisor", "internal/kernel", "internal/context", "internal/artifact", "internal/state", "internal/policy", "internal/transaction", "internal/executor", "internal/receipt", "internal/platform", "internal/adapter", "internal/channel", "internal/conductor", "internal/distribution", "packages", "build/generated", "protected",
 }
 
 func checkPolicy(root string) (policyResult, []finding) {
-	phaseRows, findings := loadTSV(root, "harness/phases.tsv", []string{"phase", "state", "base_commit", "base_tree", "base_manifest", "path_policy"})
-	phase, phaseFindings := validatePhaseRows(phaseRows)
-	findings = appendFindings(findings, phaseFindings...)
-	pathRows, pathFindings := loadTSV(root, "harness/wave-01-paths.tsv", []string{"change", "path", "owner", "rule"})
-	rules, validationFindings := validatePathRows(pathRows)
+	phase, findings := loadValidatedActivePhase(root)
+	if len(findings) != 0 {
+		return policyResult{}, findings
+	}
+	expectedPaths, ok := map[string]map[string]pathExpectation{
+		"wave-01": expectedWave01Paths,
+		"wave-02": expectedWave02Paths,
+	}[phase.phase]
+	if !ok {
+		return policyResult{}, []finding{newFinding("SCOPE-301", phase.phase, "active phase has no compiled path expectations", "restore the approved phase registry")}
+	}
+	pathRows, pathFindings := loadTSV(root, phase.pathPolicy, []string{"change", "path", "owner", "rule"})
+	rules, validationFindings := validatePathRows(pathRows, expectedPaths)
 	findings = appendFindings(findings, pathFindings...)
 	findings = appendFindings(findings, validationFindings...)
-	baseData, baseReadFindings := readStrictFile(root, "harness/wave-01-base.sha256")
+	baseData, baseReadFindings := readStrictFile(root, phase.baseManifest)
 	findings = appendFindings(findings, baseReadFindings...)
-	base, baseFindings := parseSHA256Manifest("harness/wave-01-base.sha256", baseData, true)
+	if len(baseReadFindings) == 0 && fileSHA256(baseData) != expectedBaseManifestSHA256[phase.phase] {
+		findings = appendFindings(findings, newFinding("SCOPE-302", phase.baseManifest, "base manifest differs from the compiled approved source inventory", "restore the exact immutable base manifest"))
+	}
+	base, baseFindings := parseSHA256Manifest(phase.baseManifest, baseData, true)
 	findings = appendFindings(findings, baseFindings...)
 	current, walkFindings := scanRepository(root)
 	findings = appendFindings(findings, walkFindings...)
@@ -118,28 +158,66 @@ func checkPolicy(root string) (policyResult, []finding) {
 	findings = appendFindings(findings, snapshotFindings...)
 	findings = appendFindings(findings, checkProtectedInputs(root)...)
 	findings = appendFindings(findings, checkApprovedWaveInputs(root)...)
-	finalCandidate := current["docs/artifacts/wave-01-candidate.sha256"].regular
-	findings = appendFindings(findings, checkHarnessInvariants(root, finalCandidate)...)
+	finalCandidate := false
+	checkpoint := "in-progress"
+	if phase.phase == "wave-02" {
+		finalCandidate = current[wave02CandidateManifest].regular
+		findings = appendFindings(findings, checkWave02Admission(root, base, current, rules, finalCandidate)...)
+	} else {
+		finalCandidate = current["docs/artifacts/wave-01-candidate.sha256"].regular
+		if finalCandidate {
+			findings = appendFindings(findings, validateCandidateManifest(root, base, current, rules, candidateClosure{
+				manifestPath: "docs/artifacts/wave-01-candidate.sha256",
+				evidencePath: "docs/artifacts/wave-01-evidence.md",
+				auditPath:    "docs/artifacts/wave-01-audit.md",
+				expectedRows: 35,
+			})...)
+		}
+	}
 	if finalCandidate {
-		findings = appendFindings(findings, validateCandidateManifest(root, base, current, rules)...)
+		checkpoint = "final-candidate"
 	}
-	return policyResult{phase: phase, files: len(current), changed: changed}, findings
+	findings = appendFindings(findings, checkHarnessInvariants(root, phase.phase, finalCandidate)...)
+	return policyResult{phase: phase.phase, checkpoint: checkpoint, baseManifest: phase.baseManifest, pathPolicy: phase.pathPolicy, files: len(current), changed: changed}, findings
 }
 
-func validatePhaseRows(rows []tsvRow) (string, []finding) {
-	if len(rows) != 1 {
-		return "", []finding{newFinding("SCOPE-300", "harness/phases.tsv", fmt.Sprintf("phase registry has %d rows, want exactly one", len(rows)), "restore one active Wave 1 row")}
-	}
-	row := rows[0]
-	if row["phase"] != "wave-01" || row["state"] != "active" || row["base_commit"] != waveBaseCommit || row["base_tree"] != waveBaseTree || row["base_manifest"] != "harness/wave-01-base.sha256" || row["path_policy"] != "harness/wave-01-paths.tsv" {
-		return "", []finding{newFinding("SCOPE-301", "wave-01", "active phase binding differs from the approved base and policy", "restore the approved phase tuple")}
-	}
-	return row["phase"], nil
+func loadValidatedActivePhase(root string) (phaseExpectation, []finding) {
+	rows, findings := loadTSV(root, "harness/phases.tsv", []string{"phase", "state", "base_commit", "base_tree", "base_manifest", "path_policy"})
+	active, validationFindings := validatePhaseRows(rows)
+	findings = appendFindings(findings, validationFindings...)
+	return active, findings
 }
 
-func validatePathRows(rows []tsvRow) (map[string]pathExpectation, []finding) {
+func validatePhaseRows(rows []tsvRow) (phaseExpectation, []finding) {
+	if len(rows) != len(expectedPhases) {
+		return phaseExpectation{}, []finding{newFinding("SCOPE-300", "harness/phases.tsv", fmt.Sprintf("phase registry has %d rows, want exactly %d", len(rows), len(expectedPhases)), "restore the complete historical/active phase registry")}
+	}
+	var findings []finding
+	activeCount := 0
+	var active phaseExpectation
+	for index, expected := range expectedPhases {
+		row := rows[index]
+		actual := phaseExpectation{row["phase"], row["state"], row["base_commit"], row["base_tree"], row["base_manifest"], row["path_policy"]}
+		if actual != expected {
+			findings = appendFindings(findings, newFinding("SCOPE-301", fmt.Sprintf("harness/phases.tsv:%d", index+2), "phase order or source binding differs from the compiled approved transition", "restore the exact historical predecessor and active successor rows"))
+		}
+		if actual.state == "active" {
+			activeCount++
+			active = actual
+		} else if actual.state != "historical" {
+			findings = appendFindings(findings, newFinding("SCOPE-301", actual.phase, "phase state is neither historical nor active", "use the exact approved phase state"))
+		}
+	}
+	if activeCount != 1 {
+		findings = appendFindings(findings, newFinding("SCOPE-300", "harness/phases.tsv", fmt.Sprintf("phase registry has %d active rows, want exactly one", activeCount), "restore one compiled active successor"))
+	}
+	return active, findings
+}
+
+func validatePathRows(rows []tsvRow, expectedPaths map[string]pathExpectation) (map[string]pathExpectation, []finding) {
 	rules := make(map[string]pathExpectation)
 	var findings []finding
+	previous := ""
 	for _, row := range rows {
 		relative := row["path"]
 		if !safeRelativeASCIIPath(relative) {
@@ -154,9 +232,13 @@ func validatePathRows(rows []tsvRow) (map[string]pathExpectation, []finding) {
 			findings = appendFindings(findings, newFinding("SCOPE-312", relative, "duplicate path-policy row", "retain exactly one path rule"))
 			continue
 		}
+		if previous != "" && relative <= previous {
+			findings = appendFindings(findings, newFinding("SCOPE-316", relative, "path policy is not in strict bytewise path order", "sort the exact policy rows by path"))
+		}
+		previous = relative
 		rules[relative] = pathExpectation{row["change"], row["owner"], row["rule"]}
 	}
-	for relative, expected := range expectedWavePaths {
+	for relative, expected := range expectedPaths {
 		actual, ok := rules[relative]
 		if !ok {
 			findings = appendFindings(findings, newFinding("SCOPE-313", relative, "approved path is missing from the path policy", "restore the approved path rule"))
@@ -165,7 +247,7 @@ func validatePathRows(rows []tsvRow) (map[string]pathExpectation, []finding) {
 		}
 	}
 	for relative := range rules {
-		if _, ok := expectedWavePaths[relative]; !ok {
+		if _, ok := expectedPaths[relative]; !ok {
 			findings = appendFindings(findings, newFinding("SCOPE-315", relative, "path policy contains an unapproved path", "remove it or obtain a new exact design approval"))
 		}
 	}
@@ -499,17 +581,24 @@ func checkProtectedInputs(root string) []finding {
 
 func checkApprovedWaveInputs(root string) []finding {
 	var findings []finding
-	for relative, expected := range approvedWaveInputs {
+	approved := make(map[string]string, len(approvedWave01Inputs)+len(approvedWave02Inputs))
+	for relative, expected := range approvedWave01Inputs {
+		approved[relative] = expected
+	}
+	for relative, expected := range approvedWave02Inputs {
+		approved[relative] = expected
+	}
+	for relative, expected := range approved {
 		content, readFindings := readStrictFile(root, relative)
 		findings = appendFindings(findings, readFindings...)
 		if len(readFindings) == 0 && fileSHA256(content) != expected {
-			findings = appendFindings(findings, newFinding("SCOPE-361", relative, "approved Wave 1 planning bytes changed", "restore the exact owner-approved input"))
+			findings = appendFindings(findings, newFinding("SCOPE-361", relative, "approved planning or predecessor bytes changed", "restore the exact owner-approved input"))
 		}
 	}
 	return findings
 }
 
-func checkHarnessInvariants(root string, finalCandidate bool) []finding {
+func checkHarnessInvariants(root, phase string, finalCandidate bool) []finding {
 	var findings []finding
 	read := func(relative string) string {
 		data, readFindings := readStrictFile(root, relative)
@@ -526,12 +615,12 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 	findings = appendFindings(findings, validateModuleInvariants(moduleData, moduleRows, finalCandidate)...)
 	for _, relative := range []string{"go.sum", "vendor"} {
 		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = appendFindings(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in Wave 1", "remove it through an authorized recovery action"))
+			findings = appendFindings(findings, newFinding("SCOPE-378", relative, "dependency artifact is forbidden in the active zero-dependency phase", "remove it through an authorized recovery action"))
 		}
 	}
 	findings = appendFindings(findings, checkForbiddenProductPaths(root)...)
 	workflow := read(".github/workflows/harness.yml")
-	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify Wave 1 build controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
+	for _, required := range []string{"permissions:", "contents: read", "persist-credentials: false", "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "go-version: 1.26.7", "go-version: 1.27.0", "experimental: false", "experimental: true", "Verify active Wave 2 build controls offline", "run: make ci GO_VERSION=${{ matrix.go-version }}"} {
 		if !strings.Contains(workflow, required) {
 			findings = appendFindings(findings, newFinding("SCOPE-380", ".github/workflows/harness.yml", "configured CI lost a required safety or matrix binding", "restore the approved configured control"))
 		}
@@ -542,11 +631,11 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 	makefile := read("Makefile")
 	for _, required := range []string{"override CORE_MODULE_PATH :=", "$(PROJECT_ROOT)/harness/modules.lock.tsv", "override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness", "\"$(PROJECT_ROOT)/scripts/harness/prepare-cache.sh\" \"$(PROJECT_ROOT)\" \"$(GO_VERSION)\"", "build-control-check: toolchain-check", "\"$(GO)\" run -mod=readonly ./internal/harness/buildcontrol", "policy-check: build-control-check", "candidate-check: policy-check import-check"} {
 		if !strings.Contains(makefile, required) {
-			findings = appendFindings(findings, newFinding("SCOPE-383", "Makefile", "active build-control integration is incomplete", "restore the approved module-derived Wave 1 targets"))
+			findings = appendFindings(findings, newFinding("SCOPE-383", "Makefile", "active build-control integration is incomplete", "restore the approved module-derived targets"))
 		}
 	}
 	if strings.Contains(makefile, legacyModule) || strings.Contains(makefile, "check-foundation-scope.sh") {
-		findings = appendFindings(findings, newFinding("SCOPE-384", "Makefile", "active harness retains a provisional module or predecessor policy entry", "use the module registry and Wave 1 controller"))
+		findings = appendFindings(findings, newFinding("SCOPE-384", "Makefile", "active harness retains a provisional module or predecessor policy entry", "use the module registry and active controller"))
 	}
 	importCheck := read("scripts/harness/check-import-boundaries.sh")
 	for _, required := range []string{"matches_prefix \"$package\" \"$harness_path\" && continue", "matches_prefix \"$imported\" \"$harness_path\""} {
@@ -563,14 +652,17 @@ func checkHarnessInvariants(root string, finalCandidate bool) []finding {
 			findings = appendFindings(findings, newFinding("SCOPE-382", relative, "required frozen identity is missing", "restore the approved lock"))
 		}
 	}
+	if phase != "wave-02" {
+		findings = appendFindings(findings, newFinding("SCOPE-386", phase, "runtime controller selected a non-successor phase", "restore Wave 2 as the sole active phase"))
+	}
 	return findings
 }
 
 func checkForbiddenProductPaths(root string) []finding {
 	var findings []finding
-	for _, relative := range forbiddenWaveProductPaths {
+	for _, relative := range forbiddenWave02ProductPaths {
 		if _, err := os.Lstat(filepath.Join(root, relative)); !os.IsNotExist(err) {
-			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path exists during Wave 1 build control", "remove it through an authorized recovery action"))
+			findings = appendFindings(findings, newFinding("SCOPE-379", relative, "product path is outside the exact Wave 2 admission", "remove it through an authorized recovery action"))
 		}
 	}
 	return findings
@@ -628,18 +720,17 @@ func validateModuleInvariants(moduleData string, moduleRows []tsvRow, finalCandi
 	return findings
 }
 
-func validateCandidateManifest(root string, base map[string]string, current map[string]snapshotFile, rules map[string]pathExpectation) []finding {
-	manifestPath := "docs/artifacts/wave-01-candidate.sha256"
-	data, findings := readStrictFile(root, manifestPath)
+func validateCandidateManifest(root string, base map[string]string, current map[string]snapshotFile, rules map[string]pathExpectation, closure candidateClosure) []finding {
+	data, findings := readStrictFile(root, closure.manifestPath)
 	if len(findings) != 0 {
 		return findings
 	}
-	manifest, parseFindings := parseSHA256Manifest(manifestPath, data, true)
+	manifest, parseFindings := parseSHA256Manifest(closure.manifestPath, data, true)
 	findings = appendFindings(findings, parseFindings...)
 	excluded := map[string]bool{
-		manifestPath:                         true,
-		"docs/artifacts/wave-01-evidence.md": true,
-		"docs/artifacts/wave-01-audit.md":    true,
+		closure.manifestPath: true,
+		closure.evidencePath: true,
+		closure.auditPath:    true,
 	}
 	expected := make(map[string]string)
 	for relative, file := range current {
@@ -661,11 +752,17 @@ func validateCandidateManifest(root string, base map[string]string, current map[
 			findings = appendFindings(findings, newFinding("SCOPE-391", relative, "candidate manifest contains a noncandidate or excluded path", "regenerate the exact candidate manifest"))
 		}
 	}
+	if len(manifest) != closure.expectedRows {
+		findings = appendFindings(findings, newFinding("SCOPE-393", closure.manifestPath, fmt.Sprintf("candidate manifest has %d rows, want %d", len(manifest), closure.expectedRows), "regenerate the exact candidate manifest closure"))
+	}
 	for relative, rule := range rules {
-		if rule.change == "add" && relative != manifestPath && relative != "docs/artifacts/wave-01-evidence.md" {
+		if rule.change == "add" && relative != closure.evidencePath {
 			if _, ok := current[relative]; !ok {
 				findings = appendFindings(findings, newFinding("SCOPE-392", relative, "final candidate is missing an approved required addition", "complete the approved candidate path"))
 			}
+		}
+		if rule.change == "modify" && current[relative].digest == base[relative] {
+			findings = appendFindings(findings, newFinding("SCOPE-394", relative, "final candidate retained an unimplemented required modification", "complete the approved modification before candidate freeze"))
 		}
 	}
 	return findings

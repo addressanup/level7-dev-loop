@@ -18,34 +18,39 @@ func TestCurrentPolicyContract(t *testing.T) {
 	if len(findings) != 0 {
 		t.Fatalf("policy findings: %+v", findings)
 	}
-	if result.phase != "wave-01" || result.files == 0 || result.changed == 0 {
+	if result.phase != "wave-02" || result.checkpoint != "in-progress" || result.files == 0 || result.changed == 0 {
 		t.Fatalf("unexpected policy result: %+v", result)
 	}
 }
 
 func TestPhaseRowsRejectMissingDuplicateAndChangedBindings(t *testing.T) {
 	t.Parallel()
-	valid := tsvRow{"phase": "wave-01", "state": "active", "base_commit": waveBaseCommit, "base_tree": waveBaseTree, "base_manifest": "harness/wave-01-base.sha256", "path_policy": "harness/wave-01-paths.tsv"}
+	valid := make([]tsvRow, 0, len(expectedPhases))
+	for _, phase := range expectedPhases {
+		valid = append(valid, tsvRow{"phase": phase.phase, "state": phase.state, "base_commit": phase.baseCommit, "base_tree": phase.baseTree, "base_manifest": phase.baseManifest, "path_policy": phase.pathPolicy})
+	}
 	if _, findings := validatePhaseRows(nil); findingRules(findings)["SCOPE-300"] == 0 {
 		t.Fatalf("missing phase findings: %+v", findings)
 	}
-	if _, findings := validatePhaseRows([]tsvRow{valid, valid}); findingRules(findings)["SCOPE-300"] == 0 {
+	if _, findings := validatePhaseRows(append(append([]tsvRow(nil), valid...), valid[1])); findingRules(findings)["SCOPE-300"] == 0 {
 		t.Fatalf("duplicate phase findings: %+v", findings)
 	}
-	changed := tsvRow{}
-	for key, value := range valid {
-		changed[key] = value
+	changed := append([]tsvRow(nil), valid...)
+	changed[1] = tsvRow{}
+	for key, value := range valid[1] {
+		changed[1][key] = value
 	}
-	changed["base_tree"] = strings.Repeat("0", 40)
-	if _, findings := validatePhaseRows([]tsvRow{changed}); findingRules(findings)["SCOPE-301"] == 0 {
+	changed[1]["base_tree"] = strings.Repeat("0", 40)
+	if _, findings := validatePhaseRows(changed); findingRules(findings)["SCOPE-301"] == 0 {
 		t.Fatalf("changed phase findings: %+v", findings)
 	}
-	unknown := tsvRow{}
-	for key, value := range valid {
-		unknown[key] = value
+	unknown := append([]tsvRow(nil), valid...)
+	unknown[1] = tsvRow{}
+	for key, value := range valid[1] {
+		unknown[1][key] = value
 	}
-	unknown["phase"] = "wave-unknown"
-	if _, findings := validatePhaseRows([]tsvRow{unknown}); findingRules(findings)["SCOPE-301"] == 0 {
+	unknown[1]["phase"] = "wave-unknown"
+	if _, findings := validatePhaseRows(unknown); findingRules(findings)["SCOPE-301"] == 0 {
 		t.Fatalf("unknown phase findings: %+v", findings)
 	}
 }
@@ -53,13 +58,13 @@ func TestPhaseRowsRejectMissingDuplicateAndChangedBindings(t *testing.T) {
 func TestPathRowsRejectUnknownDuplicateAndChangedRules(t *testing.T) {
 	t.Parallel()
 	var rows []tsvRow
-	for relative, expected := range expectedWavePaths {
+	for relative, expected := range expectedWave02Paths {
 		rows = append(rows, tsvRow{"path": relative, "change": expected.change, "owner": expected.owner, "rule": expected.rule})
 	}
 	rows[0]["owner"] = "unknown"
 	rows = append(rows, rows[1])
 	rows = append(rows, tsvRow{"path": "unapproved/file", "change": "add", "owner": "wave-integrator", "rule": "SCOPE-321"})
-	rules := findingRules(func() []finding { _, findings := validatePathRows(rows); return findings }())
+	rules := findingRules(func() []finding { _, findings := validatePathRows(rows, expectedWave02Paths); return findings }())
 	for _, rule := range []string{"SCOPE-312", "SCOPE-314", "SCOPE-315"} {
 		if rules[rule] == 0 {
 			t.Errorf("rules %+v do not contain %s", rules, rule)
@@ -390,9 +395,9 @@ func TestRepositoryFileReadHonorsByteBoundary(t *testing.T) {
 
 func TestCandidateManifestRejectsWrongAndExcludedRows(t *testing.T) {
 	t.Parallel()
-	manifestPath := "docs/artifacts/wave-01-candidate.sha256"
+	manifestPath := wave02CandidateManifest
 	root := materializeMapFS(t, fstest.MapFS{
-		manifestPath: {Data: []byte(strings.Repeat("b", 64) + "  changed\n" + strings.Repeat("c", 64) + "  docs/artifacts/wave-01-audit.md\n")},
+		manifestPath: {Data: []byte(strings.Repeat("b", 64) + "  changed\n" + strings.Repeat("c", 64) + "  " + wave02AuditPath + "\n")},
 	})
 	base := map[string]string{}
 	current := map[string]snapshotFile{
@@ -403,7 +408,7 @@ func TestCandidateManifestRejectsWrongAndExcludedRows(t *testing.T) {
 		"changed":    {change: "add", owner: "wave-integrator", rule: "SCOPE-321"},
 		manifestPath: {change: "add", owner: "wave-integrator", rule: "SCOPE-321"},
 	}
-	findings := validateCandidateManifest(root, base, current, rules)
+	findings := validateCandidateManifest(root, base, current, rules, candidateClosure{manifestPath: manifestPath, evidencePath: wave02EvidencePath, auditPath: wave02AuditPath, expectedRows: 1})
 	for _, rule := range []string{"SCOPE-390", "SCOPE-391"} {
 		if findingRules(findings)[rule] == 0 {
 			t.Fatalf("candidate-manifest fixture lacks %s: %+v", rule, findings)
@@ -418,7 +423,7 @@ func TestUpdaterPathAndNonASCIIPolicyFailForIntendedRules(t *testing.T) {
 		t.Fatalf("reserved updater path was accepted: %+v", findings)
 	}
 	rows := []tsvRow{{"change": "add", "path": "unicodé/file", "owner": "wave-integrator", "rule": "SCOPE-321"}}
-	if _, findings := validatePathRows(rows); findingRules(findings)["SCOPE-310"] == 0 {
+	if _, findings := validatePathRows(rows, map[string]pathExpectation{}); findingRules(findings)["SCOPE-310"] == 0 {
 		t.Fatalf("non-ASCII path was accepted: %+v", findings)
 	}
 }

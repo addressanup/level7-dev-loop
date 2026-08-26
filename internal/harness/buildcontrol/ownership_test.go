@@ -118,3 +118,48 @@ func TestRequirementAndAllocationSourcesHaveDistinctOwners(t *testing.T) {
 		t.Fatalf("source mapping count: got %d, want %d", len(orchestrationClassForControl), len(expectedOwnership))
 	}
 }
+
+func TestWave02SemanticEvaluatorAndFutureFeatureOwnershipIsDisjoint(t *testing.T) {
+	t.Parallel()
+	for _, removed := range []string{"schema-source", "public-fixtures"} {
+		if _, ok := expectedOwnership[removed]; ok {
+			t.Fatalf("broad overlapping ownership fallback %s remains", removed)
+		}
+	}
+	for control, want := range map[string]ownershipExpectation{
+		"semantic-schema":    {"prefix", "schemas/semantic/", "semantic-owner", "independent-readonly", "owner+wave-02-design"},
+		"evaluation-schema":  {"prefix", "schemas/evaluation/", "evaluator-owner", "independent-readonly", "separate-evaluator-freeze"},
+		"artifact-schema":    {"prefix", "schemas/artifact/", "state-owner", "independent-readonly", "future-wave"},
+		"semantic-fixtures":  {"prefix", "fixtures/public/bl-002/", "semantic-owner", "evaluator-owner", "evaluator-integration"},
+		"evaluator-fixtures": {"prefix", "fixtures/public/bl-003/", "evaluator-owner", "independent-readonly", "separate-evaluator-freeze"},
+		"feature-fixtures":   {"prefix", "fixtures/public/features/", "feature-owner", "evaluator-owner", "future-feature-integration"},
+	} {
+		if got := expectedOwnership[control]; got != want {
+			t.Errorf("%s ownership: got %+v, want %+v", control, got, want)
+		}
+	}
+	rows := []tsvRow{
+		{"path": "schemas/semantic/test.json", "owner": "semantic-owner"},
+		{"path": "schemas/evaluation/test.json", "owner": "evaluator-owner"},
+		{"path": "fixtures/public/features/test.json", "owner": "feature-owner"},
+	}
+	if findings := crossCheckPathOwnership(rows, expectedOwnership); len(findings) != 0 {
+		t.Fatalf("disjoint Wave 2 partitions: %+v", findings)
+	}
+}
+
+func TestWave02CandidateCannotOwnEvaluatorControls(t *testing.T) {
+	t.Parallel()
+	var rows []tsvRow
+	for control, expected := range expectedOwnership {
+		writer := expected.writer
+		if control == "evaluation-schema" || control == "evaluator-fixtures" || control == "public-evaluator" {
+			writer = "candidate-author"
+		}
+		rows = append(rows, tsvRow{"control": control, "path_kind": expected.pathKind, "path": expected.path, "writer": writer, "reviewer": expected.reviewer, "change_gate": expected.changeGate})
+	}
+	_, findings := validateOwnershipRows(rows)
+	if findingRules(findings)["OWN-405"] != 3 {
+		t.Fatalf("candidate evaluator ownership findings: %+v", findings)
+	}
+}

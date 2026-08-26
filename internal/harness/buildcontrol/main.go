@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const buildControlVersion = "wave-01-v1"
+const buildControlVersion = "wave-02-v1"
 
 type successSource struct {
 	id   string
@@ -20,9 +20,6 @@ var successSources = []successSource{
 	{"support", "harness/support-matrix.tsv"},
 	{"dispositions", "harness/prototype-dispositions.tsv"},
 	{"phase", "harness/phases.tsv"},
-	{"paths", "harness/wave-01-paths.tsv"},
-	{"base", "harness/wave-01-base.sha256"},
-	{"candidate", "docs/artifacts/wave-01-candidate.sha256"},
 	{"ownership", "harness/control-ownership.tsv"},
 	{"orchestration", "docs/artifacts/orchestration-plan.md"},
 	{"modules", "harness/modules.lock.tsv"},
@@ -70,10 +67,11 @@ func runControllerWithSkillInventoryHook(root string, beforeInventoryRead func()
 }
 
 func formatSuccess(trace traceResult, prototypeCount int, policy policyResult, ownershipCount int, sourceDigests string) string {
-	return fmt.Sprintf("PASS rule=BCTL-000 gate_version=%s source_sha256=%s phase=%s requirements=%d allocation=v1.0:%d,v1.x:%d,later:%d prototypes=%d ownership=%d files=%d changed=%d",
+	return fmt.Sprintf("PASS rule=BCTL-000 gate_version=%s source_sha256=%s phase=%s checkpoint=%s requirements=%d allocation=v1.0:%d,v1.x:%d,later:%d prototypes=%d ownership=%d files=%d changed=%d",
 		buildControlVersion,
 		sourceDigests,
 		policy.phase,
+		policy.checkpoint,
 		trace.total,
 		trace.allocations["V1.0"],
 		trace.allocations["V1.x"],
@@ -86,9 +84,29 @@ func formatSuccess(trace traceResult, prototypeCount int, policy policyResult, o
 }
 
 func loadSuccessSourceDigests(root string) (string, []finding) {
-	parts := make([]string, 0, len(successSources))
-	var findings []finding
-	for _, source := range successSources {
+	phase, findings := loadValidatedActivePhase(root)
+	sources := append([]successSource(nil), successSources...)
+	if len(findings) == 0 {
+		sources = append(sources,
+			successSource{"paths", phase.pathPolicy},
+			successSource{"base", phase.baseManifest},
+		)
+		if phase.phase == "wave-02" {
+			sources = append(sources,
+				successSource{"approval", "docs/artifacts/wave-02-approval.md"},
+				successSource{"contract", "docs/artifacts/wave-02-change-contract.md"},
+				successSource{"specification", "docs/artifacts/wave-02-specification.md"},
+				successSource{"design", "docs/artifacts/wave-02-design.md"},
+				successSource{"predecessor-evidence", "docs/artifacts/wave-01-evidence.md"},
+				successSource{"predecessor-audit", "docs/artifacts/wave-01-audit.md"},
+			)
+			if wave02CandidatePresent(root) {
+				sources = append(sources, successSource{"candidate", wave02CandidateManifest})
+			}
+		}
+	}
+	parts := make([]string, 0, len(sources))
+	for _, source := range sources {
 		data, readFindings := readStrictFile(root, source.path)
 		findings = appendFindings(findings, readFindings...)
 		if len(readFindings) == 0 {
