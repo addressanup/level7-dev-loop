@@ -28,6 +28,12 @@ Tier 3:
 New implementation commits after verification/review return to `building`. Audit
 failure returns to `building`. Every state reports a concrete next action.
 
+In CI, risk comes from exactly one maintainer-controlled `l7-risk-tier-1/2/3`
+label. Tier 1 scope comes from an explicit `L7-Scope:` PR metadata field, never
+from the candidate diff. Exact-head Harness success and non-author review are
+required before Tier 1/2 can become `ready`; Tier 3 additionally requires owner
+approval and a distinct bound auditor.
+
 Use `l7-next` for routing. Use `l7-change` for live work, `l7-build` for an
 approved build, `l7-release` only for Tier 3/release validation, and `l7-deploy`
 after a bound GO decision.

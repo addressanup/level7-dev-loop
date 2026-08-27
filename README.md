@@ -47,8 +47,22 @@ make ready-check  # merge/release gate
 
 The trusted-policy workflow builds the controller from the pull request's base
 revision and evaluates the candidate read-only. Protected control changes
-therefore cannot weaken the evaluator used by the merge gate. Repository rules
-must require both the trusted-policy and verification checks.
+therefore cannot weaken the evaluator used by the merge gate.
+
+Trusted CI requires exactly one maintainer-controlled label:
+`l7-risk-tier-1`, `l7-risk-tier-2`, or `l7-risk-tier-3`. Tier 1 also requires one
+explicit `L7-Scope: path,pattern` line in PR metadata; scope is never generated
+from the candidate diff. Tier 2/3 scope remains in the bound brief. Missing or
+conflicting classification fails closed, and authorization, security, migration,
+deployment, workflow, harness, controller, skill, and plugin-control paths force
+Tier 3.
+
+Repository rules are part of the installation contract. They must restrict risk
+labels to trusted maintainers and require the baseline `Harness` check, `Trusted
+policy`, dismissal of stale reviews, at least one non-author approval, and
+CODEOWNER/owner review for protected paths. Trusted policy reads exact-head check
+and review identities before it reports `ready`; it does not infer them from
+candidate text.
 
 ## Skills
 

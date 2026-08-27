@@ -7,6 +7,7 @@ on:
     types: [submitted]
 
 permissions:
+  checks: read
   contents: read
   pull-requests: read
 
@@ -76,21 +77,38 @@ jobs:
           fi
 
       - name: Evaluate candidate with trusted base controller
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -eu
           base="${{ github.event.pull_request.base.sha }}"
-          head="${{ github.event.pull_request.head.sha }}"
-          brief=$(git -C candidate diff --diff-filter=A --name-only "$base..$head" -- 'docs/artifacts/changes/*.md' | grep -Ev -- '-(verification|audit)\.md$' | head -n 1 || true)
-          risk=1
-          if [ -n "$brief" ]; then
-            # shellcheck disable=SC2016
-            risk=$(awk -F '|' '$2 ~ /Risk tier/ {gsub(/[^0-9]/, "", $3); print $3}' "candidate/$brief")
-          fi
-          if [ -z "$brief" ]; then
-            scope=$(git -C candidate diff --name-only "$base..$head" | paste -sd, -)
-            ./l7-policy --repo candidate --base "$base" --head "$head" --tier 1 --scope "$scope"
+          head="$PR_HEAD"
+          risk_labels=$(jq -r '[.pull_request.labels[].name | select(test("^l7-risk-tier-[123]$"))] | unique | .[]' "$GITHUB_EVENT_PATH")
+          test "$(printf '%s\n' "$risk_labels" | sed '/^$/d' | wc -l | tr -d ' ')" = 1 || { echo 'exactly one trusted l7-risk-tier-1/2/3 label is required' >&2; exit 1; }
+          risk=${risk_labels##*-}
+
+          checks=$(gh api "repos/${REPOSITORY}/commits/${head}/check-runs")
+          baseline=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name | test("^Go .* \\(baseline\\)$")) | select(.conclusion == "success")] | length')
+          reviews=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews")
+          reviewer=$(printf '%s' "$reviews" | jq -r --arg author "$PR_AUTHOR" --arg head "$head" '[.[] | select(.state == "APPROVED" and .user.login != $author and .commit_id == $head)] | last | .user.login // empty')
+          verified_ref=
+          review_ref=
+          ready_ref=
+          if [ "$baseline" -gt 0 ]; then verified_ref=$head; fi
+          if [ -n "$reviewer" ]; then review_ref=$head; fi
+          if [ -n "$verified_ref" ] && [ -n "$review_ref" ]; then ready_ref=$head; fi
+
+          if [ "$risk" = 1 ]; then
+            scope=$(printf '%s\n' "$PR_BODY" | sed -n 's/^L7-Scope: //p')
+            test -n "$scope" || { echo 'Tier 1 requires one explicit L7-Scope line in PR metadata' >&2; exit 1; }
+            L7_VERIFIED_REF=$verified_ref L7_REVIEW_REF=$review_ref L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$base" --head "$head" --tier 1 --scope "$scope" --require-ready
           elif [ "$risk" = 3 ]; then
-            ./l7-policy --repo candidate --base "$base" --head "$head" --require-ready
+            L7_AUDIT_REQUEST_REF=$head L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$base" --head "$head" --tier 3 --require-ready
           else
-            ./l7-policy --repo candidate --base "$base" --head "$head"
+            L7_VERIFIED_REF=$verified_ref L7_REVIEW_REF=$review_ref L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$base" --head "$head" --tier 2 --require-ready
           fi
