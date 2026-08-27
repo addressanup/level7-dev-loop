@@ -238,7 +238,7 @@ func nextState(tier riskTier, state workflowState) (workflowState, string, bool)
 	case statePlanned:
 		return stateBuilding, "implement the declared scope", true
 	case stateBuilding:
-		return stateVerified, "run relevant tests and CI", true
+		return stateVerified, "implement or remediate the declared scope, then run relevant tests and CI", true
 	case stateVerified:
 		return stateReviewed, "obtain normal review", true
 	case stateReviewed:

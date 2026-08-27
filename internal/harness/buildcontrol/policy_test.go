@@ -71,6 +71,17 @@ func TestProtectedPathsElevateToTier3AndScopeExpansionFailsClosed(t *testing.T) 
 	}
 }
 
+func TestSensitiveUnprotectedLookingPathCannotUseTierOne(t *testing.T) {
+	repository := newTestRepository(t)
+	base := repository.rev("HEAD")
+	repository.write("internal/authorization/check.go", "package authorization\n")
+	repository.commit("feat: authorization change")
+	_, findings := runController(controllerOptions{Root: repository.root, BaseRef: base, HeadRef: "HEAD", ChangeID: "auth-change", Tier: tierRoutine, TierOneScope: []string{"internal/authorization/check.go"}})
+	if rules(findings)["RISK-003"] == 0 {
+		t.Fatalf("authorization change used Tier 1: %+v", findings)
+	}
+}
+
 func TestTier3RejectsMissingInvalidAndSelfIssuedApproval(t *testing.T) {
 	repository, briefCommit := tierThreeImplementation(t)
 	_, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
@@ -122,16 +133,70 @@ func TestTier3ApprovalContinuesThroughVerificationAndIndependentAudit(t *testing
 	verificationTree := repository.rev("HEAD^{tree}")
 
 	report, findings = runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
+	if len(findings) != 0 || report.State != stateVerified {
+		t.Fatalf("verified Tier 3 state is unreachable: report=%+v findings=%+v", report, findings)
+	}
+	report, findings = runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller", AuditRequestRef: "HEAD"})
 	if len(findings) != 0 || report.State != stateAwaitingIndependentAudit {
-		t.Fatalf("verified Tier 3 change did not await audit: report=%+v findings=%+v", report, findings)
+		t.Fatalf("verified Tier 3 change did not enter audit: report=%+v findings=%+v", report, findings)
 	}
 
 	repository.write("docs/artifacts/changes/controller-audit.md", evidenceDocument("controller", verificationCommit, verificationTree, "GO", "auditor"))
 	auditCommit := repository.commit("docs: record independent audit")
 	repository.authority("audits", "controller", auditEnvelope{Schema: 1, ChangeID: "controller", Actor: "auditor", CandidateCommit: verificationCommit, AuditCommit: auditCommit, Source: "independent-agent"})
-	report, findings = runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller", RequireReady: true})
+	report, findings = runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
+	if len(findings) != 0 || report.State != stateReviewed {
+		t.Fatalf("reviewed Tier 3 state is unreachable: report=%+v findings=%+v", report, findings)
+	}
+	report, findings = runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller", ReadyRef: "HEAD", RequireReady: true})
 	if len(findings) != 0 || report.State != stateReady {
 		t.Fatalf("independently audited Tier 3 change not ready: report=%+v findings=%+v", report, findings)
+	}
+}
+
+func TestBoundNoGoReturnsTier3ToBuilding(t *testing.T) {
+	repository, briefCommit := tierThreeImplementation(t)
+	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
+	implementationCommit := repository.rev("HEAD")
+	implementationTree := repository.rev("HEAD^{tree}")
+	repository.write("docs/artifacts/changes/controller-verification.md", evidenceDocument("controller", implementationCommit, implementationTree, "PASS", "ci"))
+	verificationCommit := repository.commit("test: verify controller")
+	verificationTree := repository.rev("HEAD^{tree}")
+	repository.write("docs/artifacts/changes/controller-audit.md", evidenceDocument("controller", verificationCommit, verificationTree, "NO_GO", "auditor"))
+	auditCommit := repository.commit("docs: record no-go")
+	repository.authority("audits", "controller", auditEnvelope{Schema: 1, ChangeID: "controller", Actor: "auditor", CandidateCommit: verificationCommit, AuditCommit: auditCommit, Source: "independent-agent"})
+	report, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
+	if len(findings) != 0 || report.State != stateBuilding {
+		t.Fatalf("bound NO_GO did not return to building: report=%+v findings=%+v", report, findings)
+	}
+}
+
+func TestTierOneAndTwoReachVerifiedReviewedAndReady(t *testing.T) {
+	for _, tier := range []riskTier{tierRoutine, tierProduct} {
+		repository := newTestRepository(t)
+		base := repository.rev("HEAD")
+		options := controllerOptions{Root: repository.root, BaseRef: base, HeadRef: "HEAD", ChangeID: "normal", Tier: tierRoutine, TierOneScope: []string{"internal/change.go"}}
+		if tier == tierProduct {
+			repository.write("docs/artifacts/changes/normal.md", briefDocument("normal", tierProduct, base, "internal/change.go"))
+			options = controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "normal"}
+		}
+		repository.write("internal/change.go", "package internal\n")
+		repository.commit("feat: normal change")
+		options.VerifiedRef = "HEAD"
+		report, findings := runController(options)
+		if len(findings) != 0 || report.State != stateVerified {
+			t.Fatalf("tier %d verified state: report=%+v findings=%+v", tier, report, findings)
+		}
+		options.ReviewRef = "HEAD"
+		report, findings = runController(options)
+		if len(findings) != 0 || report.State != stateReviewed {
+			t.Fatalf("tier %d reviewed state: report=%+v findings=%+v", tier, report, findings)
+		}
+		options.ReadyRef = "HEAD"
+		report, findings = runController(options)
+		if len(findings) != 0 || report.State != stateReady {
+			t.Fatalf("tier %d ready state: report=%+v findings=%+v", tier, report, findings)
+		}
 	}
 }
 

@@ -3,19 +3,29 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 )
 
 type controllerOptions struct {
-	Root         string
-	BaseRef      string
-	HeadRef      string
-	ChangeID     string
-	Tier         riskTier
-	TierOneScope []string
-	RequireReady bool
+	Root            string
+	BaseRef         string
+	HeadRef         string
+	ChangeID        string
+	Tier            riskTier
+	TierOneScope    []string
+	RequireReady    bool
+	VerifiedRef     string
+	ReviewRef       string
+	AuditRequestRef string
+	ReadyRef        string
+}
+
+type workflowSignals struct {
+	verified     string
+	reviewed     string
+	auditRequest string
+	ready        string
 }
 
 type controllerReport struct {
@@ -46,8 +56,14 @@ var protectedExact = map[string]bool{
 
 var protectedPrefixes = []string{
 	".github/workflows/",
+	"deploy/",
+	"migrations/",
+	"db/migrations/",
 	"harness/",
+	"internal/auth/",
+	"internal/authorization/",
 	"internal/harness/buildcontrol/",
+	"internal/security/",
 	"scripts/harness/",
 	"skills/",
 }
@@ -118,7 +134,9 @@ func runController(options controllerOptions) (controllerReport, []finding) {
 	findings = appendFindings(findings, validateScopeAndRisk(tier, scope, changes)...)
 	findings = appendFindings(findings, validateArtifactBudget(tier, brief, changes)...)
 
-	state, stateFindings := evaluateState(repository, head, tree, brief, briefCommit, changes)
+	signals, signalFindings := resolveSignals(repository, options)
+	findings = appendFindings(findings, signalFindings...)
+	state, stateFindings := evaluateState(repository, head, tree, brief, briefCommit, changes, signals)
 	findings = appendFindings(findings, stateFindings...)
 	_, next, ok := nextState(tier, state)
 	if !ok {
@@ -131,6 +149,37 @@ func runController(options controllerOptions) (controllerReport, []finding) {
 		return controllerReport{}, findings
 	}
 	return controllerReport{Tier: tier, ChangeID: changeID, Base: base, Head: head, Tree: tree, State: state, Next: next, PathCount: len(changes)}, nil
+}
+
+func resolveSignals(repository gitRepository, options controllerOptions) (workflowSignals, []finding) {
+	values := []struct {
+		name   string
+		value  string
+		target *string
+	}{
+		{"verified", options.VerifiedRef, nil},
+		{"reviewed", options.ReviewRef, nil},
+		{"audit-request", options.AuditRequestRef, nil},
+		{"ready", options.ReadyRef, nil},
+	}
+	var signals workflowSignals
+	values[0].target = &signals.verified
+	values[1].target = &signals.reviewed
+	values[2].target = &signals.auditRequest
+	values[3].target = &signals.ready
+	var findings []finding
+	for _, value := range values {
+		if value.value == "" {
+			continue
+		}
+		resolved, err := repository.resolve(value.value)
+		if err != nil {
+			findings = appendFindings(findings, newFinding("STATE-003", value.name, "workflow signal does not name a Git commit", "bind the signal to the exact candidate commit"))
+			continue
+		}
+		*value.target = resolved
+	}
+	return signals, findings
 }
 
 func discoverBrief(repository gitRepository, head, requestedID string) (changeBrief, string, []finding) {
@@ -233,7 +282,7 @@ func validateArtifactBudget(tier riskTier, brief changeBrief, changes []changedP
 	return findings
 }
 
-func evaluateState(repository gitRepository, head, tree string, brief changeBrief, briefCommit string, changes []changedPath) (workflowState, []finding) {
+func evaluateState(repository gitRepository, head, tree string, brief changeBrief, briefCommit string, changes []changedPath, signals workflowSignals) (workflowState, []finding) {
 	implementation := 0
 	verificationPath := ""
 	auditPath := ""
@@ -255,13 +304,16 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 		return statePlanned, nil
 	}
 	if brief.Tier != tierHighRisk {
-		if os.Getenv("L7_REVIEW_REF") == head && os.Getenv("L7_VERIFIED_REF") == head {
-			return stateReady, nil
+		if signals.verified != head {
+			return stateBuilding, nil
 		}
-		if os.Getenv("L7_VERIFIED_REF") == head {
+		if signals.reviewed != head {
 			return stateVerified, nil
 		}
-		return stateBuilding, nil
+		if signals.ready == head {
+			return stateReady, nil
+		}
+		return stateReviewed, nil
 	}
 
 	approval, approvalFindings := loadApproval(repository, head, brief, briefCommit)
@@ -279,13 +331,22 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 		return stateBuilding, verificationFindings
 	}
 	if !present[auditPath] {
-		return stateAwaitingIndependentAudit, nil
+		if signals.auditRequest == verificationCommit {
+			return stateAwaitingIndependentAudit, nil
+		}
+		return stateVerified, nil
 	}
-	auditFindings := validateAudit(repository, head, tree, auditPath, brief, approval, verificationCommit)
+	decision, auditFindings := validateAudit(repository, head, tree, auditPath, brief, approval, verificationCommit)
 	if len(auditFindings) != 0 {
 		return stateAwaitingIndependentAudit, auditFindings
 	}
-	return stateReady, nil
+	if decision == "NO_GO" {
+		return stateBuilding, nil
+	}
+	if signals.ready == head {
+		return stateReady, nil
+	}
+	return stateReviewed, nil
 }
 
 func loadApproval(repository gitRepository, head string, brief changeBrief, briefCommit string) (approvalEnvelope, []finding) {
@@ -352,46 +413,46 @@ func validateVerification(repository gitRepository, head, verificationPath, audi
 	return record, verificationCommit, nil
 }
 
-func validateAudit(repository gitRepository, head, headTree, auditPath string, brief changeBrief, approval approvalEnvelope, verificationCommit string) []finding {
+func validateAudit(repository gitRepository, head, headTree, auditPath string, brief changeBrief, approval approvalEnvelope, verificationCommit string) (string, []finding) {
 	data, err := repository.show(head, auditPath)
 	if err != nil {
-		return []finding{newFinding("AUDIT-001", auditPath, err.Error(), "restore the independent audit record")}
+		return "", []finding{newFinding("AUDIT-001", auditPath, err.Error(), "restore the independent audit record")}
 	}
 	record := parseEvidence(data)
-	if record.ChangeID != brief.ID || record.CandidateCommit != verificationCommit || record.Result != "GO" {
-		return []finding{newFinding("AUDIT-002", auditPath, "audit is not a GO decision bound to the verified candidate", "obtain a fresh independent read-only audit")}
+	if record.ChangeID != brief.ID || record.CandidateCommit != verificationCommit || (record.Result != "GO" && record.Result != "NO_GO") {
+		return "", []finding{newFinding("AUDIT-002", auditPath, "audit decision is not bound to the verified candidate", "obtain a fresh independent read-only audit")}
 	}
 	verifiedTree, treeErr := repository.tree(verificationCommit)
 	if treeErr != nil || record.CandidateTree != verifiedTree {
-		return []finding{newFinding("AUDIT-003", auditPath, "audit tree does not match the verified Git candidate", "bind the audit to the exact Git tree")}
+		return "", []finding{newFinding("AUDIT-003", auditPath, "audit tree does not match the verified Git candidate", "bind the audit to the exact Git tree")}
 	}
 	commonDir, commonErr := repository.commonDir()
 	if commonErr != nil {
-		return []finding{newFinding("AUDIT-004", brief.ID, commonErr.Error(), "restore external audit authority")}
+		return "", []finding{newFinding("AUDIT-004", brief.ID, commonErr.Error(), "restore external audit authority")}
 	}
 	name := authorityPath(commonDir, "audits", brief.ID)
 	envelopeData, envelopeFindings := readBounded(name)
 	if len(envelopeFindings) != 0 {
-		return []finding{newFinding("AUDIT-004", brief.ID, "external independent-audit authority is absent", "provide a trusted audit envelope outside repository prose")}
+		return "", []finding{newFinding("AUDIT-004", brief.ID, "external independent-audit authority is absent", "provide a trusted audit envelope outside repository prose")}
 	}
 	var envelope auditEnvelope
 	if decodeFindings := decodeStrictJSON(name, envelopeData, &envelope); len(decodeFindings) != 0 {
-		return decodeFindings
+		return "", decodeFindings
 	}
 	if envelope.Schema != 1 || envelope.ChangeID != brief.ID || envelope.CandidateCommit != verificationCommit || envelope.AuditCommit != head || envelope.Actor == "" || envelope.Actor == approval.Actor || envelope.Actor == approval.Implementer || envelope.Actor != record.Reviewer || (envelope.Source != "independent-agent" && envelope.Source != "trusted-ci") {
-		return []finding{newFinding("AUDIT-005", brief.ID, "audit identity, independence, source, or Git binding is invalid", "obtain a separate audit bound to the verified candidate and audit commit")}
+		return "", []finding{newFinding("AUDIT-005", brief.ID, "audit identity, independence, source, or Git binding is invalid", "obtain a separate audit bound to the verified candidate and audit commit")}
 	}
 	auditChanges, auditDiffErr := repository.changed(verificationCommit, head)
 	if auditDiffErr != nil {
-		return []finding{newFinding("AUDIT-007", auditPath, auditDiffErr.Error(), "restore a readable audit-only successor")}
+		return "", []finding{newFinding("AUDIT-007", auditPath, auditDiffErr.Error(), "restore a readable audit-only successor")}
 	}
 	for _, change := range auditChanges {
 		if change.Path != auditPath {
-			return []finding{newFinding("AUDIT-007", change.Path, "verified candidate changed while adding the audit", "rerun verification and audit for the new candidate")}
+			return "", []finding{newFinding("AUDIT-007", change.Path, "verified candidate changed while adding the audit", "rerun verification and audit for the new candidate")}
 		}
 	}
 	if tree, treeErr := repository.tree(head); treeErr != nil || tree != headTree {
-		return []finding{newFinding("AUDIT-006", head, "audit successor tree changed during evaluation", "retry from a stable Git candidate")}
+		return "", []finding{newFinding("AUDIT-006", head, "audit successor tree changed during evaluation", "retry from a stable Git candidate")}
 	}
-	return nil
+	return record.Result, nil
 }

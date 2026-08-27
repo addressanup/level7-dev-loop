@@ -23,13 +23,17 @@ func main() {
 	}
 
 	report, findings := runController(controllerOptions{
-		Root:         *repository,
-		BaseRef:      *base,
-		HeadRef:      *head,
-		ChangeID:     *changeID,
-		Tier:         riskTier(*tier),
-		TierOneScope: splitScope(*scope),
-		RequireReady: *requireReady,
+		Root:            *repository,
+		BaseRef:         *base,
+		HeadRef:         *head,
+		ChangeID:        *changeID,
+		Tier:            riskTier(*tier),
+		TierOneScope:    splitScope(*scope),
+		RequireReady:    *requireReady,
+		VerifiedRef:     os.Getenv("L7_VERIFIED_REF"),
+		ReviewRef:       os.Getenv("L7_REVIEW_REF"),
+		AuditRequestRef: os.Getenv("L7_AUDIT_REQUEST_REF"),
+		ReadyRef:        os.Getenv("L7_READY_REF"),
 	})
 	if len(findings) != 0 {
 		printFindings(findings)
