@@ -8,11 +8,13 @@ Code. Its common path is deliberately ordinary:
 Working software, Git identity, automated verification, and normal review carry
 the evidence. Process expands only when risk does.
 
-## Wave 2 local lifecycle preview
+## Wave 3 local execution preview
 
-The repository now includes a default-OFF local lifecycle preview. It can adopt
-an existing Git worktree, record one proportionate change, reconstruct its scope
-and identity from Git, and resume after interruption without chat history.
+The repository includes a default-OFF local lifecycle and execution preview. It
+can adopt an existing Git worktree, record one proportionate change, reconstruct
+its scope and identity from Git, run explicit repository checks, create one
+controlled candidate commit, and coordinate implementation and review through
+isolated Codex or Claude Code adapters.
 
 ```sh
 make build
@@ -42,7 +44,8 @@ l7 brief \
 ```
 
 Tier 2 and Tier 3 require problem, scope, acceptance criteria, risk, and rollback
-input. They create exactly one tracked brief:
+input. They create exactly one tracked brief, which must be committed before
+provider execution:
 
 ```sh
 l7 brief \
@@ -54,20 +57,51 @@ l7 brief \
   --risk "State could become stale." \
   --rollback "Revert the candidate."
 
+git add docs/artifacts/changes/product-feature.md
+git commit -m "docs(product): add product feature brief"
 l7 status --json
 ```
 
-The preview supports non-bare macOS Git worktrees with an initial commit. It
-rejects dirty intake, undeclared scope expansion, protected controls declared
-below Tier 3, unsafe configuration/state files, stale bases, and concurrent Level
-7 mutations. Git commit and tree IDs remain canonical; `.git/l7/product/` stores
-only a minimal active selector or Tier 1 task context.
+Configure at least one repository-defined verification command as exact argv;
+the CLI never inserts a shell. For example, the tracked configuration may use:
 
-Wave 2 does not invoke Codex, Claude, repository verification, review, Git
-commits, merge, network, deployment, or approval mechanisms. Once implementation
-is present, status truthfully blocks at `building`; candidate-bound verification
-and provider execution belong to Wave 3. This binary is still a development
-candidate, not a released or supported CLI.
+```json
+"verification": [
+  {"name": "test", "argv": ["make", "test"], "benchmark": false}
+]
+```
+
+Then run the bounded lifecycle explicitly:
+
+```sh
+l7 run --agent codex --message "feat(product): implement product feature"
+l7 verify
+l7 review --agent claude
+l7 status --json
+```
+
+The reverse provider order is also modeled. Tier 3 prompts in an active terminal
+for approval bound to the exact committed brief and selected implementer, then
+requires the other provider for read-only review. It creates at most the one
+brief, one verification record, and one independent audit record. Tier 1 creates
+no governance artifact; Tier 2 keeps assurance in repository-local state.
+
+The preview supports non-bare macOS Git worktrees with an initial commit. It
+rejects dirty intake or index state, undeclared scope expansion, provider-created
+commits, reviewer mutation, stale identities, protected controls below Tier 3,
+unsafe configuration/state files, executable replacement, and concurrent Level
+7 mutations. Git commit and tree IDs remain canonical; bounded recovery evidence
+lives under `.git/l7/product/`. Cancellation, timeout, and aggregate output limits
+terminate the inherited subprocess group. This is process containment, not a
+general OS sandbox; deliberate session escape remains a documented residual.
+
+The adapters currently recognize only the provisional fixture baselines Codex
+`codex-cli 0.149.1` and Claude Code `2.1.241`. Real provider launches and
+actual-host trials are `NOT_RUN` and separately gated, so Wave 3 makes no current
+provider-support claim. Status stops at `reviewed`: readiness, merge, deployment,
+network orchestration, provider installation, and global configuration remain
+unavailable. This binary is a development candidate, not a released or supported
+CLI.
 
 ## Risk model
 
