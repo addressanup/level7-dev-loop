@@ -12,7 +12,7 @@ import (
 func TestExecutionEvidenceRoundTripsWithoutTranscript(t *testing.T) {
 	common := physicalCommonDirectory(t)
 	provider := testProvider()
-	run := domain.RunEvidence{ChangeID: "product-change", Provider: provider, Candidate: testCandidate("a", "b")}
+	run := testRunEvidence(provider)
 	if err := SaveRun(common, run); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestEvidenceRejectsCorruptionAndDoesNotOverwriteIt(t *testing.T) {
 	if _, _, err := LoadRun(common); err == nil {
 		t.Fatal("LoadRun() accepted duplicate JSON fields")
 	}
-	if err := SaveRun(common, domain.RunEvidence{ChangeID: "product-change", Provider: testProvider(), Candidate: testCandidate("a", "b")}); err == nil {
+	if err := SaveRun(common, testRunEvidence(testProvider())); err == nil {
 		t.Fatal("SaveRun() overwrote corrupt evidence")
 	}
 	after, err := os.ReadFile(path)
@@ -90,6 +90,14 @@ func TestTrackedEvidenceArtifactsAreBoundAndBounded(t *testing.T) {
 
 func testProvider() domain.ProviderIdentity {
 	return domain.ProviderIdentity{Provider: domain.ProviderCodex, Executable: "/usr/bin/codex", Version: "0.149.1", Digest: strings.Repeat("c", 64), Capability: domain.CapabilityAvailable}
+}
+
+func testRunEvidence(provider domain.ProviderIdentity) domain.RunEvidence {
+	paths := []string{"internal/product/change.go"}
+	return domain.RunEvidence{
+		ChangeID: "product-change", Provider: provider, Parent: testCandidate("e", "f"), Candidate: testCandidate("a", "b"),
+		PathDigest: strings.Repeat("9", 64), PathCount: len(paths), CommitMessage: "feat(product): implement change",
+	}
 }
 
 func testCandidate(commit, tree string) domain.CandidateIdentity {

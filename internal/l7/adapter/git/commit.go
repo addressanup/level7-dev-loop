@@ -3,6 +3,9 @@ package git
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -46,6 +49,28 @@ func (adapter Adapter) PathCommit(ctx context.Context, root, relative string) (s
 		return "", errors.New("path has no readable addition commit")
 	}
 	return commit, nil
+}
+
+func (adapter Adapter) CommitMatches(ctx context.Context, root, commit, expectedParent, subject string) (bool, error) {
+	if !fullObjectID(commit) || !fullObjectID(expectedParent) || !domain.ConventionalSubject(subject) {
+		return false, errors.New("commit recovery identity is invalid")
+	}
+	location, err := adapter.Locate(ctx, root)
+	if err != nil {
+		return false, err
+	}
+	if location.Head != commit {
+		return false, nil
+	}
+	parent, err := adapter.singleLine(ctx, location.Root, "rev-parse", commit+"^1")
+	if err != nil {
+		return false, errors.New("cannot read recovery commit parent")
+	}
+	actualSubject, err := adapter.singleLine(ctx, location.Root, "show", "--no-patch", "--format=%s", commit)
+	if err != nil {
+		return false, errors.New("cannot read recovery commit subject")
+	}
+	return parent == expectedParent && actualSubject == subject, nil
 }
 
 func (adapter Adapter) Commit(ctx context.Context, request domain.CommitRequest) (domain.RepositoryLocation, error) {
@@ -184,6 +209,19 @@ func samePathSet(left, right []string) bool {
 		}
 	}
 	return true
+}
+
+func PathSetDigest(paths []string) string {
+	ordered := append([]string{}, paths...)
+	sort.Strings(ordered)
+	digest := sha256.New()
+	var length [8]byte
+	for _, relative := range ordered {
+		binary.BigEndian.PutUint64(length[:], uint64(len(relative)))
+		_, _ = digest.Write(length[:])
+		_, _ = digest.Write([]byte(relative))
+	}
+	return hex.EncodeToString(digest.Sum(nil))
 }
 
 func sameRepositoryLocation(left, right domain.RepositoryLocation) bool {

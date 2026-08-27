@@ -130,9 +130,13 @@ type ApprovalBinding struct {
 }
 
 type RunEvidence struct {
-	ChangeID  string
-	Provider  ProviderIdentity
-	Candidate CandidateIdentity
+	ChangeID      string
+	Provider      ProviderIdentity
+	Parent        CandidateIdentity
+	Candidate     CandidateIdentity
+	PathDigest    string
+	PathCount     int
+	CommitMessage string
 }
 
 type VerificationEvidence struct {

@@ -32,11 +32,16 @@ type checkFile struct {
 }
 
 type runFile struct {
-	Schema   int          `json:"schema"`
-	ChangeID string       `json:"change_id"`
-	Provider providerFile `json:"provider"`
-	Commit   string       `json:"candidate_commit"`
-	Tree     string       `json:"candidate_tree"`
+	Schema        int          `json:"schema"`
+	ChangeID      string       `json:"change_id"`
+	Provider      providerFile `json:"provider"`
+	ParentCommit  string       `json:"parent_commit"`
+	ParentTree    string       `json:"parent_tree"`
+	Commit        string       `json:"candidate_commit"`
+	Tree          string       `json:"candidate_tree"`
+	PathDigest    string       `json:"path_digest"`
+	PathCount     int          `json:"path_count"`
+	CommitMessage string       `json:"commit_message"`
 }
 
 type verificationFile struct {
@@ -71,11 +76,21 @@ func LoadRun(commonDirectory string) (domain.RunEvidence, bool, error) {
 	if err := validateRun(file); err != nil {
 		return domain.RunEvidence{}, false, err
 	}
-	return domain.RunEvidence{ChangeID: file.ChangeID, Provider: providerDomain(file.Provider), Candidate: domain.CandidateIdentity{Commit: file.Commit, Tree: file.Tree}}, true, nil
+	return domain.RunEvidence{
+		ChangeID: file.ChangeID, Provider: providerDomain(file.Provider),
+		Parent:     domain.CandidateIdentity{Commit: file.ParentCommit, Tree: file.ParentTree},
+		Candidate:  domain.CandidateIdentity{Commit: file.Commit, Tree: file.Tree},
+		PathDigest: file.PathDigest, PathCount: file.PathCount, CommitMessage: file.CommitMessage,
+	}, true, nil
 }
 
 func SaveRun(commonDirectory string, evidence domain.RunEvidence) error {
-	file := runFile{Schema: domain.EvidenceSchema, ChangeID: evidence.ChangeID, Provider: providerFromDomain(evidence.Provider), Commit: evidence.Candidate.Commit, Tree: evidence.Candidate.Tree}
+	file := runFile{
+		Schema: domain.EvidenceSchema, ChangeID: evidence.ChangeID, Provider: providerFromDomain(evidence.Provider),
+		ParentCommit: evidence.Parent.Commit, ParentTree: evidence.Parent.Tree,
+		Commit: evidence.Candidate.Commit, Tree: evidence.Candidate.Tree,
+		PathDigest: evidence.PathDigest, PathCount: evidence.PathCount, CommitMessage: evidence.CommitMessage,
+	}
 	if err := validateRun(file); err != nil {
 		return err
 	}
@@ -236,7 +251,10 @@ func writeArtifact(root, relative string, data []byte) error {
 }
 
 func validateRun(file runFile) error {
-	if file.Schema != domain.EvidenceSchema || !safeChangeID(file.ChangeID) || !safeProvider(file.Provider) || !fullGitID(file.Commit) || !fullGitID(file.Tree) {
+	if file.Schema != domain.EvidenceSchema || !safeChangeID(file.ChangeID) || !safeProvider(file.Provider) || !fullGitID(file.ParentCommit) || !fullGitID(file.ParentTree) || !hexDigest(file.PathDigest) || file.PathCount < 1 || file.PathCount > 1_000_000 || !domain.ConventionalSubject(file.CommitMessage) {
+		return errors.New("run evidence is invalid")
+	}
+	if (file.Commit == "") != (file.Tree == "") || (file.Commit != "" && (!fullGitID(file.Commit) || !fullGitID(file.Tree))) {
 		return errors.New("run evidence is invalid")
 	}
 	return nil

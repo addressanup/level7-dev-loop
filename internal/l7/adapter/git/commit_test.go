@@ -31,6 +31,14 @@ func TestControlledCommitAdvancesExpectedHeadWithExactPaths(t *testing.T) {
 	if err != nil || addition != location.Head {
 		t.Fatalf("PathCommit()=%q error=%v", addition, err)
 	}
+	matches, err := adapter.CommitMatches(context.Background(), repository, location.Head, base, "feat(test): commit bounded change")
+	if err != nil || !matches {
+		t.Fatalf("CommitMatches()=%v error=%v", matches, err)
+	}
+	matches, err = adapter.CommitMatches(context.Background(), repository, location.Head, base, "fix(test): wrong subject")
+	if err != nil || matches {
+		t.Fatalf("wrong-subject CommitMatches()=%v error=%v", matches, err)
+	}
 }
 
 func TestControlledCommitRejectsUnexpectedPathsAndStaleHead(t *testing.T) {
@@ -73,6 +81,13 @@ func TestControlledCommitRetainsHookFailureAndUserWork(t *testing.T) {
 	after, err := adapter.Pending(context.Background(), repository)
 	if err != nil || strings.Join(after.Paths, "|") != "change.txt" {
 		t.Fatalf("user work after hook failure=%+v error=%v", after, err)
+	}
+}
+
+func TestPathSetDigestIsOrderIndependentAndFramed(t *testing.T) {
+	left := PathSetDigest([]string{"ab", "c"})
+	if left != PathSetDigest([]string{"c", "ab"}) || left == PathSetDigest([]string{"a", "bc"}) || len(left) != 64 || left == strings.Repeat("0", 64) {
+		t.Fatalf("unexpected path-set digest %q", left)
 	}
 }
 
