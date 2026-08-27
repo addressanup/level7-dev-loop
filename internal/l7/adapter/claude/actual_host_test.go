@@ -66,9 +66,14 @@ func TestActualHostInterface(t *testing.T) {
 
 	var findings []error
 	for _, role := range []domain.ProviderRole{domain.RoleImplementer, domain.RoleReviewer} {
-		invocations, err := actualClaudeInterfaceCases(arguments(role))
-		if err != nil {
-			findings = append(findings, fmt.Errorf("Claude %s interface construction: %w", role, err))
+		invocationArguments, argumentErr := arguments(role)
+		if argumentErr != nil {
+			findings = append(findings, fmt.Errorf("Claude %s role argv construction: %w", role, argumentErr))
+			continue
+		}
+		invocations, oracleErr := actualClaudeInterfaceCases(invocationArguments)
+		if oracleErr != nil {
+			findings = append(findings, fmt.Errorf("Claude %s interface construction: %w", role, oracleErr))
 			continue
 		}
 		for _, invocation := range invocations {
