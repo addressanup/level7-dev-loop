@@ -45,14 +45,15 @@ type runFile struct {
 }
 
 type verificationFile struct {
-	Schema             int                   `json:"schema"`
-	ChangeID           string                `json:"change_id"`
-	CandidateCommit    string                `json:"candidate_commit"`
-	CandidateTree      string                `json:"candidate_tree"`
-	Result             domain.ReviewDecision `json:"result"`
-	Checks             []checkFile           `json:"checks"`
-	VerificationCommit string                `json:"verification_commit"`
-	VerificationTree   string                `json:"verification_tree"`
+	Schema              int                   `json:"schema"`
+	ChangeID            string                `json:"change_id"`
+	CandidateCommit     string                `json:"candidate_commit"`
+	CandidateTree       string                `json:"candidate_tree"`
+	Result              domain.ReviewDecision `json:"result"`
+	Checks              []checkFile           `json:"checks"`
+	ConfigurationDigest string                `json:"configuration_digest,omitempty"`
+	VerificationCommit  string                `json:"verification_commit"`
+	VerificationTree    string                `json:"verification_tree"`
 }
 
 type reviewFile struct {
@@ -157,6 +158,7 @@ func WriteVerificationArtifact(root string, evidence domain.VerificationEvidence
 	fmt.Fprintf(&document, "| Change ID | `%s` |\n", evidence.ChangeID)
 	fmt.Fprintf(&document, "| Candidate commit | `%s` |\n", evidence.Candidate.Commit)
 	fmt.Fprintf(&document, "| Candidate tree | `%s` |\n", evidence.Candidate.Tree)
+	fmt.Fprintf(&document, "| Configuration digest | `%s` |\n", evidence.ConfigurationDigest)
 	fmt.Fprintf(&document, "| Result | `PASS` |\n")
 	fmt.Fprintf(&document, "| Reviewer | `%s` |\n\n", reviewer)
 	fmt.Fprintf(&document, "## Checks\n\n| Check | Result |\n|---|---|\n")
@@ -261,7 +263,9 @@ func validateRun(file runFile) error {
 }
 
 func validateVerification(file verificationFile) error {
-	if file.Schema != domain.EvidenceSchema || !safeChangeID(file.ChangeID) || !fullGitID(file.CandidateCommit) || !fullGitID(file.CandidateTree) || file.Result != domain.DecisionGO || len(file.Checks) < 1 || len(file.Checks) > 32 {
+	legacy := file.Schema == domain.EvidenceSchema && file.ConfigurationDigest == ""
+	current := file.Schema == domain.VerificationEvidenceSchema && hexDigest(file.ConfigurationDigest)
+	if (!legacy && !current) || !safeChangeID(file.ChangeID) || !fullGitID(file.CandidateCommit) || !fullGitID(file.CandidateTree) || file.Result != domain.DecisionGO || len(file.Checks) < 1 || len(file.Checks) > 32 {
 		return errors.New("verification evidence is invalid")
 	}
 	if (file.VerificationCommit == "") != (file.VerificationTree == "") || (file.VerificationCommit != "" && (!fullGitID(file.VerificationCommit) || !fullGitID(file.VerificationTree))) {
@@ -330,7 +334,7 @@ func verificationFromDomain(evidence domain.VerificationEvidence) verificationFi
 	for _, check := range evidence.Checks {
 		checks = append(checks, checkFile{Name: check.Name, Benchmark: check.Benchmark, Passed: check.Passed, ExitCode: check.ExitCode, Code: check.Code, Message: check.Message})
 	}
-	return verificationFile{Schema: domain.EvidenceSchema, ChangeID: evidence.ChangeID, CandidateCommit: evidence.Candidate.Commit, CandidateTree: evidence.Candidate.Tree, Result: evidence.Result, Checks: checks, VerificationCommit: evidence.VerificationCommit, VerificationTree: evidence.VerificationTree}
+	return verificationFile{Schema: domain.VerificationEvidenceSchema, ChangeID: evidence.ChangeID, CandidateCommit: evidence.Candidate.Commit, CandidateTree: evidence.Candidate.Tree, Result: evidence.Result, Checks: checks, ConfigurationDigest: evidence.ConfigurationDigest, VerificationCommit: evidence.VerificationCommit, VerificationTree: evidence.VerificationTree}
 }
 
 func verificationDomain(file verificationFile) domain.VerificationEvidence {
@@ -338,7 +342,7 @@ func verificationDomain(file verificationFile) domain.VerificationEvidence {
 	for _, check := range file.Checks {
 		checks = append(checks, domain.CheckResult{Name: check.Name, Benchmark: check.Benchmark, Passed: check.Passed, ExitCode: check.ExitCode, Code: check.Code, Message: check.Message})
 	}
-	return domain.VerificationEvidence{ChangeID: file.ChangeID, Candidate: domain.CandidateIdentity{Commit: file.CandidateCommit, Tree: file.CandidateTree}, Result: file.Result, Checks: checks, VerificationCommit: file.VerificationCommit, VerificationTree: file.VerificationTree}
+	return domain.VerificationEvidence{ChangeID: file.ChangeID, Candidate: domain.CandidateIdentity{Commit: file.CandidateCommit, Tree: file.CandidateTree}, Result: file.Result, Checks: checks, ConfigurationDigest: file.ConfigurationDigest, VerificationCommit: file.VerificationCommit, VerificationTree: file.VerificationTree}
 }
 
 func reviewFromDomain(evidence domain.ReviewEvidence) reviewFile {

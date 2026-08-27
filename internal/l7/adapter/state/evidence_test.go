@@ -21,7 +21,7 @@ func TestExecutionEvidenceRoundTripsWithoutTranscript(t *testing.T) {
 		t.Fatalf("LoadRun()=%+v found=%v error=%v", loadedRun, found, err)
 	}
 
-	verification := domain.VerificationEvidence{ChangeID: run.ChangeID, Candidate: run.Candidate, Result: domain.DecisionGO, Checks: []domain.CheckResult{{Name: "test", Passed: true, ExitCode: 0, Code: "L7-VERIFY-000", Message: "passed"}}}
+	verification := domain.VerificationEvidence{ChangeID: run.ChangeID, Candidate: run.Candidate, Result: domain.DecisionGO, Checks: []domain.CheckResult{{Name: "test", Passed: true, ExitCode: 0, Code: "L7-VERIFY-000", Message: "passed"}}, ConfigurationDigest: strings.Repeat("8", 64)}
 	if err := SaveVerification(common, verification); err != nil {
 		t.Fatal(err)
 	}
@@ -72,10 +72,14 @@ func TestEvidenceRejectsCorruptionAndDoesNotOverwriteIt(t *testing.T) {
 
 func TestTrackedEvidenceArtifactsAreBoundAndBounded(t *testing.T) {
 	root := physicalCommonDirectory(t)
-	verification := domain.VerificationEvidence{ChangeID: "product-change", Candidate: testCandidate("a", "b"), Result: domain.DecisionGO, Checks: []domain.CheckResult{{Name: "test", Passed: true}}}
+	verification := domain.VerificationEvidence{ChangeID: "product-change", Candidate: testCandidate("a", "b"), Result: domain.DecisionGO, Checks: []domain.CheckResult{{Name: "test", Passed: true}}, ConfigurationDigest: strings.Repeat("8", 64)}
 	path, err := WriteVerificationArtifact(root, verification, "local-verifier")
 	if err != nil || path != "docs/artifacts/changes/product-change-verification.md" {
 		t.Fatalf("WriteVerificationArtifact() path=%q error=%v", path, err)
+	}
+	verificationData, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil || !strings.Contains(string(verificationData), "Configuration digest") {
+		t.Fatalf("verification data=%q error=%v", verificationData, err)
 	}
 	review := domain.ReviewEvidence{ChangeID: "product-change", Provider: domain.ProviderIdentity{Provider: domain.ProviderClaude, Executable: "/usr/bin/claude", Version: "2.1.241", Digest: strings.Repeat("d", 64), Capability: domain.CapabilityAvailable}, Candidate: testCandidate("c", "d"), Decision: domain.DecisionNoGO, Findings: []string{"A blocking issue remains."}}
 	path, err = WriteAuditArtifact(root, review)
@@ -85,6 +89,30 @@ func TestTrackedEvidenceArtifactsAreBoundAndBounded(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
 	if err != nil || !strings.Contains(string(data), "| Result | `NO_GO` |") {
 		t.Fatalf("audit data=%q error=%v", data, err)
+	}
+}
+
+func TestLegacyVerificationEvidenceLoadsButCannotBeRewrittenAsCurrent(t *testing.T) {
+	common := physicalCommonDirectory(t)
+	directory := filepath.Join(common, "l7", "product")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `{"schema":1,"change_id":"product-change","candidate_commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","candidate_tree":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","result":"GO","checks":[{"name":"test","benchmark":false,"passed":true,"exit_code":0,"code":"L7-VERIFY-000","message":"passed"}],"verification_commit":"","verification_tree":""}`
+	if err := os.WriteFile(filepath.Join(directory, "verification.json"), []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	evidence, found, err := LoadVerification(common)
+	if err != nil || !found || evidence.ConfigurationDigest != "" {
+		t.Fatalf("LoadVerification()=%+v found=%v error=%v", evidence, found, err)
+	}
+	evidence.ConfigurationDigest = strings.Repeat("8", 64)
+	if err := SaveVerification(common, evidence); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(directory, "verification.json"))
+	if err != nil || !strings.Contains(string(data), `"schema": 2`) {
+		t.Fatalf("current verification=%q error=%v", data, err)
 	}
 }
 

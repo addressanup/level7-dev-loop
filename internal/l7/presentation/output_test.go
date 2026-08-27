@@ -18,7 +18,7 @@ func TestTextIsDecisionFirstAndEscapesUntrustedValues(t *testing.T) {
 }
 
 func TestJSONHasStableSchemaAndFieldOrder(t *testing.T) {
-	want := "{\"schema\":3,\"outcome\":\"BLOCKED\",\"code\":\"L7-STATUS-001\",\"command\":\"status\",\"state\":\"unavailable\",\"version\":\"test-version\",\"message\":\"not implemented\",\"next\":\"run l7 help\",\"details\":[\"first\"]}\n"
+	want := "{\"schema\":4,\"outcome\":\"BLOCKED\",\"code\":\"L7-STATUS-001\",\"command\":\"status\",\"state\":\"unavailable\",\"version\":\"test-version\",\"message\":\"not implemented\",\"next\":\"run l7 help\",\"details\":[\"first\"]}\n"
 	got, err := JSON(fixtureResult())
 	if err != nil {
 		t.Fatal(err)
@@ -69,6 +69,31 @@ func TestRepositoryDetailsAreStableAndEscapedInTextAndJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, value := range []string{`"repository":{"root":"/repo with space"`, `"tier":2`, `"declared_scope":["internal/**"]`, `"expanded_paths":["line\nbreak"]`} {
+		if !strings.Contains(string(data), value) {
+			t.Fatalf("JSON()=%s, want %s", data, value)
+		}
+	}
+}
+
+func TestReadinessDetailsAreStableInTextAndJSON(t *testing.T) {
+	result := fixtureResult()
+	result.Readiness = &domain.ReadinessDetails{
+		Headless: true, Ready: true, Base: strings.Repeat("a", 40), Candidate: strings.Repeat("b", 40), Tree: strings.Repeat("c", 40),
+		BriefCommit: strings.Repeat("d", 40), ConfigurationDigest: strings.Repeat("e", 64), VerificationCommit: strings.Repeat("f", 40),
+		ReviewCommit: strings.Repeat("1", 40), Owner: "accountable-owner", Implementer: domain.ProviderCodex, Reviewer: domain.ProviderClaude,
+		Checks: []domain.CheckResult{{Name: "benchmark", Benchmark: true, Passed: true}},
+	}
+	text := string(Text(result))
+	for _, value := range []string{"readiness_headless=true", "readiness_ready=true", `readiness_implementer="codex"`, `readiness_check="benchmark" benchmark=true passed=true`} {
+		if !strings.Contains(text, value) {
+			t.Fatalf("Text()=%q, want %q", text, value)
+		}
+	}
+	data, err := JSON(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{`"readiness":{"headless":true,"ready":true`, `"implementer":"codex"`, `"checks":[{"name":"benchmark","benchmark":true,"passed":true`} {
 		if !strings.Contains(string(data), value) {
 			t.Fatalf("JSON()=%s, want %s", data, value)
 		}

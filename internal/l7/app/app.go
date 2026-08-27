@@ -47,7 +47,7 @@ func (application Application) ExecuteRequest(ctx context.Context, request domai
 		result := application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 CLI local lifecycle preview", "run l7 status")
 		result.Details = []string{
 			"Usage: l7 <command> [options] [--json]",
-			"Commands: help, version, adopt, brief, run, verify, review, status",
+			"Commands: help, version, adopt, brief, run, verify, review, ready, merge, status",
 			"Lifecycle behavior remains default OFF until explicitly enabled during adopt.",
 		}
 		return result
@@ -65,6 +65,8 @@ func (application Application) ExecuteRequest(ctx context.Context, request domai
 		return application.verifyChange(ctx, request)
 	case domain.CommandReview:
 		return application.reviewChange(ctx, request)
+	case domain.CommandReady:
+		return application.readyChange(ctx, request)
 	default:
 		return application.Invalid(string(request.Command), "unknown command")
 	}

@@ -29,8 +29,35 @@ func TestDomainConfigurationCopiesExecutionContract(t *testing.T) {
 	configuration.Providers = Providers{Implementer: "codex", Reviewer: "claude"}
 	domainConfiguration := configuration.Domain()
 	configuration.Verification[0].Argv[0] = "changed"
-	if len(domainConfiguration.Verification) != 1 || domainConfiguration.Verification[0].Argv[0] != "make" || !domainConfiguration.Verification[0].Benchmark || domainConfiguration.Implementer != "codex" || domainConfiguration.Reviewer != "claude" {
+	if len(domainConfiguration.Verification) != 1 || domainConfiguration.Verification[0].Argv[0] != "make" || !domainConfiguration.Verification[0].Benchmark || domainConfiguration.Implementer != "codex" || domainConfiguration.Reviewer != "claude" || len(domainConfiguration.Digest) != 64 {
 		t.Fatalf("Domain()=%+v", domainConfiguration)
+	}
+}
+
+func TestLoadDigestBindsExactConfigurationBytes(t *testing.T) {
+	root := physicalRoot(t)
+	if _, _, err := Adopt(root, true); err != nil {
+		t.Fatal(err)
+	}
+	first, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, ".l7", "config.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = append([]byte(" \n"), data...)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	second, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Domain().Digest == second.Domain().Digest || len(second.Domain().Digest) != 64 {
+		t.Fatalf("digests first=%q second=%q", first.Domain().Digest, second.Domain().Digest)
 	}
 }
 

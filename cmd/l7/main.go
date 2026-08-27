@@ -145,6 +145,8 @@ func lifecycleApplication(workingDirectory string, terminal authorityadapter.Ter
 		SaveVerification: stateadapter.SaveVerification,
 		LoadReview:       stateadapter.LoadReview,
 		SaveReview:       stateadapter.SaveReview,
+		LoadReadiness:    stateadapter.LoadReadiness,
+		SaveReadiness:    stateadapter.SaveReadiness,
 		RunProvider: func(ctx context.Context, task domain.ProviderTask, maxOutput, maxSeconds int) (domain.ProviderResponse, error) {
 			switch task.Provider {
 			case domain.ProviderCodex:
@@ -212,7 +214,7 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 	request := domain.Request{Command: domain.Command(filtered[0])}
 	options := filtered[1:]
 	switch request.Command {
-	case domain.CommandHelp, domain.CommandVersion, domain.CommandStatus, domain.CommandVerify:
+	case domain.CommandHelp, domain.CommandVersion, domain.CommandStatus, domain.CommandVerify, domain.CommandReady:
 		if len(options) != 0 {
 			if strings.HasPrefix(options[0], "-") {
 				return invalid(options[0], "unknown flag", jsonOutput)

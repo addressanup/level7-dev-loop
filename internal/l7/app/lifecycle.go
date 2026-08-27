@@ -37,6 +37,8 @@ type Ports struct {
 	RunVerification    func(context.Context, string, []domain.VerificationCommand, int, int) ([]domain.CheckResult, error)
 	WriteVerification  func(string, domain.VerificationEvidence, string) (string, error)
 	WriteAudit         func(string, domain.ReviewEvidence) (string, error)
+	LoadReadiness      func(string) (domain.ReadinessEvidence, bool, error)
+	SaveReadiness      func(string, domain.ReadinessEvidence) error
 }
 
 var builtinProtectedPaths = []string{
@@ -350,7 +352,7 @@ func sameSnapshot(left, right domain.RepositorySnapshot) bool {
 }
 
 func sameConfiguration(left, right domain.Configuration) bool {
-	return left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && left.MaxCommandOutputBytes == right.MaxCommandOutputBytes && left.MaxCommandSeconds == right.MaxCommandSeconds && left.Implementer == right.Implementer && left.Reviewer == right.Reviewer && sameStrings(left.ProtectedPaths, right.ProtectedPaths) && sameVerificationCommands(left.Verification, right.Verification)
+	return left.Digest == right.Digest && left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && left.MaxCommandOutputBytes == right.MaxCommandOutputBytes && left.MaxCommandSeconds == right.MaxCommandSeconds && left.Implementer == right.Implementer && left.Reviewer == right.Reviewer && sameStrings(left.ProtectedPaths, right.ProtectedPaths) && sameVerificationCommands(left.Verification, right.Verification)
 }
 
 func sameStoredActive(resolved, stored domain.ActiveChange) bool {

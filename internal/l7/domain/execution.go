@@ -1,6 +1,7 @@
 package domain
 
 const EvidenceSchema = 1
+const VerificationEvidenceSchema = 2
 
 type Provider string
 
@@ -140,12 +141,13 @@ type RunEvidence struct {
 }
 
 type VerificationEvidence struct {
-	ChangeID           string
-	Candidate          CandidateIdentity
-	Result             ReviewDecision
-	Checks             []CheckResult
-	VerificationCommit string
-	VerificationTree   string
+	ChangeID            string
+	Candidate           CandidateIdentity
+	Result              ReviewDecision
+	Checks              []CheckResult
+	ConfigurationDigest string
+	VerificationCommit  string
+	VerificationTree    string
 }
 
 type ReviewEvidence struct {

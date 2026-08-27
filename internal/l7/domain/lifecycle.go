@@ -22,6 +22,7 @@ const (
 	StateAwaitingIndependentAudit LifecycleState = "awaiting-independent-audit"
 	StateReviewed                 LifecycleState = "reviewed"
 	StateReady                    LifecycleState = "ready"
+	StateMerged                   LifecycleState = "merged"
 )
 
 type Transition struct {
@@ -48,7 +49,9 @@ func NextTransition(tier RiskTier, state LifecycleState) (Transition, bool) {
 		case StateReviewed:
 			return Transition{State: StateReady, Action: "evaluate exact-candidate merge readiness"}, true
 		case StateReady:
-			return Transition{State: StateReady, Action: "request confirmation before merging the exact Git candidate"}, true
+			return Transition{State: StateMerged, Action: "run l7 merge --target <branch> and confirm the full candidate SHA"}, true
+		case StateMerged:
+			return Transition{State: StateMerged, Action: "run l7 status to inspect the merged local ref"}, true
 		default:
 			return Transition{}, false
 		}
@@ -64,7 +67,9 @@ func NextTransition(tier RiskTier, state LifecycleState) (Transition, bool) {
 	case StateReviewed:
 		return Transition{State: StateReady, Action: "evaluate exact-candidate merge readiness"}, true
 	case StateReady:
-		return Transition{State: StateReady, Action: "request confirmation before merging the exact Git candidate"}, true
+		return Transition{State: StateMerged, Action: "run l7 merge --target <branch> and confirm the full candidate SHA"}, true
+	case StateMerged:
+		return Transition{State: StateMerged, Action: "run l7 status to inspect the merged local ref"}, true
 	default:
 		return Transition{}, false
 	}
@@ -87,6 +92,7 @@ type LifecycleFacts struct {
 	ReviewCurrent           bool
 	IndependentAuditCurrent bool
 	ReadyCurrent            bool
+	MergedCurrent           bool
 	AssuranceRejected       bool
 	AssuranceStale          bool
 }
@@ -105,6 +111,7 @@ type RepositorySnapshot struct {
 }
 
 type Configuration struct {
+	Digest                string
 	LocalLifecycle        bool
 	Verification          []VerificationCommand
 	MaxInputBytes         int
@@ -207,10 +214,16 @@ func DeriveLifecycle(facts LifecycleFacts) (LifecycleState, bool) {
 	if !facts.ReadyCurrent {
 		return StateReviewed, true
 	}
+	if facts.MergedCurrent {
+		return StateMerged, true
+	}
 	return StateReady, true
 }
 
 func lifecycleFactsConflict(facts LifecycleFacts) bool {
+	if facts.MergedCurrent && !facts.ReadyCurrent {
+		return true
+	}
 	if facts.ReadyCurrent && (!facts.VerificationCurrent || (facts.Tier == TierHighRisk && !facts.IndependentAuditCurrent) || (facts.Tier != TierHighRisk && !facts.ReviewCurrent)) {
 		return true
 	}

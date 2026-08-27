@@ -7,9 +7,9 @@ func TestEveryValidLifecycleStateHasAnExecutableNextTransition(t *testing.T) {
 		tier   RiskTier
 		states []LifecycleState
 	}{
-		{TierRoutine, []LifecycleState{StatePlanned, StateBuilding, StateVerified, StateReviewed, StateReady}},
-		{TierProduct, []LifecycleState{StatePlanned, StateBuilding, StateVerified, StateReviewed, StateReady}},
-		{TierHighRisk, []LifecycleState{StatePlanned, StateAwaitingOwnerApproval, StateBuilding, StateVerified, StateAwaitingIndependentAudit, StateReviewed, StateReady}},
+		{TierRoutine, []LifecycleState{StatePlanned, StateBuilding, StateVerified, StateReviewed, StateReady, StateMerged}},
+		{TierProduct, []LifecycleState{StatePlanned, StateBuilding, StateVerified, StateReviewed, StateReady, StateMerged}},
+		{TierHighRisk, []LifecycleState{StatePlanned, StateAwaitingOwnerApproval, StateBuilding, StateVerified, StateAwaitingIndependentAudit, StateReviewed, StateReady, StateMerged}},
 	} {
 		for _, state := range test.states {
 			next, ok := NextTransition(test.tier, state)
@@ -55,6 +55,7 @@ func TestDeriveLifecycleUsesOnlyConsistentCurrentFacts(t *testing.T) {
 		{"Tier 2 verified", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, VerificationCurrent: true}, StateVerified, true},
 		{"Tier 2 reviewed", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, VerificationCurrent: true, ReviewCurrent: true}, StateReviewed, true},
 		{"Tier 2 ready", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, VerificationCurrent: true, ReviewCurrent: true, ReadyCurrent: true}, StateReady, true},
+		{"Tier 2 merged", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, VerificationCurrent: true, ReviewCurrent: true, ReadyCurrent: true, MergedCurrent: true}, StateMerged, true},
 		{"Tier 3 awaits approval", LifecycleFacts{Tier: TierHighRisk, PlanPresent: true}, StateAwaitingOwnerApproval, true},
 		{"Tier 3 approved", LifecycleFacts{Tier: TierHighRisk, PlanPresent: true, OwnerApprovalCurrent: true}, StateBuilding, true},
 		{"Tier 3 awaits audit", LifecycleFacts{Tier: TierHighRisk, PlanPresent: true, OwnerApprovalCurrent: true, WorkStarted: true, VerificationCurrent: true}, StateAwaitingIndependentAudit, true},
@@ -62,6 +63,7 @@ func TestDeriveLifecycleUsesOnlyConsistentCurrentFacts(t *testing.T) {
 		{"stale assurance remediates", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, VerificationCurrent: true, ReviewCurrent: true, AssuranceStale: true}, StateBuilding, true},
 		{"missing plan", LifecycleFacts{Tier: TierProduct}, "", false},
 		{"review without verification", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, ReviewCurrent: true}, "", false},
+		{"merged without readiness", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, VerificationCurrent: true, ReviewCurrent: true, MergedCurrent: true}, "", false},
 		{"Tier 3 work without approval", LifecycleFacts{Tier: TierHighRisk, PlanPresent: true, WorkStarted: true}, "", false},
 		{"self-contradictory assurance", LifecycleFacts{Tier: TierProduct, PlanPresent: true, WorkStarted: true, AssuranceRejected: true, AssuranceStale: true}, "", false},
 	}

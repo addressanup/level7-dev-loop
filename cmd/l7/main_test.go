@@ -31,7 +31,7 @@ func TestRunCommandContract(t *testing.T) {
 		{"too many arguments", make([]string, maxArguments+1), 1, []string{"FAILED", "too many arguments"}},
 		{"oversized argument", []string{strings.Repeat("x", maxArgumentBytes+1)}, 1, []string{"FAILED", "argument exceeds size limit"}},
 		{"duplicate json", []string{"--json", "status", "--json"}, 1, []string{`"outcome":"FAILED"`, `"message":"duplicate --json flag"`}},
-		{"json status", []string{"status", "--json"}, 2, []string{`{"schema":3`, `"outcome":"BLOCKED"`, `"details":[]`, `"repository":{`}},
+		{"json status", []string{"status", "--json"}, 2, []string{`{"schema":4`, `"outcome":"BLOCKED"`, `"details":[]`, `"repository":{`}},
 		{"adopt unknown option", []string{"adopt", "--unsafe"}, 1, []string{"FAILED", "unknown adopt option"}},
 		{"brief invalid tier", []string{"brief", "--id", "x", "--tier", "4"}, 1, []string{"FAILED", "risk tier must be 1, 2, or 3"}},
 		{"brief missing value", []string{"brief", "--scope"}, 1, []string{"FAILED", "missing its value"}},

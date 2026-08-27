@@ -42,7 +42,7 @@ func (application Application) runChange(ctx context.Context, request domain.Req
 		status.Command = string(request.Command)
 		return status
 	}
-	if status.State == string(domain.StateVerified) || status.State == string(domain.StateAwaitingIndependentAudit) || status.State == string(domain.StateReviewed) {
+	if status.State == string(domain.StateVerified) || status.State == string(domain.StateAwaitingIndependentAudit) || status.State == string(domain.StateReviewed) || status.State == string(domain.StateReady) || status.State == string(domain.StateMerged) {
 		return application.result(domain.OutcomeBlocked, "L7-RUN-004", string(request.Command), status.State, "the current candidate already has later lifecycle evidence", status.Next)
 	}
 
@@ -274,7 +274,7 @@ func (application Application) verifyChange(ctx context.Context, request domain.
 		result.Execution = &domain.ExecutionDetails{Role: domain.RoleImplementer, Provider: runEvidence.Provider.Provider, Commit: runEvidence.Candidate.Commit, Tree: runEvidence.Candidate.Tree, Checks: checks}
 		return result
 	}
-	evidence := domain.VerificationEvidence{ChangeID: change.active.ID, Candidate: runEvidence.Candidate, Result: domain.DecisionGO, Checks: checks}
+	evidence := domain.VerificationEvidence{ChangeID: change.active.ID, Candidate: runEvidence.Candidate, Result: domain.DecisionGO, Checks: checks, ConfigurationDigest: change.configuration.Digest}
 	if err := application.ports.SaveVerification(change.location.CommonDir, evidence); err != nil {
 		return application.failure("L7-STATE-006", request.Command, "recovery-required", "passing verification was not recorded: "+bounded(err.Error(), 512), "preserve the candidate and repair verification evidence before continuing")
 	}
@@ -515,16 +515,31 @@ func (application Application) statusFromContext(ctx context.Context, request do
 			ownerCurrent = approvalMatches(approval, change.active.ID, expected, briefCommit)
 		}
 	}
+	readyCurrent := false
+	readinessFound := false
+	if application.ports.LoadReadiness != nil {
+		readiness, found, readinessErr := application.ports.LoadReadiness(change.location.CommonDir)
+		if readinessErr != nil {
+			result := application.failure("L7-STATE-010", request.Command, "invalid", "readiness evidence cannot be reconstructed: "+bounded(readinessErr.Error(), 512), "repair the unsafe readiness evidence before continuing")
+			result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
+			return result
+		}
+		readinessFound = found
+		if found {
+			currentFacts, factsErr := application.localReadinessFacts(ctx, change, view)
+			readyCurrent = factsErr == nil && domain.EvaluateReadiness(currentFacts).Ready && sameReadinessEvidence(readiness, currentFacts.Evidence)
+		}
+	}
 	if change.active.Tier == domain.TierHighRisk && workStarted && !ownerCurrent {
 		result := application.result(domain.OutcomeBlocked, "L7-AUTH-001", string(request.Command), string(domain.StateAwaitingOwnerApproval), "Tier 3 implementation exists without a current external owner-approval binding", "restore unapproved work or rerun l7 run from an interactive terminal for the exact approved brief")
 		result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
 		return result
 	}
-	stale := (view.runFound && !runCurrent) || (view.verificationFound && !verificationCurrent) || (view.reviewFound && !reviewCurrent)
+	stale := (view.runFound && !runCurrent) || (view.verificationFound && !verificationCurrent) || (view.reviewFound && !reviewCurrent) || (readinessFound && !readyCurrent)
 	rejected := reviewCurrent && view.review.Decision == domain.DecisionNoGO
 	facts := domain.LifecycleFacts{
 		Tier: change.active.Tier, PlanPresent: true, OwnerApprovalCurrent: ownerCurrent, WorkStarted: workStarted,
-		VerificationCurrent: verificationCurrent, AssuranceRejected: rejected, AssuranceStale: stale && workStarted,
+		VerificationCurrent: verificationCurrent, ReadyCurrent: readyCurrent, AssuranceRejected: rejected, AssuranceStale: stale && workStarted,
 	}
 	if change.active.Tier == domain.TierHighRisk {
 		facts.IndependentAuditCurrent = reviewCurrent && view.review.Decision == domain.DecisionGO
@@ -561,8 +576,11 @@ func (application Application) statusFromContext(ctx context.Context, request do
 			next.Action = "run l7 review --agent " + string(other)
 		}
 	case domain.StateReviewed:
-		message = "review is current; readiness and merge remain unavailable until Wave 4"
-		next.Action = "retain the reviewed candidate for Wave 4 readiness evaluation"
+		message = "review is current; exact candidate readiness has not been recorded"
+		next.Action = "run l7 ready"
+	case domain.StateReady:
+		message = "exact candidate readiness is current"
+		next.Action = "run l7 merge --target <branch> and confirm the full candidate SHA"
 	}
 	result := application.result(outcome, code, string(request.Command), string(state), message, next.Action)
 	result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
@@ -635,7 +653,7 @@ func (application Application) validRunEvidence(ctx context.Context, change exec
 }
 
 func (application Application) validVerificationEvidence(ctx context.Context, change executionContext, run domain.RunEvidence, evidence domain.VerificationEvidence) (bool, error) {
-	if evidence.ChangeID != change.active.ID || evidence.Candidate != run.Candidate || evidence.Result != domain.DecisionGO {
+	if evidence.ChangeID != change.active.ID || evidence.Candidate != run.Candidate || evidence.Result != domain.DecisionGO || evidence.ConfigurationDigest == "" || evidence.ConfigurationDigest != change.configuration.Digest || !checksMatchConfiguration(evidence.Checks, change.configuration.Verification) {
 		return false, nil
 	}
 	if change.active.Tier != domain.TierHighRisk {
@@ -949,7 +967,7 @@ func sameResolvedActive(left, right domain.ActiveChange) bool {
 }
 
 func sameVerificationEvidence(left, right domain.VerificationEvidence) bool {
-	if left.ChangeID != right.ChangeID || left.Candidate != right.Candidate || left.Result != right.Result || left.VerificationCommit != right.VerificationCommit || left.VerificationTree != right.VerificationTree || len(left.Checks) != len(right.Checks) {
+	if left.ChangeID != right.ChangeID || left.Candidate != right.Candidate || left.Result != right.Result || left.ConfigurationDigest != right.ConfigurationDigest || left.VerificationCommit != right.VerificationCommit || left.VerificationTree != right.VerificationTree || len(left.Checks) != len(right.Checks) {
 		return false
 	}
 	for index := range left.Checks {
@@ -968,6 +986,10 @@ func sameEvidenceState(left, right evidenceView) bool {
 	return left.runFound == right.runFound && (!left.runFound || left.run == right.run) &&
 		left.verificationFound == right.verificationFound && (!left.verificationFound || sameVerificationEvidence(left.verification, right.verification)) &&
 		left.reviewFound == right.reviewFound && (!left.reviewFound || sameReviewEvidence(left.review, right.review))
+}
+
+func sameEvidenceView(left, right evidenceView) bool {
+	return sameEvidenceState(left, right) && left.runValid == right.runValid && left.verificationValid == right.verificationValid && left.reviewValid == right.reviewValid
 }
 
 func sameExecutionIntake(left, right executionContext) bool {
@@ -1012,6 +1034,18 @@ func sameVerificationCommands(left, right []domain.VerificationCommand) bool {
 	}
 	for index := range left {
 		if left[index].Name != right[index].Name || left[index].Benchmark != right[index].Benchmark || !sameStrings(left[index].Argv, right[index].Argv) {
+			return false
+		}
+	}
+	return true
+}
+
+func checksMatchConfiguration(checks []domain.CheckResult, commands []domain.VerificationCommand) bool {
+	if len(checks) != len(commands) {
+		return false
+	}
+	for index := range checks {
+		if checks[index].Name != commands[index].Name || checks[index].Benchmark != commands[index].Benchmark || !checks[index].Passed || checks[index].ExitCode != 0 {
 			return false
 		}
 	}

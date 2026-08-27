@@ -34,7 +34,7 @@ func TestTierThreeFakeProvidersCompleteBothOrdersAndResume(t *testing.T) {
 				t.Fatalf("review=%+v evidence=%+v", review, fixture.review)
 			}
 			status := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandStatus})
-			if status.Outcome != domain.OutcomePass || status.State != string(domain.StateReviewed) || strings.Contains(status.State, "ready") || !strings.Contains(status.Message, "Wave 4") {
+			if status.Outcome != domain.OutcomePass || status.State != string(domain.StateReviewed) || strings.Contains(status.State, "ready") || status.Next != "run l7 ready" {
 				t.Fatalf("restarted status=%+v", status)
 			}
 			if strings.Join(fixture.artifacts, "|") != verificationPath(fixture.active.ID)+"|"+auditPath(fixture.active.ID) {
@@ -51,14 +51,15 @@ func TestDisabledFlagBlocksEveryExecutionEffect(t *testing.T) {
 		{Command: domain.CommandRun, Agent: domain.ProviderCodex, CommitMessage: "feat(product): implement change"},
 		{Command: domain.CommandVerify},
 		{Command: domain.CommandReview, Agent: domain.ProviderClaude},
+		{Command: domain.CommandReady},
 	} {
 		result := fixture.application().ExecuteRequest(context.Background(), request)
 		if result.Outcome != domain.OutcomeBlocked || result.Code != "L7-FLAG-001" {
 			t.Fatalf("request=%+v result=%+v", request, result)
 		}
 	}
-	if fixture.providerRuns != 0 || fixture.verificationRuns != 0 || fixture.commits != 0 || fixture.acquisitions != 0 {
-		t.Fatalf("effects provider=%d verification=%d commits=%d locks=%d", fixture.providerRuns, fixture.verificationRuns, fixture.commits, fixture.acquisitions)
+	if fixture.providerRuns != 0 || fixture.verificationRuns != 0 || fixture.commits != 0 || fixture.acquisitions != 0 || fixture.readinessSaves != 0 {
+		t.Fatalf("effects provider=%d verification=%d commits=%d locks=%d readiness=%d", fixture.providerRuns, fixture.verificationRuns, fixture.commits, fixture.acquisitions, fixture.readinessSaves)
 	}
 }
 
@@ -280,41 +281,44 @@ type fakeCommit struct {
 }
 
 type executionFixture struct {
-	ports                 Ports
-	location              domain.RepositoryLocation
-	configuration         domain.Configuration
-	active                domain.ActiveChange
-	brief                 domain.ChangeBrief
-	overallPaths          []string
-	pendingPaths          []string
-	indexDirty            bool
-	providerPaths         []string
-	providerStages        bool
-	providerCommits       bool
-	reviewerMutates       bool
-	providerDecision      domain.ReviewDecision
-	verificationError     error
-	run                   domain.RunEvidence
-	runFound              bool
-	verification          domain.VerificationEvidence
-	verificationFound     bool
-	review                domain.ReviewEvidence
-	reviewFound           bool
-	approval              domain.ApprovalBinding
-	approvalFound         bool
-	commitsByID           map[string]fakeCommit
-	treesByCommit         map[string]string
-	artifacts             []string
-	providerRuns          int
-	verificationRuns      int
-	commits               int
-	confirmations         int
-	acquisitions          int
-	onAcquire             func()
-	onProvider            func(domain.ProviderTask)
-	onVerification        func()
-	lastTask              domain.ProviderTask
-	nextIdentityCharacter byte
+	ports             Ports
+	location          domain.RepositoryLocation
+	configuration     domain.Configuration
+	active            domain.ActiveChange
+	brief             domain.ChangeBrief
+	overallPaths      []string
+	pendingPaths      []string
+	indexDirty        bool
+	providerPaths     []string
+	providerStages    bool
+	providerCommits   bool
+	reviewerMutates   bool
+	providerDecision  domain.ReviewDecision
+	verificationError error
+	run               domain.RunEvidence
+	runFound          bool
+	verification      domain.VerificationEvidence
+	verificationFound bool
+	review            domain.ReviewEvidence
+	reviewFound       bool
+	readiness         domain.ReadinessEvidence
+	readinessFound    bool
+	approval          domain.ApprovalBinding
+	approvalFound     bool
+	commitsByID       map[string]fakeCommit
+	treesByCommit     map[string]string
+	artifacts         []string
+	providerRuns      int
+	verificationRuns  int
+	commits           int
+	confirmations     int
+	readinessSaves    int
+	acquisitions      int
+	onAcquire         func()
+	onProvider        func(domain.ProviderTask)
+	onVerification    func()
+	lastTask          domain.ProviderTask
+	nextIdentityIndex int
 }
 
 func newExecutionFixture(tier domain.RiskTier) *executionFixture {
@@ -327,7 +331,7 @@ func newExecutionFixture(tier domain.RiskTier) *executionFixture {
 	fixture := &executionFixture{
 		location: domain.RepositoryLocation{Root: "/repo", CommonDir: "/repo/.git", Head: briefCommit, Tree: briefTree},
 		configuration: domain.Configuration{
-			LocalLifecycle: true, Verification: []domain.VerificationCommand{{Name: "test", Argv: []string{"make", "test"}}},
+			Digest: strings.Repeat("1", 64), LocalLifecycle: true, Verification: []domain.VerificationCommand{{Name: "test", Argv: []string{"make", "test"}}},
 			MaxInputBytes: 1 << 20, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000, MaxCommandOutputBytes: 1 << 20, MaxCommandSeconds: 30,
 		},
 		active: domain.ActiveChange{Kind: domain.ActiveBrief, ID: changeID, BriefPath: briefPath},
@@ -337,7 +341,7 @@ func newExecutionFixture(tier domain.RiskTier) *executionFixture {
 		},
 		overallPaths: []string{briefPath}, providerPaths: []string{"internal/product/change.go"}, providerDecision: domain.DecisionGO,
 		commitsByID:   map[string]fakeCommit{briefCommit: {parent: base, tree: briefTree, subject: "docs(product): add change brief", paths: []string{briefPath}}},
-		treesByCommit: map[string]string{base: baseTree, briefCommit: briefTree}, nextIdentityCharacter: 'e',
+		treesByCommit: map[string]string{base: baseTree, briefCommit: briefTree},
 	}
 	fixture.ports = fixture.buildPorts()
 	return fixture
@@ -442,6 +446,14 @@ func (fixture *executionFixture) buildPorts() Ports {
 			fixture.review, fixture.reviewFound = evidence, true
 			return nil
 		},
+		LoadReadiness: func(string) (domain.ReadinessEvidence, bool, error) {
+			return fixture.readiness, fixture.readinessFound, nil
+		},
+		SaveReadiness: func(_ string, evidence domain.ReadinessEvidence) error {
+			fixture.readiness, fixture.readinessFound = evidence, true
+			fixture.readinessSaves++
+			return nil
+		},
 		RunProvider: fixture.runProvider,
 		RunVerification: func(context.Context, string, []domain.VerificationCommand, int, int) ([]domain.CheckResult, error) {
 			fixture.verificationRuns++
@@ -502,16 +514,21 @@ func (fixture *executionFixture) commit(_ context.Context, request domain.Commit
 	}
 	fixture.commits++
 	parent := fixture.location.Head
-	commit := strings.Repeat(string(fixture.nextIdentityCharacter), 40)
-	fixture.nextIdentityCharacter++
-	tree := strings.Repeat(string(fixture.nextIdentityCharacter), 40)
-	fixture.nextIdentityCharacter++
+	commit := fixture.nextIdentity()
+	tree := fixture.nextIdentity()
 	fixture.location.Head, fixture.location.Tree = commit, tree
 	fixture.commitsByID[commit] = fakeCommit{parent: parent, tree: tree, subject: request.Message, paths: append([]string{}, request.Paths...)}
 	fixture.treesByCommit[commit] = tree
 	fixture.pendingPaths = nil
 	fixture.indexDirty = false
 	return fixture.location, nil
+}
+
+func (fixture *executionFixture) nextIdentity() string {
+	const digits = "ef1234567890abcd"
+	identity := strings.Repeat(string(digits[fixture.nextIdentityIndex]), 40)
+	fixture.nextIdentityIndex++
+	return identity
 }
 
 func (fixture *executionFixture) identity(provider domain.Provider) domain.ProviderIdentity {
@@ -529,7 +546,8 @@ func (fixture *executionFixture) pathDigest(paths []string) string {
 }
 
 func (fixture *executionFixture) passingChecks() []domain.CheckResult {
-	return []domain.CheckResult{{Name: "test", Passed: true, ExitCode: 0, Code: "L7-VERIFY-000", Message: "command passed"}}
+	benchmark := len(fixture.configuration.Verification) == 1 && fixture.configuration.Verification[0].Benchmark
+	return []domain.CheckResult{{Name: "test", Benchmark: benchmark, Passed: true, ExitCode: 0, Code: "L7-VERIFY-000", Message: "command passed"}}
 }
 
 func (fixture *executionFixture) addOverall(paths ...string) {

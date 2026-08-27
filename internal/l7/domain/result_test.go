@@ -21,14 +21,14 @@ func TestResultExitCode(t *testing.T) {
 	}
 }
 
-func TestResultSchemaChangesWhenWaveThreeAddsExecutionDetails(t *testing.T) {
-	if ResultSchema != 3 {
-		t.Fatalf("ResultSchema=%d, want 3", ResultSchema)
+func TestResultSchemaChangesWhenWaveFourAddsReadinessDetails(t *testing.T) {
+	if ResultSchema != 4 {
+		t.Fatalf("ResultSchema=%d, want 4", ResultSchema)
 	}
 }
 
 func TestExecutionCommandsAreExplicit(t *testing.T) {
-	for _, command := range []Command{CommandRun, CommandVerify, CommandReview} {
+	for _, command := range []Command{CommandRun, CommandVerify, CommandReview, CommandReady, CommandMerge} {
 		if command == "" {
 			t.Fatal("execution command is empty")
 		}

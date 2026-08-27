@@ -2,6 +2,8 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -30,6 +32,7 @@ type File struct {
 	Limits         Limits                `json:"limits"`
 	ProtectedPaths []string              `json:"protected_paths"`
 	Providers      Providers             `json:"providers"`
+	digest         string
 }
 
 type Features struct {
@@ -82,7 +85,7 @@ type providersWire struct {
 }
 
 func Default(localLifecycle bool) File {
-	return File{
+	configuration := File{
 		Schema:         SchemaVersion,
 		Features:       Features{LocalLifecycle: localLifecycle},
 		Verification:   []VerificationCommand{},
@@ -90,6 +93,8 @@ func Default(localLifecycle bool) File {
 		ProtectedPaths: []string{},
 		Providers:      Providers{},
 	}
+	configuration.setCanonicalDigest()
+	return configuration
 }
 
 func (configuration File) Domain() domain.Configuration {
@@ -102,6 +107,7 @@ func (configuration File) Domain() domain.Configuration {
 		})
 	}
 	return domain.Configuration{
+		Digest:                configuration.configurationDigest(),
 		LocalLifecycle:        configuration.Features.LocalLifecycle,
 		Verification:          verification,
 		MaxInputBytes:         configuration.Limits.MaxInputBytes,
@@ -128,6 +134,7 @@ func Load(root string) (File, error) {
 	if err := configuration.Validate(); err != nil {
 		return File{}, err
 	}
+	configuration.digest = digestBytes(data)
 	return configuration, nil
 }
 
@@ -143,6 +150,7 @@ func Adopt(root string, enableLocalLifecycle bool) (File, bool, error) {
 			if encodeErr != nil {
 				return File{}, false, encodeErr
 			}
+			configuration.digest = digestBytes(data)
 			if writeErr := localfile.AtomicReplace(filepath.Join(root, filepath.FromSlash(configurationPath)), data, 0o644); writeErr != nil {
 				return File{}, false, writeErr
 			}
@@ -166,7 +174,28 @@ func Adopt(root string, enableLocalLifecycle bool) (File, bool, error) {
 	if err := localfile.AtomicCreate(filepath.Join(directory, "config.json"), data, 0o644); err != nil {
 		return File{}, false, err
 	}
+	configuration.digest = digestBytes(data)
 	return configuration, true, nil
+}
+
+func (configuration File) configurationDigest() string {
+	if configuration.digest != "" {
+		return configuration.digest
+	}
+	data, err := localfile.EncodeJSON(configuration)
+	if err != nil {
+		return ""
+	}
+	return digestBytes(data)
+}
+
+func (configuration *File) setCanonicalDigest() {
+	configuration.digest = configuration.configurationDigest()
+}
+
+func digestBytes(data []byte) string {
+	digest := sha256.Sum256(data)
+	return hex.EncodeToString(digest[:])
 }
 
 func (configuration File) Validate() error {

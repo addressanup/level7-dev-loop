@@ -1,7 +1,7 @@
 // Package domain contains the side-effect-free Level 7 CLI model.
 package domain
 
-const ResultSchema = 3
+const ResultSchema = 4
 
 type Outcome string
 
@@ -23,6 +23,8 @@ const (
 	CommandRun     Command = "run"
 	CommandVerify  Command = "verify"
 	CommandReview  Command = "review"
+	CommandReady   Command = "ready"
+	CommandMerge   Command = "merge"
 )
 
 type Request struct {
@@ -37,6 +39,9 @@ type Request struct {
 	Rollback             []string
 	Agent                Provider
 	CommitMessage        string
+	Headless             bool
+	TargetBranch         string
+	Input                []byte
 }
 
 type RepositoryDetails struct {
@@ -64,6 +69,25 @@ type Result struct {
 	Details    []string
 	Repository *RepositoryDetails
 	Execution  *ExecutionDetails
+	Readiness  *ReadinessDetails
+}
+
+type ReadinessDetails struct {
+	Headless            bool
+	Ready               bool
+	Base                string
+	Candidate           string
+	Tree                string
+	BriefCommit         string
+	ConfigurationDigest string
+	VerificationCommit  string
+	ReviewCommit        string
+	Owner               string
+	Implementer         Provider
+	Reviewer            Provider
+	TargetRef           string
+	PreviousCommit      string
+	Checks              []CheckResult
 }
 
 type ExecutionDetails struct {

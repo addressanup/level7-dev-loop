@@ -22,6 +22,7 @@ type wireResult struct {
 	Details    []string        `json:"details"`
 	Repository *wireRepository `json:"repository,omitempty"`
 	Execution  *wireExecution  `json:"execution,omitempty"`
+	Readiness  *wireReadiness  `json:"readiness,omitempty"`
 }
 
 type wireExecution struct {
@@ -43,6 +44,24 @@ type wireCheck struct {
 	ExitCode  int    `json:"exit_code"`
 	Code      string `json:"code"`
 	Message   string `json:"message"`
+}
+
+type wireReadiness struct {
+	Headless            bool            `json:"headless"`
+	Ready               bool            `json:"ready"`
+	Base                string          `json:"base"`
+	Candidate           string          `json:"candidate_commit"`
+	Tree                string          `json:"candidate_tree"`
+	BriefCommit         string          `json:"brief_commit,omitempty"`
+	ConfigurationDigest string          `json:"configuration_digest"`
+	VerificationCommit  string          `json:"verification_commit"`
+	ReviewCommit        string          `json:"review_commit"`
+	Owner               string          `json:"owner,omitempty"`
+	Implementer         domain.Provider `json:"implementer"`
+	Reviewer            domain.Provider `json:"reviewer"`
+	TargetRef           string          `json:"target_ref,omitempty"`
+	PreviousCommit      string          `json:"previous_commit,omitempty"`
+	Checks              []wireCheck     `json:"checks"`
 }
 
 type wireRepository struct {
@@ -116,6 +135,34 @@ func Text(result domain.Result) []byte {
 			fmt.Fprintf(&output, "check_name=%s check_passed=%t check_exit=%d check_code=%s check_message=%s\n", strconv.Quote(check.Name), check.Passed, check.ExitCode, strconv.Quote(check.Code), strconv.Quote(check.Message))
 		}
 	}
+	if readiness := result.Readiness; readiness != nil {
+		fmt.Fprintf(&output, "readiness_headless=%t\n", readiness.Headless)
+		fmt.Fprintf(&output, "readiness_ready=%t\n", readiness.Ready)
+		for _, value := range []struct {
+			label string
+			value string
+		}{
+			{label: "readiness_base", value: readiness.Base},
+			{label: "readiness_candidate", value: readiness.Candidate},
+			{label: "readiness_tree", value: readiness.Tree},
+			{label: "readiness_brief_commit", value: readiness.BriefCommit},
+			{label: "readiness_configuration_digest", value: readiness.ConfigurationDigest},
+			{label: "readiness_verification_commit", value: readiness.VerificationCommit},
+			{label: "readiness_review_commit", value: readiness.ReviewCommit},
+			{label: "readiness_owner", value: readiness.Owner},
+			{label: "readiness_implementer", value: string(readiness.Implementer)},
+			{label: "readiness_reviewer", value: string(readiness.Reviewer)},
+			{label: "merge_target_ref", value: readiness.TargetRef},
+			{label: "merge_previous_commit", value: readiness.PreviousCommit},
+		} {
+			if value.value != "" {
+				fmt.Fprintf(&output, "%s=%s\n", value.label, strconv.Quote(value.value))
+			}
+		}
+		for _, check := range readiness.Checks {
+			fmt.Fprintf(&output, "readiness_check=%s benchmark=%t passed=%t\n", strconv.Quote(check.Name), check.Benchmark, check.Passed)
+		}
+	}
 	return output.Bytes()
 }
 
@@ -154,6 +201,20 @@ func JSON(result domain.Result) ([]byte, error) {
 		wire.Execution = &wireExecution{
 			Role: execution.Role, Provider: execution.Provider, Executable: execution.Executable, Version: execution.Version,
 			Digest: execution.Digest, Commit: execution.Commit, Tree: execution.Tree, Decision: execution.Decision, Checks: checks,
+		}
+	}
+	if readiness := result.Readiness; readiness != nil {
+		checks := make([]wireCheck, 0, len(readiness.Checks))
+		for _, check := range readiness.Checks {
+			checks = append(checks, wireCheck{Name: check.Name, Benchmark: check.Benchmark, Passed: check.Passed, ExitCode: check.ExitCode, Code: check.Code, Message: check.Message})
+		}
+		wire.Readiness = &wireReadiness{
+			Headless: readiness.Headless, Ready: readiness.Ready, Base: readiness.Base,
+			Candidate: readiness.Candidate, Tree: readiness.Tree, BriefCommit: readiness.BriefCommit,
+			ConfigurationDigest: readiness.ConfigurationDigest, VerificationCommit: readiness.VerificationCommit,
+			ReviewCommit: readiness.ReviewCommit, Owner: readiness.Owner, Implementer: readiness.Implementer,
+			Reviewer: readiness.Reviewer, TargetRef: readiness.TargetRef, PreviousCommit: readiness.PreviousCommit,
+			Checks: checks,
 		}
 	}
 	data, err := json.Marshal(wire)
