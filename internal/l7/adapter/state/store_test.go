@@ -69,6 +69,12 @@ func TestLoadRejectsMalformedUnsafeAndOversizedState(t *testing.T) {
 		{"unknown field", func(path string) error {
 			return os.WriteFile(path, []byte(`{"schema":1,"kind":"brief","change_id":"x","brief_path":"docs/artifacts/changes/x.md","unknown":true}`), 0o600)
 		}},
+		{"redundant zero field", func(path string) error {
+			return os.WriteFile(path, []byte(`{"schema":1,"kind":"brief","change_id":"x","tier":0,"brief_path":"docs/artifacts/changes/x.md"}`), 0o600)
+		}},
+		{"null field", func(path string) error {
+			return os.WriteFile(path, []byte(`{"schema":1,"kind":"brief","change_id":"x","brief_path":null}`), 0o600)
+		}},
 		{"trailing", func(path string) error { return os.WriteFile(path, []byte(`{} {}`), 0o600) }},
 		{"oversized", func(path string) error {
 			return os.WriteFile(path, []byte(strings.Repeat("x", MaxActiveFile+1)), 0o600)

@@ -30,6 +30,17 @@ type activeFile struct {
 	BriefPath string            `json:"brief_path,omitempty"`
 }
 
+type activeWire struct {
+	Schema    *int               `json:"schema"`
+	Kind      *domain.ActiveKind `json:"kind"`
+	ChangeID  *string            `json:"change_id"`
+	Tier      *domain.RiskTier   `json:"tier,omitempty"`
+	Base      *string            `json:"base,omitempty"`
+	Problem   *string            `json:"problem,omitempty"`
+	Scope     *[]string          `json:"scope,omitempty"`
+	BriefPath *string            `json:"brief_path,omitempty"`
+}
+
 func Load(commonDirectory string) (domain.ActiveChange, bool, error) {
 	path, err := activePath(commonDirectory)
 	if err != nil {
@@ -96,9 +107,38 @@ func encodeActive(active domain.ActiveChange) ([]byte, error) {
 }
 
 func decodeActive(data []byte) (domain.ActiveChange, bool, error) {
-	var file activeFile
-	if err := localfile.DecodeJSON(data, &file); err != nil {
+	var wire activeWire
+	if err := localfile.DecodeJSON(data, &wire); err != nil {
 		return domain.ActiveChange{}, false, err
+	}
+	if wire.Schema == nil || wire.Kind == nil || wire.ChangeID == nil {
+		return domain.ActiveChange{}, false, errors.New("active state is missing a required field")
+	}
+	file := activeFile{Schema: *wire.Schema, Kind: *wire.Kind, ChangeID: *wire.ChangeID}
+	if wire.Tier != nil {
+		file.Tier = *wire.Tier
+	}
+	if wire.Base != nil {
+		file.Base = *wire.Base
+	}
+	if wire.Problem != nil {
+		file.Problem = *wire.Problem
+	}
+	if wire.Scope != nil {
+		file.Scope = append([]string{}, (*wire.Scope)...)
+	}
+	if wire.BriefPath != nil {
+		file.BriefPath = *wire.BriefPath
+	}
+	switch file.Kind {
+	case domain.ActiveTierOne:
+		if wire.Tier == nil || wire.Base == nil || wire.Problem == nil || wire.Scope == nil || wire.BriefPath != nil {
+			return domain.ActiveChange{}, false, errors.New("Tier 1 active state fields are missing or conflicting")
+		}
+	case domain.ActiveBrief:
+		if wire.BriefPath == nil || wire.Tier != nil || wire.Base != nil || wire.Problem != nil || wire.Scope != nil {
+			return domain.ActiveChange{}, false, errors.New("brief-backed active state contains duplicated fields")
+		}
 	}
 	if err := validateActive(file); err != nil {
 		return domain.ActiveChange{}, false, err

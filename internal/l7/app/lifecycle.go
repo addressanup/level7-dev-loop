@@ -20,10 +20,17 @@ type Ports struct {
 }
 
 var builtinProtectedPaths = []string{
+	".codex/**",
+	".claude/**",
 	".claude-plugin/plugin.json",
 	".codex-plugin/plugin.json",
+	".git/**",
+	".gitattributes",
+	".github/CODEOWNERS",
 	".github/workflows/**",
-	".l7/config.json",
+	".gitignore",
+	".gitmodules",
+	".l7/**",
 	"AGENTS.md",
 	"CLAUDE.md",
 	"Makefile",
@@ -112,6 +119,9 @@ func (application Application) createBrief(ctx context.Context, request domain.R
 	}
 	if !configuration.LocalLifecycle {
 		return application.result(domain.OutcomeBlocked, "L7-FLAG-001", string(request.Command), "disabled", "local lifecycle behavior is default OFF", "run l7 adopt --enable-local-lifecycle")
+	}
+	if requestBytes(request) > configuration.MaxInputBytes {
+		return application.result(domain.OutcomeBlocked, "L7-INPUT-001", string(request.Command), "bounded", "change input exceeds the repository's configured size limit", "shorten the change input or explicitly raise the bounded configuration limit")
 	}
 	if request.Tier != domain.TierHighRisk && touchesProtected(request.Scope, configuration.ProtectedPaths) {
 		return application.result(domain.OutcomeBlocked, "L7-RISK-001", string(request.Command), "risk-mismatch", "declared scope intersects a protected control", "declare Tier 3 and obtain explicit owner approval before implementation")
@@ -232,6 +242,9 @@ func (application Application) status(ctx context.Context, request domain.Reques
 		snapshot, snapshotErr := application.ports.Snapshot(ctx, location.Root, location.Head, configuration.MaxGitOutputBytes, configuration.MaxGitPaths)
 		if snapshotErr != nil {
 			return application.failure("L7-GIT-001", request.Command, "invalid", "cannot reconstruct idle Git status: "+bounded(snapshotErr.Error(), 512), "stabilize the Git worktree, then retry l7 status")
+		}
+		if !sameCandidate(location, snapshot.RepositoryLocation) {
+			return application.failure("L7-GIT-002", request.Command, "changed", "Git identity changed during idle status reconstruction", "retry l7 status against a stable repository")
 		}
 		recheckedConfiguration, configFound, configErr := application.ports.LoadConfiguration(location.Root)
 		_, recheckedActiveFound, activeErr := application.ports.LoadActive(location.CommonDir)
@@ -377,7 +390,7 @@ func sameSnapshot(left, right domain.RepositorySnapshot) bool {
 }
 
 func sameConfiguration(left, right domain.Configuration) bool {
-	return left.LocalLifecycle == right.LocalLifecycle && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && sameStrings(left.ProtectedPaths, right.ProtectedPaths)
+	return left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && sameStrings(left.ProtectedPaths, right.ProtectedPaths)
 }
 
 func sameStoredActive(resolved, stored domain.ActiveChange) bool {
@@ -430,4 +443,14 @@ func patternsOverlap(left, right string) bool {
 		return rightBase == leftBase || strings.HasPrefix(rightBase, leftBase+"/")
 	}
 	return leftBase == rightBase || strings.HasPrefix(leftBase, rightBase+"/")
+}
+
+func requestBytes(request domain.Request) int {
+	total := len(request.ChangeID) + len(request.Problem)
+	for _, group := range [][]string{request.Scope, request.AcceptanceCriteria, request.Risks, request.Rollback} {
+		for _, value := range group {
+			total += len(value)
+		}
+	}
+	return total
 }

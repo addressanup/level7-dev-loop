@@ -88,6 +88,7 @@ func TestDecodeJSONIsStrictAtEveryObjectDepth(t *testing.T) {
 		{"duplicate top-level", `{"schema":1,"schema":1,"nested":{"enabled":true}}`},
 		{"duplicate nested", `{"schema":1,"nested":{"enabled":true,"enabled":false}}`},
 		{"unknown", `{"schema":1,"nested":{"enabled":true},"extra":1}`},
+		{"non-canonical case", `{"Schema":1,"nested":{"enabled":true}}`},
 		{"trailing", `{"schema":1,"nested":{"enabled":true}} {}`},
 		{"incomplete", `{"schema":1,"nested":`},
 	}
@@ -124,6 +125,43 @@ func TestRepositoryLockIsExclusiveAndCrashReleaseIsKernelOwned(t *testing.T) {
 	}
 	if err := second.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRepositoryLockRejectsSymlinkSubstitution(t *testing.T) {
+	directory := physicalTempDir(t)
+	target := filepath.Join(directory, "target")
+	if err := os.WriteFile(target, []byte(""), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(directory, "lock")
+	if err := os.Symlink(target, lockPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AcquireLock(lockPath); err == nil {
+		t.Fatalf("symlinked AcquireLock() error=%v", err)
+	}
+}
+
+func TestAnchoredDirectoryDetectsPathReplacement(t *testing.T) {
+	parent := physicalTempDir(t)
+	directory := filepath.Join(parent, "state")
+	if err := os.Mkdir(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	root, info, err := openAnchoredDirectory(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := os.Rename(directory, filepath.Join(parent, "moved")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := revalidateAnchoredDirectory(root, directory, info); err == nil || !strings.Contains(err.Error(), "identity changed") {
+		t.Fatalf("revalidateAnchoredDirectory() error=%v", err)
 	}
 }
 

@@ -23,6 +23,8 @@ const (
 	maxDiagnostic    = 8 << 10
 )
 
+var errOutputLimit = errors.New("bounded Git output limit reached")
+
 type Adapter struct {
 	binary    string
 	maxOutput int
@@ -142,7 +144,7 @@ func (adapter Adapter) Snapshot(ctx context.Context, workingDirectory, base stri
 	if !ancestor {
 		return domain.RepositorySnapshot{}, errors.New("base commit is not an ancestor of HEAD")
 	}
-	committedOutput, err := adapter.run(ctx, location.Root, "diff", "--name-only", "-z", "--no-renames", "--diff-filter=ACDMRTUXB", base, location.Head, "--")
+	committedOutput, err := adapter.run(ctx, location.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--diff-filter=ACDMRTUXB", base, location.Head, "--")
 	if err != nil {
 		return domain.RepositorySnapshot{}, fmt.Errorf("read committed Git paths: %w", err)
 	}
@@ -188,6 +190,9 @@ func (adapter Adapter) isAncestor(ctx context.Context, root, base, head string) 
 	command.Stdout = &diagnostic
 	command.Stderr = &diagnostic
 	err := command.Run()
+	if diagnostic.exceeded {
+		return false, errors.New("Git ancestry diagnostic exceeds size limit")
+	}
 	if err == nil {
 		return true, nil
 	}
@@ -239,7 +244,8 @@ func (adapter Adapter) run(ctx context.Context, root string, arguments ...string
 }
 
 func (adapter Adapter) command(ctx context.Context, root string, arguments ...string) *exec.Cmd {
-	argv := append([]string{"-C", root}, arguments...)
+	argv := []string{"-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "--no-optional-locks", "-C", root}
+	argv = append(argv, arguments...)
 	command := exec.CommandContext(ctx, adapter.binary, argv...)
 	command.Env = []string{
 		"LC_ALL=C",
@@ -388,7 +394,7 @@ func (buffer *limitedBuffer) Write(data []byte) (int, error) {
 			_, _ = buffer.data.Write(data[:remaining])
 		}
 		buffer.exceeded = true
-		return len(data), nil
+		return remaining, errOutputLimit
 	}
 	return buffer.data.Write(data)
 }

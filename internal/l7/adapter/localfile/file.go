@@ -3,12 +3,16 @@ package localfile
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"syscall"
 )
 
@@ -60,10 +64,13 @@ func atomicWrite(path string, data []byte, mode os.FileMode, replace bool) error
 		return errors.New("atomic path must be absolute")
 	}
 	directory := filepath.Dir(filepath.Clean(path))
-	if err := ValidateDirectory(directory); err != nil {
+	root, directoryInfo, err := openAnchoredDirectory(directory)
+	if err != nil {
 		return err
 	}
-	if info, err := os.Lstat(path); err == nil {
+	defer root.Close()
+	name := filepath.Base(path)
+	if info, err := root.Lstat(name); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 			return errors.New("destination is not a regular file")
 		}
@@ -74,17 +81,18 @@ func atomicWrite(path string, data []byte, mode os.FileMode, replace bool) error
 		return fmt.Errorf("inspect destination: %w", err)
 	}
 
-	temporary, err := os.CreateTemp(directory, ".l7-write-*")
+	temporary, temporaryName, err := createAnchoredTemp(root)
 	if err != nil {
 		return fmt.Errorf("create atomic temporary file: %w", err)
 	}
-	temporaryPath := temporary.Name()
 	closed := false
 	defer func() {
 		if !closed {
 			_ = temporary.Close()
 		}
-		_ = os.Remove(temporaryPath)
+		if temporaryName != "" {
+			_ = root.Remove(temporaryName)
+		}
 	}()
 	if err := temporary.Chmod(mode.Perm()); err != nil {
 		return fmt.Errorf("set atomic file mode: %w", err)
@@ -99,20 +107,27 @@ func atomicWrite(path string, data []byte, mode os.FileMode, replace bool) error
 		return fmt.Errorf("close atomic file: %w", err)
 	}
 	closed = true
+	if err := revalidateAnchoredDirectory(root, directory, directoryInfo); err != nil {
+		return err
+	}
 
 	if replace {
-		if err := os.Rename(temporaryPath, path); err != nil {
+		if err := root.Rename(temporaryName, name); err != nil {
 			return fmt.Errorf("replace atomic file: %w", err)
 		}
 	} else {
-		if err := os.Link(temporaryPath, path); err != nil {
+		if err := root.Link(temporaryName, name); err != nil {
 			return fmt.Errorf("create atomic file: %w", err)
 		}
-		if err := os.Remove(temporaryPath); err != nil {
+		if err := root.Remove(temporaryName); err != nil {
 			return fmt.Errorf("unlink atomic temporary file: %w", err)
 		}
 	}
-	return syncDirectory(directory)
+	temporaryName = ""
+	if err := syncAnchoredDirectory(root); err != nil {
+		return err
+	}
+	return revalidateAnchoredDirectory(root, directory, directoryInfo)
 }
 
 func EnsureDirectory(path string, mode os.FileMode) error {
@@ -173,11 +188,11 @@ func ValidateDirectory(path string) error {
 }
 
 func DecodeJSON(data []byte, target any) error {
-	if target == nil {
+	if target == nil || reflect.TypeOf(target).Kind() != reflect.Pointer || reflect.ValueOf(target).IsNil() {
 		return errors.New("JSON target is nil")
 	}
 	validator := json.NewDecoder(bytes.NewReader(data))
-	if err := validateJSONValue(validator); err != nil {
+	if err := validateJSONShape(validator, reflect.TypeOf(target).Elem()); err != nil {
 		return err
 	}
 	if _, err := validator.Token(); !errors.Is(err, io.EOF) {
@@ -201,75 +216,23 @@ func DecodeJSON(data []byte, target any) error {
 	return nil
 }
 
-func EncodeJSON(value any) ([]byte, error) {
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("encode JSON: %w", err)
+func validateJSONShape(decoder *json.Decoder, expected reflect.Type) error {
+	for expected.Kind() == reflect.Pointer {
+		expected = expected.Elem()
 	}
-	return append(data, '\n'), nil
-}
-
-type Lock struct {
-	file *os.File
-}
-
-func AcquireLock(path string) (*Lock, error) {
-	if !filepath.IsAbs(path) {
-		return nil, errors.New("lock path must be absolute")
-	}
-	if err := ValidateDirectory(filepath.Dir(path)); err != nil {
-		return nil, err
-	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("open repository lock: %w", err)
-	}
-	fail := func(cause error) (*Lock, error) {
-		_ = file.Close()
-		return nil, cause
-	}
-	opened, err := file.Stat()
-	if err != nil || !opened.Mode().IsRegular() {
-		return fail(errors.New("repository lock is not a regular file"))
-	}
-	linked, err := os.Lstat(path)
-	if err != nil || linked.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, linked) {
-		return fail(errors.New("repository lock identity is unsafe"))
-	}
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return fail(errors.New("another Level 7 mutation is active"))
-	}
-	return &Lock{file: file}, nil
-}
-
-func (lock *Lock) Close() error {
-	if lock == nil || lock.file == nil {
-		return nil
-	}
-	file := lock.file
-	lock.file = nil
-	unlockErr := syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-	closeErr := file.Close()
-	if unlockErr != nil {
-		return fmt.Errorf("unlock repository: %w", unlockErr)
-	}
-	if closeErr != nil {
-		return fmt.Errorf("close repository lock: %w", closeErr)
-	}
-	return nil
-}
-
-func validateJSONValue(decoder *json.Decoder) error {
 	token, err := decoder.Token()
 	if err != nil {
 		return fmt.Errorf("read JSON value: %w", err)
 	}
-	delimiter, ok := token.(json.Delim)
-	if !ok {
-		return nil
+	if token == nil {
+		return errors.New("JSON null is unsupported in strict records")
 	}
-	switch delimiter {
-	case '{':
+	switch expected.Kind() {
+	case reflect.Struct:
+		if token != json.Delim('{') {
+			return errors.New("JSON value is not the required object")
+		}
+		fields := exactJSONFields(expected)
 		seen := make(map[string]bool)
 		for decoder.More() {
 			keyToken, err := decoder.Token()
@@ -280,11 +243,70 @@ func validateJSONValue(decoder *json.Decoder) error {
 			if !ok {
 				return errors.New("JSON object key is not a string")
 			}
+			fieldType, ok := fields[key]
+			if !ok {
+				return fmt.Errorf("unknown or non-canonical JSON field %q", key)
+			}
 			if seen[key] {
 				return fmt.Errorf("duplicate JSON field %q", key)
 			}
 			seen[key] = true
-			if err := validateJSONValue(decoder); err != nil {
+			if err := validateJSONShape(decoder, fieldType); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil || closing != json.Delim('}') {
+			return errors.New("unterminated JSON object")
+		}
+		return nil
+	case reflect.Slice, reflect.Array:
+		if token != json.Delim('[') {
+			return errors.New("JSON value is not the required array")
+		}
+		for decoder.More() {
+			if err := validateJSONShape(decoder, expected.Elem()); err != nil {
+				return err
+			}
+		}
+		closing, err := decoder.Token()
+		if err != nil || closing != json.Delim(']') {
+			return errors.New("unterminated JSON array")
+		}
+		return nil
+	case reflect.Map, reflect.Interface:
+		return validateDynamicJSONToken(decoder, token, expected)
+	default:
+		if _, ok := token.(json.Delim); ok {
+			return errors.New("JSON container does not match the required scalar")
+		}
+		return nil
+	}
+}
+
+func validateDynamicJSONToken(decoder *json.Decoder, token json.Token, expected reflect.Type) error {
+	delimiter, ok := token.(json.Delim)
+	if !ok {
+		return nil
+	}
+	switch delimiter {
+	case '{':
+		seen := make(map[string]bool)
+		valueType := reflect.TypeOf((*any)(nil)).Elem()
+		if expected.Kind() == reflect.Map {
+			valueType = expected.Elem()
+		}
+		for decoder.More() {
+			keyToken, err := decoder.Token()
+			if err != nil {
+				return err
+			}
+			key, ok := keyToken.(string)
+			if !ok || seen[key] {
+				return errors.New("JSON object key is invalid or duplicated")
+			}
+			seen[key] = true
+			if err := validateJSONShape(decoder, valueType); err != nil {
 				return err
 			}
 		}
@@ -293,8 +315,9 @@ func validateJSONValue(decoder *json.Decoder) error {
 			return errors.New("unterminated JSON object")
 		}
 	case '[':
+		valueType := reflect.TypeOf((*any)(nil)).Elem()
 		for decoder.More() {
-			if err := validateJSONValue(decoder); err != nil {
+			if err := validateJSONShape(decoder, valueType); err != nil {
 				return err
 			}
 		}
@@ -304,6 +327,103 @@ func validateJSONValue(decoder *json.Decoder) error {
 		}
 	default:
 		return errors.New("unexpected JSON delimiter")
+	}
+	return nil
+}
+
+func exactJSONFields(structType reflect.Type) map[string]reflect.Type {
+	fields := make(map[string]reflect.Type)
+	for index := 0; index < structType.NumField(); index++ {
+		field := structType.Field(index)
+		if field.PkgPath != "" {
+			continue
+		}
+		name := field.Name
+		if tag := field.Tag.Get("json"); tag != "" {
+			if comma := strings.IndexByte(tag, ','); comma >= 0 {
+				tag = tag[:comma]
+			}
+			if tag == "-" {
+				continue
+			}
+			if tag != "" {
+				name = tag
+			}
+		}
+		fields[name] = field.Type
+	}
+	return fields
+}
+
+func EncodeJSON(value any) ([]byte, error) {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("encode JSON: %w", err)
+	}
+	return append(data, '\n'), nil
+}
+
+type Lock struct {
+	file *os.File
+	root *os.Root
+}
+
+func AcquireLock(path string) (*Lock, error) {
+	if !filepath.IsAbs(path) {
+		return nil, errors.New("lock path must be absolute")
+	}
+	directory := filepath.Dir(path)
+	root, directoryInfo, err := openAnchoredDirectory(directory)
+	if err != nil {
+		return nil, err
+	}
+	file, err := root.OpenFile(filepath.Base(path), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		_ = root.Close()
+		return nil, fmt.Errorf("open repository lock: %w", err)
+	}
+	fail := func(cause error) (*Lock, error) {
+		_ = file.Close()
+		_ = root.Close()
+		return nil, cause
+	}
+	opened, err := file.Stat()
+	if err != nil || !opened.Mode().IsRegular() {
+		return fail(errors.New("repository lock is not a regular file"))
+	}
+	linked, err := root.Lstat(filepath.Base(path))
+	if err != nil || linked.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, linked) {
+		return fail(errors.New("repository lock identity is unsafe"))
+	}
+	if err := revalidateAnchoredDirectory(root, directory, directoryInfo); err != nil {
+		return fail(err)
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		return fail(errors.New("another Level 7 mutation is active"))
+	}
+	return &Lock{file: file, root: root}, nil
+}
+
+func (lock *Lock) Close() error {
+	if lock == nil || lock.file == nil {
+		return nil
+	}
+	file := lock.file
+	root := lock.root
+	lock.file = nil
+	lock.root = nil
+	unlockErr := syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+	closeErr := file.Close()
+	if unlockErr != nil {
+		return fmt.Errorf("unlock repository: %w", unlockErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close repository lock: %w", closeErr)
+	}
+	if root != nil {
+		if err := root.Close(); err != nil {
+			return fmt.Errorf("close repository lock root: %w", err)
+		}
 	}
 	return nil
 }
@@ -333,8 +453,8 @@ func writeAll(file *os.File, data []byte) error {
 	return nil
 }
 
-func syncDirectory(path string) error {
-	directory, err := os.Open(path)
+func syncAnchoredDirectory(root *os.Root) error {
+	directory, err := root.Open(".")
 	if err != nil {
 		return fmt.Errorf("open directory for sync: %w", err)
 	}
@@ -343,6 +463,60 @@ func syncDirectory(path string) error {
 		return fmt.Errorf("sync directory: %w", err)
 	}
 	return nil
+}
+
+func openAnchoredDirectory(path string) (*os.Root, os.FileInfo, error) {
+	if err := ValidateDirectory(path); err != nil {
+		return nil, nil, err
+	}
+	before, err := os.Lstat(path)
+	if err != nil || before.Mode()&os.ModeSymlink != 0 || !before.IsDir() {
+		return nil, nil, errors.New("atomic parent is not a safe directory")
+	}
+	root, err := os.OpenRoot(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("anchor atomic parent: %w", err)
+	}
+	opened, err := root.Stat(".")
+	if err != nil || !opened.IsDir() || !os.SameFile(before, opened) {
+		_ = root.Close()
+		return nil, nil, errors.New("atomic parent identity changed while opening")
+	}
+	if err := revalidateAnchoredDirectory(root, path, opened); err != nil {
+		_ = root.Close()
+		return nil, nil, err
+	}
+	return root, opened, nil
+}
+
+func revalidateAnchoredDirectory(root *os.Root, path string, opened os.FileInfo) error {
+	linked, err := os.Lstat(path)
+	if err != nil || linked.Mode()&os.ModeSymlink != 0 || !linked.IsDir() || !os.SameFile(opened, linked) {
+		return errors.New("atomic parent identity changed")
+	}
+	current, err := root.Stat(".")
+	if err != nil || !current.IsDir() || !os.SameFile(opened, current) {
+		return errors.New("anchored atomic parent changed")
+	}
+	return nil
+}
+
+func createAnchoredTemp(root *os.Root) (*os.File, string, error) {
+	for attempt := 0; attempt < 100; attempt++ {
+		var random [16]byte
+		if _, err := rand.Read(random[:]); err != nil {
+			return nil, "", err
+		}
+		name := ".l7-write-" + hex.EncodeToString(random[:])
+		file, err := root.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
+		if err == nil {
+			return file, name, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return nil, "", err
+		}
+	}
+	return nil, "", errors.New("cannot allocate a unique atomic temporary file")
 }
 
 func splitPath(value string) []string {

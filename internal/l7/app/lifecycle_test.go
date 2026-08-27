@@ -89,7 +89,7 @@ func TestTierThreeCannotBuildBeforeExternalOwnerApproval(t *testing.T) {
 }
 
 func TestProtectedScopeElevatesBeforeAnyMutation(t *testing.T) {
-	for _, scope := range [][]string{{"Makefile"}, {"internal/**"}, {"custom/protected/**"}} {
+	for _, scope := range [][]string{{"Makefile"}, {"internal/**"}, {"custom/protected/**"}, {".git/config"}, {".gitignore"}, {".l7/other.json"}} {
 		fixture := newLifecycleFixture()
 		fixture.configuration.ProtectedPaths = []string{"custom/protected/**"}
 		request := productRequest()
@@ -98,6 +98,17 @@ func TestProtectedScopeElevatesBeforeAnyMutation(t *testing.T) {
 		if result.Outcome != domain.OutcomeBlocked || result.Code != "L7-RISK-001" || len(fixture.saved) != 0 || fixture.acquisitions != 0 {
 			t.Fatalf("scope=%v result=%+v saved=%+v acquisitions=%d", scope, result, fixture.saved, fixture.acquisitions)
 		}
+	}
+}
+
+func TestRepositoryInputLimitCanNarrowBriefIntake(t *testing.T) {
+	fixture := newLifecycleFixture()
+	fixture.configuration.MaxInputBytes = 1024
+	request := productRequest()
+	request.Problem = strings.Repeat("x", 1500)
+	result := fixture.application().ExecuteRequest(context.Background(), request)
+	if result.Outcome != domain.OutcomeBlocked || result.Code != "L7-INPUT-001" || fixture.acquisitions != 0 || len(fixture.saved) != 0 {
+		t.Fatalf("bounded input result=%+v acquisitions=%d saved=%v", result, fixture.acquisitions, fixture.saved)
 	}
 }
 
@@ -192,7 +203,7 @@ type lifecycleFixture struct {
 func newLifecycleFixture() *lifecycleFixture {
 	fixture := &lifecycleFixture{
 		location:      domain.RepositoryLocation{Root: "/repo", CommonDir: "/repo/.git", Head: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40)},
-		configuration: domain.Configuration{LocalLifecycle: true, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000},
+		configuration: domain.Configuration{LocalLifecycle: true, MaxInputBytes: 1 << 20, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000},
 		snapshotPaths: [][]string{{}, {}, {}},
 	}
 	fixture.ports = Ports{

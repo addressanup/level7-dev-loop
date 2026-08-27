@@ -15,6 +15,9 @@ func TestDefaultConfigurationIsValidAndFeatureOff(t *testing.T) {
 	if configuration.Features.LocalLifecycle || configuration.Domain().LocalLifecycle {
 		t.Fatal("local lifecycle is not default OFF")
 	}
+	if configuration.Domain().MaxInputBytes != 1<<20 || configuration.Domain().MaxGitOutputBytes != 16<<20 || configuration.Domain().MaxGitPaths != 100_000 {
+		t.Fatalf("domain limits=%+v", configuration.Domain())
+	}
 }
 
 func TestAdoptCreatesIdempotentlyAndEnablesOnlyWhenExplicit(t *testing.T) {
@@ -45,6 +48,8 @@ func TestLoadRejectsMalformedConfigurationWithoutRepair(t *testing.T) {
 		{"duplicate", `{"schema":1,"schema":1}`},
 		{"unknown", `{"schema":1,"unknown":true}`},
 		{"trailing", `{"schema":1} {}`},
+		{"missing top-level field", `{"schema":1,"features":{"local_lifecycle":false},"verification":[],"limits":{"max_input_bytes":1048576,"max_git_output_bytes":16777216,"max_git_paths":100000,"max_command_output_bytes":8388608,"max_command_seconds":1800},"protected_paths":[]}`},
+		{"missing nested field", `{"schema":1,"features":{},"verification":[],"limits":{"max_input_bytes":1048576,"max_git_output_bytes":16777216,"max_git_paths":100000,"max_command_output_bytes":8388608,"max_command_seconds":1800},"protected_paths":[],"providers":{"implementer":"","reviewer":""}}`},
 		{"future", `{"schema":2,"features":{"local_lifecycle":false},"verification":[],"limits":{"max_input_bytes":1048576,"max_git_output_bytes":16777216,"max_git_paths":100000,"max_command_output_bytes":8388608,"max_command_seconds":1800},"protected_paths":[],"providers":{"implementer":"","reviewer":""}}`},
 	}
 	for _, test := range tests {
@@ -91,12 +96,29 @@ func TestLoadRejectsUnsafeConfigurationFile(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsOversizedConfiguration(t *testing.T) {
+	root := physicalRoot(t)
+	directory := filepath.Join(root, ".l7")
+	if err := os.Mkdir(directory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "config.json"), []byte(strings.Repeat("x", MaxConfiguration+1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(root); err == nil || !strings.Contains(err.Error(), "size limit") {
+		t.Fatalf("oversized Load() error=%v", err)
+	}
+}
+
 func TestValidateRejectsUnsafeCommandsPathsProvidersAndLimits(t *testing.T) {
 	tests := []struct {
 		name   string
 		mutate func(*File)
 	}{
 		{"empty argv", func(file *File) { file.Verification = []VerificationCommand{{Name: "test"}} }},
+		{"control in argv", func(file *File) {
+			file.Verification = []VerificationCommand{{Name: "test", Argv: []string{"make\ntest"}}}
+		}},
 		{"duplicate command", func(file *File) {
 			file.Verification = []VerificationCommand{{Name: "test", Argv: []string{"make"}}, {Name: "test", Argv: []string{"go", "test"}}}
 		}},

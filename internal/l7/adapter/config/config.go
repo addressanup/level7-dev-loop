@@ -55,6 +55,32 @@ type Providers struct {
 	Reviewer    string `json:"reviewer"`
 }
 
+type fileWire struct {
+	Schema         *int                   `json:"schema"`
+	Features       *featuresWire          `json:"features"`
+	Verification   *[]VerificationCommand `json:"verification"`
+	Limits         *limitsWire            `json:"limits"`
+	ProtectedPaths *[]string              `json:"protected_paths"`
+	Providers      *providersWire         `json:"providers"`
+}
+
+type featuresWire struct {
+	LocalLifecycle *bool `json:"local_lifecycle"`
+}
+
+type limitsWire struct {
+	MaxInputBytes         *int `json:"max_input_bytes"`
+	MaxGitOutputBytes     *int `json:"max_git_output_bytes"`
+	MaxGitPaths           *int `json:"max_git_paths"`
+	MaxCommandOutputBytes *int `json:"max_command_output_bytes"`
+	MaxCommandSeconds     *int `json:"max_command_seconds"`
+}
+
+type providersWire struct {
+	Implementer *string `json:"implementer"`
+	Reviewer    *string `json:"reviewer"`
+}
+
 func Default(localLifecycle bool) File {
 	return File{
 		Schema:         SchemaVersion,
@@ -69,6 +95,7 @@ func Default(localLifecycle bool) File {
 func (configuration File) Domain() domain.Configuration {
 	return domain.Configuration{
 		LocalLifecycle:    configuration.Features.LocalLifecycle,
+		MaxInputBytes:     configuration.Limits.MaxInputBytes,
 		MaxGitOutputBytes: configuration.Limits.MaxGitOutputBytes,
 		MaxGitPaths:       configuration.Limits.MaxGitPaths,
 		ProtectedPaths:    append([]string{}, configuration.ProtectedPaths...),
@@ -81,7 +108,8 @@ func Load(root string) (File, error) {
 	if err != nil {
 		return configuration, err
 	}
-	if err := localfile.DecodeJSON(data, &configuration); err != nil {
+	configuration, err = decodeConfiguration(data)
+	if err != nil {
 		return File{}, err
 	}
 	if err := configuration.Validate(); err != nil {
@@ -181,9 +209,15 @@ func (configuration File) Validate() error {
 		}
 		seenPaths[protected] = true
 	}
-	for label, provider := range map[string]string{"implementer": configuration.Providers.Implementer, "reviewer": configuration.Providers.Reviewer} {
-		if provider != "" && provider != "codex" && provider != "claude" {
-			return fmt.Errorf("unsupported %s provider %q", label, provider)
+	for _, entry := range []struct {
+		label    string
+		provider string
+	}{
+		{label: "implementer", provider: configuration.Providers.Implementer},
+		{label: "reviewer", provider: configuration.Providers.Reviewer},
+	} {
+		if entry.provider != "" && entry.provider != "codex" && entry.provider != "claude" {
+			return fmt.Errorf("unsupported %s provider %q", entry.label, entry.provider)
 		}
 	}
 	return nil
@@ -220,5 +254,28 @@ func safeText(value string, limit int, allowEmpty bool) bool {
 	if !utf8.ValidString(value) || len(value) > limit || strings.ContainsRune(value, 0) || (!allowEmpty && value == "") {
 		return false
 	}
+	for _, character := range value {
+		if character == 0x7f || character < 0x20 {
+			return false
+		}
+	}
 	return true
+}
+
+func decodeConfiguration(data []byte) (File, error) {
+	var wire fileWire
+	if err := localfile.DecodeJSON(data, &wire); err != nil {
+		return File{}, err
+	}
+	if wire.Schema == nil || wire.Features == nil || wire.Features.LocalLifecycle == nil || wire.Verification == nil || wire.Limits == nil || wire.Limits.MaxInputBytes == nil || wire.Limits.MaxGitOutputBytes == nil || wire.Limits.MaxGitPaths == nil || wire.Limits.MaxCommandOutputBytes == nil || wire.Limits.MaxCommandSeconds == nil || wire.ProtectedPaths == nil || wire.Providers == nil || wire.Providers.Implementer == nil || wire.Providers.Reviewer == nil {
+		return File{}, errors.New("configuration is missing a required field")
+	}
+	return File{
+		Schema:         *wire.Schema,
+		Features:       Features{LocalLifecycle: *wire.Features.LocalLifecycle},
+		Verification:   append([]VerificationCommand{}, (*wire.Verification)...),
+		Limits:         Limits{MaxInputBytes: *wire.Limits.MaxInputBytes, MaxGitOutputBytes: *wire.Limits.MaxGitOutputBytes, MaxGitPaths: *wire.Limits.MaxGitPaths, MaxCommandOutputBytes: *wire.Limits.MaxCommandOutputBytes, MaxCommandSeconds: *wire.Limits.MaxCommandSeconds},
+		ProtectedPaths: append([]string{}, (*wire.ProtectedPaths)...),
+		Providers:      Providers{Implementer: *wire.Providers.Implementer, Reviewer: *wire.Providers.Reviewer},
+	}, nil
 }

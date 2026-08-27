@@ -229,17 +229,20 @@ func ValidateBrief(brief domain.ChangeBrief) error {
 		}
 		seen[scoped] = true
 	}
-	for label, values := range map[string][]string{
-		"acceptance criteria": brief.AcceptanceCriteria,
-		"risks":               brief.Risks,
-		"rollback":            brief.Rollback,
+	for _, section := range []struct {
+		label  string
+		values []string
+	}{
+		{label: "acceptance criteria", values: brief.AcceptanceCriteria},
+		{label: "risks", values: brief.Risks},
+		{label: "rollback", values: brief.Rollback},
 	} {
-		if len(values) < 1 || len(values) > 64 {
-			return fmt.Errorf("%s must contain 1..64 values", label)
+		if len(section.values) < 1 || len(section.values) > 64 {
+			return fmt.Errorf("%s must contain 1..64 values", section.label)
 		}
-		for _, value := range values {
+		for _, value := range section.values {
 			if !safeBriefLine(value) {
-				return fmt.Errorf("%s contains an invalid line", label)
+				return fmt.Errorf("%s contains an invalid line", section.label)
 			}
 		}
 	}
