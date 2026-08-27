@@ -15,7 +15,9 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
-const CompatibleVersion = "2.1.247"
+const CompatibleVersion = "2.1.241"
+
+const terminalSchema = `{"type":"object","additionalProperties":false,"required":["schema","outcome","summary","findings"],"properties":{"schema":{"const":1},"outcome":{"enum":["complete","blocked"]},"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"string"}},"decision":{"enum":["GO","NO_GO"]}}}`
 
 type Adapter struct {
 	runtime provider.Runtime
@@ -50,11 +52,7 @@ func (adapter Adapter) Run(ctx context.Context, task domain.ProviderTask, maxOut
 	if err != nil {
 		return domain.ProviderResponse{Identity: identity, Role: task.Role}, err
 	}
-	invocationArguments, err := arguments(task.Role)
-	if err != nil {
-		return domain.ProviderResponse{Identity: identity, Role: task.Role}, err
-	}
-	result, err := adapter.runtime.Invoke(ctx, identity, task.RepositoryRoot, invocationArguments, prompt, maxOutputBytes, maxSeconds)
+	result, err := adapter.runtime.Invoke(ctx, identity, task.RepositoryRoot, arguments(task.Role), prompt, maxOutputBytes, maxSeconds)
 	if err != nil {
 		return domain.ProviderResponse{Identity: identity, Role: task.Role}, err
 	}
@@ -63,11 +61,7 @@ func (adapter Adapter) Run(ctx context.Context, task domain.ProviderTask, maxOut
 	return response, err
 }
 
-func arguments(role domain.ProviderRole) ([]string, error) {
-	schema, err := provider.TerminalSchema(role)
-	if err != nil {
-		return nil, err
-	}
+func arguments(role domain.ProviderRole) []string {
 	permission := "acceptEdits"
 	tools := "Read,Glob,Grep,Edit,Write,Bash"
 	if role == domain.RoleReviewer {
@@ -87,8 +81,8 @@ func arguments(role domain.ProviderRole) ([]string, error) {
 		"--no-chrome",
 		"--no-session-persistence",
 		"--output-format", "json",
-		"--json-schema", schema,
-	}, nil
+		"--json-schema", terminalSchema,
+	}
 }
 
 func parseResult(output []byte, role domain.ProviderRole) (domain.ProviderResponse, error) {
@@ -105,10 +99,6 @@ func parseResult(output []byte, role domain.ProviderRole) (domain.ProviderRespon
 	}
 	if !onlyKeys(envelope, "type", "subtype", "is_error", "duration_ms", "duration_api_ms", "num_turns", "result", "session_id", "total_cost_usd", "usage", "modelUsage", "permission_denials", "structured_output") {
 		return domain.ProviderResponse{}, errors.New("Claude result contains an unknown field")
-	}
-	permissionDenials, denialsOK := envelope["permission_denials"].([]any)
-	if !denialsOK || len(permissionDenials) != 0 {
-		return domain.ProviderResponse{}, errors.New("Claude result contains missing, malformed, or non-empty permission denials")
 	}
 	resultType, typeOK := envelope["type"].(string)
 	subtype, subtypeOK := envelope["subtype"].(string)
