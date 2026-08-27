@@ -1,27 +1,21 @@
 ---
 name: l7-deploy
 description: >
-  Production deployment planning and execution checklist with rollback, smoke
-  tests, and monitoring. Trigger when the user says deploy, release to
-  production, or ship the audited candidate.
+  Deploy an audited Tier 3 candidate with explicit approval, rollback, smoke
+  tests, and monitoring.
 user-invocable: true
 ---
 
-# Deploy
+# Lean Deploy
 
-Do not deploy if the latest independent audit is NO-GO or has unmet CONDITIONAL GO items.
+Production deployment is Tier 3. Require the exact Git candidate, external owner
+approval, passing verification, independent GO audit, rollback triggers, and an
+accountable operator.
 
-## Work
+Deploy dark with user-visible flags OFF unless exposure is explicitly authorized.
+Verify backups/migrations/secrets/observability as relevant, deploy, smoke-test
+critical journeys, and monitor guardrails. Reuse the change brief and verification
+record; do not create a separate deployment artifact unless a concrete
+operational or regulatory risk requires it.
 
-1. Confirm artifact equals audited commit/tag
-2. Choose strategy: blue-green, canary, rolling, or documented alternative
-3. Write rollback triggers and owner
-4. Verify backups, migrations, secrets, and observability
-5. Deploy only after explicit user approval
-6. Smoke-test critical journeys
-7. Watch error rate, latency, and business guardrails
-8. Write `docs/artifacts/production-deployment-report.md`
-
-Feature exposure is not the same as deploy. If a feature flag exists, deploy dark (flag OFF) unless the user explicitly releases it. Use `/l7-change` for progressive exposure.
-
-Then recommend `/l7-ops`.
+Recommend `l7-ops` after the deployment is stable.

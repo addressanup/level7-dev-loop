@@ -1,26 +1,36 @@
-# Level 7 prompt sequence (source workflow)
+# Level 7 workflow
 
-This plugin compresses the original sequential prompts into skills.
-Use `/l7-next` instead of remembering numbers.
+The default path is:
 
-## Greenfield
+`brief → implement → test → review → merge`
 
-00 constitution → 01 requirements → 01b backlog → 02 architecture → 03 technology
-→ 04 harness → 06 orchestrate → 07/05 build waves → 08 test → 08b audit
-→ 08c remediate → 08b re-audit → 09 deploy → 10 ops
+## Risk tiers
 
-## Live feature
+| Tier | Planning artifact | Gates |
+|---|---:|---|
+| 1 — routine | 0 | Relevant tests and normal review |
+| 2 — product | 1 change brief | Tests, normal review, default-OFF feature flag when appropriate |
+| 3 — high risk/release | At most 3: brief, verification, audit | External owner approval and independent read-only audit |
 
-11a intake → 11b impact → 11c implement → validation tier → 11d progressive release → 11e outcome
+Tier 3 covers production releases, authorization/security boundaries, destructive
+or irreversible behavior, material migrations, and protected governance controls.
 
-## Ad-hoc feature
+## States
 
-12a context check → 12 compliance only if needed
+Tier 1/2:
 
-## Experience
+`planned → building → verified → reviewed → ready → merge`
 
-13 constitution → 13a audit → 13b system → 13e geometry → 13c wave → 13d QA
+Tier 3:
 
-## Narrative
+`planned → awaiting-owner-approval → building → verified → awaiting-independent-audit → reviewed → ready → merge`
 
-14 product storybook
+New implementation commits after verification/review return to `building`. Audit
+failure returns to `building`. Every state reports a concrete next action.
+
+Use `l7-next` for routing. Use `l7-change` for live work, `l7-build` for an
+approved build, `l7-release` only for Tier 3/release validation, and `l7-deploy`
+after a bound GO decision.
+
+Historical phase manifests and approval/audit chains remain in Git as records but
+are deprecated inputs. New work does not update them.

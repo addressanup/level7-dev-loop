@@ -1,35 +1,23 @@
 ---
 name: l7-greenfield
 description: >
-  Start or continue a greenfield product: requirements, backlog, architecture,
-  technology selection, harness, and wave plan. Trigger for new project, from scratch,
-  bootstrap, or missing docs/artifacts foundation files.
+  Establish the minimum product foundation needed to build safely: problem,
+  acceptance criteria, architecture decisions, stack, harness, and backlog.
 user-invocable: true
 ---
 
-# Greenfield Foundation
+# Lean Greenfield Foundation
 
-Run the next incomplete foundation step only. Save each artifact under `docs/artifacts/`. Get approval before the following step.
+Discover enough to build, not a document chain. Capture the product problem,
+users, constraints, success measures, risks, architecture decisions, technology,
+test/CI harness, and first backlog in the smallest useful product documents.
 
-## Sequence
+Before implementation, classify the first build:
 
-1. Requirements document — problem, users, FR/NFR, constraints, metrics, risks
-2. Feature backlog — P0/P1/P2, dependencies, effort, acceptance criteria
-3. Architecture — 3 options, scored, selected design, failure modes
-4. Technology selection — candidates, scores, stack, compatibility
-5. Harness — repo layout, lint, types, tests, CI, logging, `.env.example`, README
-6. Orchestration plan — waves, shared files, parallelism limits
+- Tier 1: no governance artifact.
+- Tier 2: one `docs/artifacts/changes/<change-id>.md` brief.
+- Tier 3: the same brief plus external owner approval before building.
 
-## Rules
-
-- Ask discovery questions one at a time for requirements.
-- Do not write product features in the harness step beyond a proving test.
-- Pin production dependency versions.
-- Verify harness with install, lint, typecheck, and test commands.
-- True parallel waves need isolated branches/agents. Otherwise sequence Wave 1 → 2 → 3.
-
-## Output
-
-State which step you are on, write that artifact, then ask for approval before the next step.
-
-When the orchestration plan is approved, tell the user to run `/l7-build` for Wave 1.
+Do not require separate approval after every foundation section. Pause only for a
+material product, architecture, data, security, or UX decision. Keep the harness
+green and recommend `l7-build` when the first scoped change is ready.

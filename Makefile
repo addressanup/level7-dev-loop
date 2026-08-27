@@ -76,7 +76,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build-control-check policy-check import-check candidate-check format-check lint typecheck test reproducible verify ci
+.PHONY: bootstrap prepare toolchain-check install build-control-check policy-check ready-check import-check candidate-check format-check lint typecheck test reproducible verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -123,6 +123,9 @@ build-control-check: toolchain-check
 	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol
 
 policy-check: build-control-check
+
+ready-check: toolchain-check
+	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol --require-ready
 
 import-check: toolchain-check
 	@./scripts/harness/check-import-boundaries.sh "$(GO)"

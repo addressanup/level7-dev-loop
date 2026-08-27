@@ -1,51 +1,24 @@
 ---
 name: l7-release
 description: >
-  Release validation: integration testing, independent read-only audit, and
-  evidence-based remediation. Trigger before deploy, audit the codebase,
-  GO/NO-GO, fix audit findings, or release candidate review.
+  Validate a production release or other Tier 3 candidate with bound verification,
+  an independent read-only audit, and a GO or NO-GO decision.
 user-invocable: true
 ---
 
-# Release Validation
+# Tier 3 Release Validation
 
-Choose one mode. Do not mix them in the same turn.
+Use only for production releases or genuinely high-risk changes.
 
-## Mode A — Integration testing
+1. Confirm the approved brief, scope, rollback, and exact Git candidate.
+2. Run integration, data, security, migration, performance, and regression checks
+   relevant to the risk. Write at most one verification record bound to Git.
+3. In a separate read-only review, map the candidate, cite evidence, classify
+   findings, and issue GO or NO-GO. Write at most one audit record bound to the
+   verified commit/tree.
+4. The auditor must be distinct from the implementer and owner and cannot
+   self-certify remediation. New implementation commits invalidate verification
+   and audit and return the change to `building`.
 
-Run or design E2E, API, data integrity, performance, security, and regression checks.
-Write `docs/artifacts/integration-testing-report.md`.
-End with Ready / Not Ready.
-
-## Mode B — Independent audit (default if user says audit)
-
-You are a read-only Principal Engineer auditor.
-
-MUST:
-- Map the repo before concluding
-- Cite files, commands, and tests
-- Score BLOCKER / CRITICAL / HIGH / MEDIUM / LOW / INFO
-- Decide GO / CONDITIONAL GO / NO-GO
-
-MUST NOT:
-- Edit code, config, git, or environments
-- Invent vulnerabilities
-- Approve because tests happen to pass
-
-If a host safety filter blocks security wording, continue with correctness, data integrity, reliability, authorization gaps, and operational readiness. Do not drop the GO/NO-GO decision.
-
-Write `docs/artifacts/principal-engineer-release-audit.md`.
-
-## Mode C — Remediation
-
-Only after Mode B.
-
-- Confirm each `AUD-###` before changing code
-- One finding per commit: `fix(audit-AUD-001): ...`
-- Add regression proof
-- Do not self-issue GO
-- Write `docs/artifacts/release-audit-remediation.md`
-- Tell the user to run Mode B in a fresh session
-
-Ask which mode to run if the user did not specify.
-After completion, recommend `/l7-deploy` only on GO or cleared CONDITIONAL GO.
+Do not create candidate manifests or approval/remediation chains. Recommend
+`l7-deploy` only after a bound GO decision.

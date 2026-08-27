@@ -1,0 +1,96 @@
+name: Trusted policy
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out trusted base controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          path: trusted
+          persist-credentials: false
+
+      - name: Check out candidate without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+
+      - name: Build trusted controller only
+        working-directory: trusted
+        run: |
+          make bootstrap
+          go_version=$(sed -n '1p' .go-version)
+          ".cache/toolchains/go${go_version}/bin/go" build -trimpath -o ../l7-policy ./internal/harness/buildcontrol
+
+      - name: Derive trusted review envelopes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          L7_ACCOUNTABLE_OWNER: ${{ vars.L7_ACCOUNTABLE_OWNER }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -eu
+          brief=$(git -C candidate diff --diff-filter=A --name-only "${{ github.event.pull_request.base.sha }}..${PR_HEAD}" -- 'docs/artifacts/changes/*.md' | grep -Ev -- '-(verification|audit)\.md$' | head -n 1 || true)
+          if [ -z "$brief" ]; then
+            exit 0
+          fi
+          change_id=$(basename "$brief" .md)
+          brief_commit=$(git -C candidate log --diff-filter=A -1 --format=%H "$PR_HEAD" -- "$brief")
+          reviews=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews")
+          owner=$(printf '%s' "$reviews" | jq -r --arg actor "$L7_ACCOUNTABLE_OWNER" --arg head "$PR_HEAD" '[.[] | select(.state == "APPROVED" and .user.login == $actor and .commit_id == $head)] | last | .user.login // empty')
+          auditor=$(printf '%s' "$reviews" | jq -r --arg owner "$owner" --arg author "$PR_AUTHOR" --arg head "$PR_HEAD" '[.[] | select(.state == "APPROVED" and .user.login != $owner and .user.login != $author and .commit_id == $head)] | last | .user.login // empty')
+          if [ -n "$owner" ]; then
+            mkdir -p "candidate/.git/l7/approvals"
+            jq -n --arg id "$change_id" --arg actor "$owner" --arg implementer "$PR_AUTHOR" --arg brief "$brief_commit" '{schema:1,change_id:$id,actor:$actor,implementer:$implementer,brief_commit:$brief,source:"trusted-ci"}' > "candidate/.git/l7/approvals/${change_id}.json"
+          fi
+          if [ -n "$auditor" ]; then
+            audit="docs/artifacts/changes/${change_id}-audit.md"
+            if [ -f "candidate/$audit" ]; then
+              # shellcheck disable=SC2016
+              candidate_commit=$(awk -F '|' '$2 ~ /Candidate commit/ {gsub(/[ `]/, "", $3); print $3}' "candidate/$audit")
+              mkdir -p "candidate/.git/l7/audits"
+              jq -n --arg id "$change_id" --arg actor "$auditor" --arg candidate "$candidate_commit" --arg audit "$PR_HEAD" '{schema:1,change_id:$id,actor:$actor,candidate_commit:$candidate,audit_commit:$audit,source:"trusted-ci"}' > "candidate/.git/l7/audits/${change_id}.json"
+            fi
+          fi
+
+      - name: Evaluate candidate with trusted base controller
+        run: |
+          set -eu
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          brief=$(git -C candidate diff --diff-filter=A --name-only "$base..$head" -- 'docs/artifacts/changes/*.md' | grep -Ev -- '-(verification|audit)\.md$' | head -n 1 || true)
+          risk=1
+          if [ -n "$brief" ]; then
+            # shellcheck disable=SC2016
+            risk=$(awk -F '|' '$2 ~ /Risk tier/ {gsub(/[^0-9]/, "", $3); print $3}' "candidate/$brief")
+          fi
+          if [ -z "$brief" ]; then
+            scope=$(git -C candidate diff --name-only "$base..$head" | paste -sd, -)
+            ./l7-policy --repo candidate --base "$base" --head "$head" --tier 1 --scope "$scope"
+          elif [ "$risk" = 3 ]; then
+            ./l7-policy --repo candidate --base "$base" --head "$head" --require-ready
+          else
+            ./l7-policy --repo candidate --base "$base" --head "$head"
+          fi

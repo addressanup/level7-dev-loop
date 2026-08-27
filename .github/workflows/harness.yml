@@ -38,5 +38,5 @@ jobs:
       - name: Bootstrap authenticated Go archive
         run: make bootstrap GO_VERSION=${{ matrix.go-version }}
 
-      - name: Verify active concept rebaseline controls offline
+      - name: Verify lean risk-tier controls offline
         run: make ci GO_VERSION=${{ matrix.go-version }}

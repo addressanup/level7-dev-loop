@@ -1,40 +1,21 @@
 ---
 name: l7-review
 description: >
-  After an ad-hoc feature implementation, first check whether the Level 7 workflow
-  was already followed. Only then run a full compliance audit if needed. Trigger
-  when a feature was just built without the formal loop, or the user asks did you
-  follow the process.
+  Review an ad-hoc implementation with targeted, risk-proportionate checks and
+  escalate only concrete high-risk gaps.
 user-invocable: true
 ---
 
-# Review Before Assuming Process Failure
+# Lean Change Review
 
-Default to context check. Do not modify code in that mode.
+Inspect the diff, task intent, tests, CI, feature flags, and rollback. Classify the
+change Tier 1/2/3 from actual impact.
 
-## Mode A — Context check (default)
+- Tier 1: run targeted checks and normal review; create no governance artifact.
+- Tier 2: ensure one concise brief exists and matches the implementation.
+- Tier 3: require external owner approval, bound verification, and independent
+  read-only audit through `l7-release`.
 
-Inspect session context, artifacts, git history, tests, flags, and CI.
-Classify each area: Evidenced / Partial / Not evidenced / N/A.
-
-Recommend exactly one:
-
-- NO ADDITIONAL AUDIT NEEDED
-- RUN TARGETED GAP CHECKS
-- RUN FULL COMPLIANCE AUDIT
-- PAUSE OR DISABLE UNTIL REVIEWED
-
-Wait for approval.
-
-## Mode B — Full compliance audit
-
-Only if Mode A recommended it or the user approved it.
-
-Score requirements, architecture, spec, implementation discipline, tests, flags, observability, docs, independent audit, and outcome plan.
-
-Classify FULLY COMPLIANT / MINOR GAPS / NON-COMPLIANT / UNVERIFIED.
-Produce a remediation plan. Do not remediate until approved.
-
-High-risk areas: auth, authorization, migrations, payments, PII, tenancy, deletion, AI tools.
-
-Then recommend `/l7-change` for rollout or `/l7-release` if Tier 3.
+Report only evidenced gaps with severity and exact remediation. Do not run a full
+compliance audit for documentation, tests, refactors, cleanup, or ordinary
+features. Do not remediate unless the user requested a fix.

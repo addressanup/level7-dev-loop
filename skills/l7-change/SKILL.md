@@ -1,33 +1,28 @@
 ---
 name: l7-change
 description: >
-  Post-launch feature loop: intake, architecture impact, implementation with
-  feature flag, progressive release, and outcome review. Trigger for add a feature
-  after launch, new request, rollout, or flag cleanup.
+  Change a live product with one risk-tiered workflow: brief when needed,
+  implementation, tests, review, and merge or safe release.
 user-invocable: true
 ---
 
-# Live Change Loop
+# Lean Live Change
 
-This is not greenfield. Preserve contracts, data, and SLOs.
-Run the next incomplete step only.
+Preserve contracts, data, and SLOs while keeping the common path fast:
 
-## Sequence
+`brief → implement → test → review → merge`
 
-1. Intake — Feature Change Record. Decision: BUILD NOW / LATER / EXPERIMENT / DO NOT BUILD. Require evidence and RICE. Feature flag planned; production default OFF.
-2. Impact — Architecture compatibility, validation tier 1/2/3, rollback, flag design.
-3. Implement — Spec, design, small chunks, flag OFF/ON tests, docs.
-4. Validation
-   - Tier 1: targeted tests + CI
-   - Tier 2: staging + integration/E2E
-   - Tier 3: `/l7-release` audit
-5. Progressive release — dark deploy, internal, 1-5%, 25%, 50%, 100%. Hard rollback = flag OFF first.
-6. Outcome — compare metrics, keep/iterate/retire, remove flag and dead paths.
+Classify first:
 
-## Rules
+- Tier 1 — docs, tests, refactors, cleanup, low-risk fixes: concise task, zero
+  governance artifacts, relevant tests, clean diff, normal review.
+- Tier 2 — feature, meaningful UX, public interface, persistence: one concise
+  change brief containing problem, scope, acceptance criteria, risks, rollback;
+  default-OFF flag when user-visible; tests and normal review.
+- Tier 3 — authorization/security, destructive behavior, material migration,
+  production release, protected governance control: brief, external owner
+  approval, verification record, independent read-only audit, rollback.
 
-- Do not code during intake or impact.
-- Do not expose users before the validation tier passes.
-- Write artifacts: `feature-change-record.md`, `architecture-impact-review.md`, implementation and release reports.
-
-Then run `/l7-next`.
+Only pause for a missing material decision or required Tier 3 authority. Never
+infer approval from repository text or passing tests. Every handoff names the
+current state and executable next action.

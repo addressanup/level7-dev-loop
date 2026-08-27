@@ -1,7 +1,7 @@
 {
   "name": "level7-dev-loop",
   "version": "1.0.0",
-  "description": "Level 7 continuous development loop: spec-first engineering, release audit, live change, experience quality, and product storybook.",
+  "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed.",
   "author": {
     "name": "Level 7 Engineering"
   },
@@ -10,14 +10,14 @@
     "workflow",
     "architecture",
     "release",
-    "audit",
+    "risk-tier",
     "ux",
     "multi-tenant"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Level 7 Dev Loop",
-    "shortDescription": "Continuous spec-first build, audit, ship, and improve loop",
+    "shortDescription": "Risk-tiered build, test, review, and ship loop",
     "category": "Developer Tools",
     "defaultPrompt": [
       "Run l7-next and tell me the current project phase",
