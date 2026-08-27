@@ -18,13 +18,37 @@ func TestTextIsDecisionFirstAndEscapesUntrustedValues(t *testing.T) {
 }
 
 func TestJSONHasStableSchemaAndFieldOrder(t *testing.T) {
-	want := "{\"schema\":2,\"outcome\":\"BLOCKED\",\"code\":\"L7-STATUS-001\",\"command\":\"status\",\"state\":\"unavailable\",\"version\":\"test-version\",\"message\":\"not implemented\",\"next\":\"run l7 help\",\"details\":[\"first\"]}\n"
+	want := "{\"schema\":3,\"outcome\":\"BLOCKED\",\"code\":\"L7-STATUS-001\",\"command\":\"status\",\"state\":\"unavailable\",\"version\":\"test-version\",\"message\":\"not implemented\",\"next\":\"run l7 help\",\"details\":[\"first\"]}\n"
 	got, err := JSON(fixtureResult())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != want {
 		t.Fatalf("JSON() mismatch\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+func TestExecutionDetailsAreStableInTextAndJSON(t *testing.T) {
+	result := fixtureResult()
+	result.Execution = &domain.ExecutionDetails{
+		Role: domain.RoleReviewer, Provider: domain.ProviderClaude, Executable: "/usr/bin/claude", Version: "2.1.241", Digest: strings.Repeat("a", 64),
+		Commit: strings.Repeat("b", 40), Tree: strings.Repeat("c", 40), Decision: domain.DecisionGO,
+		Checks: []domain.CheckResult{{Name: "test", Passed: true, ExitCode: 0, Code: "L7-VERIFY-000", Message: "command passed"}},
+	}
+	text := string(Text(result))
+	for _, value := range []string{`execution_role="reviewer"`, `provider="claude"`, `review_decision="GO"`, `check_name="test" check_passed=true`} {
+		if !strings.Contains(text, value) {
+			t.Fatalf("Text()=%q, want %q", text, value)
+		}
+	}
+	data, err := JSON(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{`"execution":{"role":"reviewer","provider":"claude"`, `"decision":"GO"`, `"checks":[{"name":"test","benchmark":false,"passed":true`} {
+		if !strings.Contains(string(data), value) {
+			t.Fatalf("JSON()=%s, want %s", data, value)
+		}
 	}
 }
 

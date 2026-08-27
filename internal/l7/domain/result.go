@@ -1,7 +1,7 @@
 // Package domain contains the side-effect-free Level 7 CLI model.
 package domain
 
-const ResultSchema = 2
+const ResultSchema = 3
 
 type Outcome string
 

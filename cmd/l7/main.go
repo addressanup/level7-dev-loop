@@ -9,9 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	authorityadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/authority"
+	claudeadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/claude"
+	codexadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/codex"
 	configadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/config"
 	gitadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/git"
+	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
 	stateadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/state"
+	verifyadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/verify"
 	cliapp "github.com/addressanup/level7-dev-loop/internal/l7/app"
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 	"github.com/addressanup/level7-dev-loop/internal/l7/presentation"
@@ -26,7 +31,9 @@ const (
 )
 
 func main() {
-	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
+	ctx, cancel := processadapter.NotifyContext(context.Background())
+	defer cancel()
+	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int {
@@ -35,13 +42,19 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		fmt.Fprintf(stderr, "FAILED code=L7-CLI-004 message=%q\n", "cannot determine working directory")
 		return 1
 	}
-	return runAt(ctx, arguments, workingDirectory, stdout, stderr)
+	terminal := authorityadapter.NewTerminal(os.Stdin, stderr, terminalAvailable(os.Stdin) && terminalAvailable(stderr), "accountable-owner")
+	return runAtWithTerminal(ctx, arguments, workingDirectory, stdout, stderr, terminal)
 }
 
 func runAt(ctx context.Context, arguments []string, workingDirectory string, stdout, stderr io.Writer) int {
+	terminal := authorityadapter.NewTerminal(nil, stderr, false, "accountable-owner")
+	return runAtWithTerminal(ctx, arguments, workingDirectory, stdout, stderr, terminal)
+}
+
+func runAtWithTerminal(ctx context.Context, arguments []string, workingDirectory string, stdout, stderr io.Writer, terminal authorityadapter.Terminal) int {
 	baseApplication := cliapp.New(version)
 	request, jsonOutput, invalid := parseArguments(arguments, baseApplication)
-	application, compositionErr := lifecycleApplication(workingDirectory)
+	application, compositionErr := lifecycleApplication(workingDirectory, terminal)
 	result := domain.Result{}
 	if invalid != nil {
 		result = *invalid
@@ -75,7 +88,7 @@ func runAt(ctx context.Context, arguments []string, workingDirectory string, std
 	return result.ExitCode()
 }
 
-func lifecycleApplication(workingDirectory string) (cliapp.Application, error) {
+func lifecycleApplication(workingDirectory string, terminal authorityadapter.Terminal) (cliapp.Application, error) {
 	gitClient, err := gitadapter.New("", gitadapter.DefaultMaxOutput, gitadapter.DefaultMaxPaths)
 	if err != nil {
 		return cliapp.New(version), err
@@ -110,6 +123,41 @@ func lifecycleApplication(workingDirectory string) (cliapp.Application, error) {
 		},
 		EnsureBrief: configadapter.EnsureBrief,
 		LoadBrief:   configadapter.LoadBrief,
+		Pending: func(ctx context.Context, cwd string, maxOutput, maxPaths int) (domain.PendingChanges, error) {
+			return gitClient.WithLimits(maxOutput, maxPaths).Pending(ctx, cwd)
+		},
+		PathCommit: gitClient.PathCommit,
+		Commit:     gitClient.Commit,
+		CommitMatches: func(ctx context.Context, root, commit, parent, subject string, maxOutput, maxPaths int) (bool, error) {
+			return gitClient.WithLimits(maxOutput, maxPaths).CommitMatches(ctx, root, commit, parent, subject)
+		},
+		CommitPaths: func(ctx context.Context, root, parent, commit string, maxOutput, maxPaths int) ([]string, error) {
+			return gitClient.WithLimits(maxOutput, maxPaths).CommitPaths(ctx, root, parent, commit)
+		},
+		CommitTree:       gitClient.CommitTree,
+		PathSetDigest:    gitadapter.PathSetDigest,
+		ConfirmApproval:  terminal.Confirm,
+		LoadApproval:     authorityadapter.Load,
+		SaveApproval:     authorityadapter.Save,
+		LoadRun:          stateadapter.LoadRun,
+		SaveRun:          stateadapter.SaveRun,
+		LoadVerification: stateadapter.LoadVerification,
+		SaveVerification: stateadapter.SaveVerification,
+		LoadReview:       stateadapter.LoadReview,
+		SaveReview:       stateadapter.SaveReview,
+		RunProvider: func(ctx context.Context, task domain.ProviderTask, maxOutput, maxSeconds int) (domain.ProviderResponse, error) {
+			switch task.Provider {
+			case domain.ProviderCodex:
+				return codexadapter.New().Run(ctx, task, maxOutput, maxSeconds)
+			case domain.ProviderClaude:
+				return claudeadapter.New().Run(ctx, task, maxOutput, maxSeconds)
+			default:
+				return domain.ProviderResponse{}, errors.New("unsupported provider")
+			}
+		},
+		RunVerification:   verifyadapter.New(nil, nil).Run,
+		WriteVerification: stateadapter.WriteVerificationArtifact,
+		WriteAudit:        stateadapter.WriteAuditArtifact,
 	}
 	return cliapp.NewLifecycle(version, workingDirectory, ports), nil
 }
@@ -164,7 +212,7 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 	request := domain.Request{Command: domain.Command(filtered[0])}
 	options := filtered[1:]
 	switch request.Command {
-	case domain.CommandHelp, domain.CommandVersion, domain.CommandStatus:
+	case domain.CommandHelp, domain.CommandVersion, domain.CommandStatus, domain.CommandVerify:
 		if len(options) != 0 {
 			if strings.HasPrefix(options[0], "-") {
 				return invalid(options[0], "unknown flag", jsonOutput)
@@ -224,10 +272,48 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 				return invalid(flag, "unknown brief option", jsonOutput)
 			}
 		}
+	case domain.CommandRun:
+		seen := make(map[string]bool)
+		for index := 0; index < len(options); index += 2 {
+			flag := options[index]
+			if index+1 >= len(options) {
+				return invalid(flag, "run option is missing its value", jsonOutput)
+			}
+			if seen[flag] {
+				return invalid(flag, "duplicate run option", jsonOutput)
+			}
+			value := options[index+1]
+			switch flag {
+			case "--agent":
+				request.Agent = domain.Provider(value)
+			case "--message":
+				request.CommitMessage = value
+			default:
+				return invalid(flag, "unknown run option", jsonOutput)
+			}
+			seen[flag] = true
+		}
+		if !request.Agent.Valid() || request.CommitMessage == "" {
+			return invalid(strings.Join(filtered, " "), "run requires --agent codex|claude and --message", jsonOutput)
+		}
+	case domain.CommandReview:
+		if len(options) != 2 || options[0] != "--agent" || !domain.Provider(options[1]).Valid() {
+			return invalid(strings.Join(filtered, " "), "review requires --agent codex|claude", jsonOutput)
+		}
+		request.Agent = domain.Provider(options[1])
 	default:
 		if len(options) != 0 {
 			return invalid(strings.Join(filtered, " "), "unknown command", jsonOutput)
 		}
 	}
 	return request, jsonOutput, nil
+}
+
+func terminalAvailable(value any) bool {
+	file, ok := value.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }

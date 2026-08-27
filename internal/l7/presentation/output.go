@@ -21,6 +21,28 @@ type wireResult struct {
 	Next       string          `json:"next"`
 	Details    []string        `json:"details"`
 	Repository *wireRepository `json:"repository,omitempty"`
+	Execution  *wireExecution  `json:"execution,omitempty"`
+}
+
+type wireExecution struct {
+	Role       domain.ProviderRole   `json:"role,omitempty"`
+	Provider   domain.Provider       `json:"provider,omitempty"`
+	Executable string                `json:"executable,omitempty"`
+	Version    string                `json:"provider_version,omitempty"`
+	Digest     string                `json:"executable_digest,omitempty"`
+	Commit     string                `json:"candidate_commit,omitempty"`
+	Tree       string                `json:"candidate_tree,omitempty"`
+	Decision   domain.ReviewDecision `json:"decision,omitempty"`
+	Checks     []wireCheck           `json:"checks"`
+}
+
+type wireCheck struct {
+	Name      string `json:"name"`
+	Benchmark bool   `json:"benchmark"`
+	Passed    bool   `json:"passed"`
+	ExitCode  int    `json:"exit_code"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
 }
 
 type wireRepository struct {
@@ -68,6 +90,32 @@ func Text(result domain.Result) []byte {
 		writeValues(&output, "changed_path", repository.ChangedPaths)
 		writeValues(&output, "expanded_path", repository.ExpandedPaths)
 	}
+	if execution := result.Execution; execution != nil {
+		if execution.Role.Valid() {
+			fmt.Fprintf(&output, "execution_role=%s\n", strconv.Quote(string(execution.Role)))
+		}
+		if execution.Provider.Valid() {
+			fmt.Fprintf(&output, "provider=%s\n", strconv.Quote(string(execution.Provider)))
+		}
+		for _, value := range []struct {
+			label string
+			value string
+		}{
+			{label: "provider_executable", value: execution.Executable},
+			{label: "provider_version", value: execution.Version},
+			{label: "provider_digest", value: execution.Digest},
+			{label: "candidate_commit", value: execution.Commit},
+			{label: "candidate_tree", value: execution.Tree},
+			{label: "review_decision", value: string(execution.Decision)},
+		} {
+			if value.value != "" {
+				fmt.Fprintf(&output, "%s=%s\n", value.label, strconv.Quote(value.value))
+			}
+		}
+		for _, check := range execution.Checks {
+			fmt.Fprintf(&output, "check_name=%s check_passed=%t check_exit=%d check_code=%s check_message=%s\n", strconv.Quote(check.Name), check.Passed, check.ExitCode, strconv.Quote(check.Code), strconv.Quote(check.Message))
+		}
+	}
 	return output.Bytes()
 }
 
@@ -96,6 +144,16 @@ func JSON(result domain.Result) ([]byte, error) {
 			DeclaredScope: append([]string{}, repository.DeclaredScope...),
 			ChangedPaths:  append([]string{}, repository.ChangedPaths...),
 			ExpandedPaths: append([]string{}, repository.ExpandedPaths...),
+		}
+	}
+	if execution := result.Execution; execution != nil {
+		checks := make([]wireCheck, 0, len(execution.Checks))
+		for _, check := range execution.Checks {
+			checks = append(checks, wireCheck{Name: check.Name, Benchmark: check.Benchmark, Passed: check.Passed, ExitCode: check.ExitCode, Code: check.Code, Message: check.Message})
+		}
+		wire.Execution = &wireExecution{
+			Role: execution.Role, Provider: execution.Provider, Executable: execution.Executable, Version: execution.Version,
+			Digest: execution.Digest, Commit: execution.Commit, Tree: execution.Tree, Decision: execution.Decision, Checks: checks,
 		}
 	}
 	data, err := json.Marshal(wire)
