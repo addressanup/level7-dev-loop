@@ -8,10 +8,11 @@ Code. Its common path is deliberately ordinary:
 Working software, Git identity, automated verification, and normal review carry
 the evidence. Process expands only when risk does.
 
-## Wave 1 CLI proving shell
+## Wave 2 local lifecycle preview
 
-The repository now includes an inert `l7` command shell that proves the selected
-Go architecture and output contract without performing product effects.
+The repository now includes a default-OFF local lifecycle preview. It can adopt
+an existing Git worktree, record one proportionate change, reconstruct its scope
+and identity from Git, and resume after interruption without chat history.
 
 ```sh
 make build
@@ -20,11 +21,53 @@ make build
 ./build/bin/l7 status
 ```
 
-`help` and `version` are available. `status` deliberately returns `BLOCKED` with
-exit code `2` because repository adoption and lifecycle reconstruction belong to
-Wave 2. The Wave 1 binary cannot inspect or modify a target repository, invoke
-Git, Codex, Claude, verification commands, commits, reviews, merges, networks, or
-deployments. It is a development candidate, not a released or supported CLI.
+Enable the preview explicitly in the target repository, then commit its tracked
+configuration before opening a change:
+
+```sh
+l7 adopt --enable-local-lifecycle
+git add .l7/config.json
+git commit -m "chore: adopt Level 7"
+```
+
+Tier 1 stores only disposable context under Git's common directory and creates
+no governance document:
+
+```sh
+l7 brief \
+  --id routine-fix \
+  --tier 1 \
+  --problem "Fix a low-risk internal defect." \
+  --scope 'internal/example/**'
+```
+
+Tier 2 and Tier 3 require problem, scope, acceptance criteria, risk, and rollback
+input. They create exactly one tracked brief:
+
+```sh
+l7 brief \
+  --id product-feature \
+  --tier 2 \
+  --problem "Add a bounded product feature." \
+  --scope 'internal/product/**' \
+  --accept "Relevant tests pass." \
+  --risk "State could become stale." \
+  --rollback "Revert the candidate."
+
+l7 status --json
+```
+
+The preview supports non-bare macOS Git worktrees with an initial commit. It
+rejects dirty intake, undeclared scope expansion, protected controls declared
+below Tier 3, unsafe configuration/state files, stale bases, and concurrent Level
+7 mutations. Git commit and tree IDs remain canonical; `.git/l7/product/` stores
+only a minimal active selector or Tier 1 task context.
+
+Wave 2 does not invoke Codex, Claude, repository verification, review, Git
+commits, merge, network, deployment, or approval mechanisms. Once implementation
+is present, status truthfully blocks at `building`; candidate-bound verification
+and provider execution belong to Wave 3. This binary is still a development
+candidate, not a released or supported CLI.
 
 ## Risk model
 
