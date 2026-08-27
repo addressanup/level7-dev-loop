@@ -81,6 +81,22 @@ func TestProbePropagatesUnavailableExecutable(t *testing.T) {
 	}
 }
 
+func FuzzParseTerminal(f *testing.F) {
+	f.Add([]byte(`{"schema":1,"outcome":"complete","summary":"Implemented.","findings":[]}`), false)
+	f.Add([]byte(`{"schema":1,"outcome":"complete","summary":"No blocker.","findings":[],"decision":"GO"}`), true)
+	f.Add([]byte{0xff}, true)
+	f.Fuzz(func(t *testing.T, data []byte, reviewer bool) {
+		role := domain.RoleImplementer
+		if reviewer {
+			role = domain.RoleReviewer
+		}
+		response, err := ParseTerminal(data, role)
+		if err == nil && (response.Role != role || (role == domain.RoleReviewer && !response.Decision.Valid()) || (role == domain.RoleImplementer && response.Decision != "")) {
+			t.Fatalf("successful parse violated role contract: %+v", response)
+		}
+	})
+}
+
 func BenchmarkTerminalProtocolDecode(b *testing.B) {
 	data := []byte(`{"schema":1,"outcome":"complete","summary":"No blocker.","findings":[],"decision":"GO"}`)
 	b.ReportAllocs()

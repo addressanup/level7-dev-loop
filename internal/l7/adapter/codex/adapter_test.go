@@ -78,6 +78,22 @@ func TestRunPropagatesUnavailableExecutable(t *testing.T) {
 	}
 }
 
+func FuzzParseEvents(f *testing.F) {
+	f.Add([]byte(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"{\"schema\":1,\"outcome\":\"complete\",\"summary\":\"Implemented.\",\"findings\":[]}"}}`+"\n"), false)
+	f.Add([]byte(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"{\"schema\":1,\"outcome\":\"complete\",\"summary\":\"No blocker.\",\"findings\":[],\"decision\":\"GO\"}"}}`+"\n"), true)
+	f.Add([]byte{0xff}, false)
+	f.Fuzz(func(t *testing.T, data []byte, reviewer bool) {
+		role := domain.RoleImplementer
+		if reviewer {
+			role = domain.RoleReviewer
+		}
+		response, err := parseEvents(data, role)
+		if err == nil && (response.Role != role || (role == domain.RoleReviewer && !response.Decision.Valid()) || (role == domain.RoleImplementer && response.Decision != "")) {
+			t.Fatalf("successful parse violated role contract: %+v", response)
+		}
+	})
+}
+
 func BenchmarkParseEvents(b *testing.B) {
 	output := []byte(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"{\"schema\":1,\"outcome\":\"complete\",\"summary\":\"No blocker.\",\"findings\":[],\"decision\":\"GO\"}"}}` + "\n")
 	b.ReportAllocs()
