@@ -39,6 +39,14 @@ func TestControlledCommitAdvancesExpectedHeadWithExactPaths(t *testing.T) {
 	if err != nil || matches {
 		t.Fatalf("wrong-subject CommitMatches()=%v error=%v", matches, err)
 	}
+	paths, err := adapter.CommitPaths(context.Background(), repository, base, location.Head)
+	if err != nil || strings.Join(paths, "|") != "change.txt" {
+		t.Fatalf("CommitPaths()=%v error=%v", paths, err)
+	}
+	tree, err := adapter.CommitTree(context.Background(), repository, location.Head)
+	if err != nil || tree != location.Tree {
+		t.Fatalf("CommitTree()=%q error=%v", tree, err)
+	}
 }
 
 func TestControlledCommitRejectsUnexpectedPathsAndStaleHead(t *testing.T) {
@@ -59,6 +67,21 @@ func TestControlledCommitRejectsUnexpectedPathsAndStaleHead(t *testing.T) {
 	request.ExpectedCommit = strings.Repeat("f", 40)
 	if _, err := adapter.Commit(context.Background(), request); err == nil || !strings.Contains(err.Error(), "changed before commit") {
 		t.Fatalf("stale Commit() error=%v", err)
+	}
+}
+
+func TestControlledCommitRejectsPreexistingIndexState(t *testing.T) {
+	repository, _ := initializedRepository(t)
+	configureIdentity(t, repository)
+	writeFile(t, filepath.Join(repository, "change.txt"), "candidate")
+	runGit(t, repository, "add", "--", "change.txt")
+	adapter := testAdapter(t, DefaultMaxOutput, DefaultMaxPaths)
+	pending, err := adapter.Pending(context.Background(), repository)
+	if err != nil || !pending.IndexDirty {
+		t.Fatalf("Pending()=%+v error=%v", pending, err)
+	}
+	if _, err := adapter.Commit(context.Background(), commitRequest(pending, pending.Paths)); err == nil || !strings.Contains(err.Error(), "index changed") {
+		t.Fatalf("index-dirty Commit() error=%v", err)
 	}
 }
 

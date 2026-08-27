@@ -54,6 +54,12 @@ func (runner Runner) Run(ctx context.Context, root string, commands []domain.Ver
 			}
 			executables[command.Argv[0]] = executable
 		}
+		rechecked, resolveErr := runner.resolve(executable.Path)
+		if resolveErr != nil || rechecked.Path != executable.Path || rechecked.Digest != executable.Digest {
+			check := domain.CheckResult{Name: command.Name, Benchmark: command.Benchmark, Passed: false, ExitCode: -1, Code: "L7-VERIFY-002", Message: "verification executable identity changed"}
+			checks = append(checks, check)
+			return checks, fmt.Errorf("verification command %q executable identity changed", command.Name)
+		}
 		result, runErr := runner.run(ctx, processadapter.Request{
 			Executable: executable.Path, Arguments: append([]string{}, command.Argv[1:]...), Directory: root,
 			Environment: processadapter.MinimalEnvironment(), MaxOutputBytes: maxOutputBytes,

@@ -14,7 +14,7 @@ func TestRunnerUsesExactArgvAndStopsAtFirstFailure(t *testing.T) {
 	var requests []processadapter.Request
 	runner := New(
 		func(name string) (processadapter.Executable, error) {
-			return processadapter.Executable{Path: "/usr/bin/" + name, Digest: strings.Repeat("a", 64)}, nil
+			return fakeExecutable(name, strings.Repeat("a", 64)), nil
 		},
 		func(_ context.Context, request processadapter.Request) (processadapter.Result, error) {
 			requests = append(requests, request)
@@ -49,7 +49,7 @@ func TestRunnerFailsClosedOnResolutionAndCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	runner = New(func(name string) (processadapter.Executable, error) {
-		return processadapter.Executable{Path: "/usr/bin/" + name}, nil
+		return fakeExecutable(name, ""), nil
 	}, func(context.Context, processadapter.Request) (processadapter.Result, error) {
 		t.Fatal("run called after cancellation")
 		return processadapter.Result{}, nil
@@ -59,9 +59,28 @@ func TestRunnerFailsClosedOnResolutionAndCancellation(t *testing.T) {
 	}
 }
 
+func TestRunnerRejectsExecutableReplacementBeforeLaunch(t *testing.T) {
+	resolutions := 0
+	runner := New(func(name string) (processadapter.Executable, error) {
+		resolutions++
+		digest := strings.Repeat("a", 64)
+		if resolutions > 1 {
+			digest = strings.Repeat("b", 64)
+		}
+		return processadapter.Executable{Path: "/usr/bin/" + strings.TrimPrefix(name, "/usr/bin/"), Digest: digest}, nil
+	}, func(context.Context, processadapter.Request) (processadapter.Result, error) {
+		t.Fatal("run called after executable replacement")
+		return processadapter.Result{}, nil
+	})
+	checks, err := runner.Run(context.Background(), "/repo", []domain.VerificationCommand{{Name: "test", Argv: []string{"make", "test"}}}, 1<<20, 30)
+	if err == nil || len(checks) != 1 || checks[0].Code != "L7-VERIFY-002" || resolutions != 2 {
+		t.Fatalf("checks=%+v resolutions=%d error=%v", checks, resolutions, err)
+	}
+}
+
 func BenchmarkVerificationDispatch(b *testing.B) {
 	runner := New(func(name string) (processadapter.Executable, error) {
-		return processadapter.Executable{Path: "/usr/bin/" + name}, nil
+		return fakeExecutable(name, ""), nil
 	}, func(context.Context, processadapter.Request) (processadapter.Result, error) {
 		return processadapter.Result{ExitCode: 0}, nil
 	})
@@ -72,4 +91,12 @@ func BenchmarkVerificationDispatch(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func fakeExecutable(name, digest string) processadapter.Executable {
+	path := name
+	if !strings.HasPrefix(path, "/") {
+		path = "/usr/bin/" + path
+	}
+	return processadapter.Executable{Path: path, Digest: digest}
 }

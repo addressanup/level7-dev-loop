@@ -44,33 +44,48 @@ func (adapter Adapter) PathCommit(ctx context.Context, root, relative string) (s
 	if !safeGitPath(relative) {
 		return "", errors.New("path is unsafe")
 	}
-	commit, err := adapter.singleLine(ctx, root, "log", "--max-count=1", "--format=%H", "--diff-filter=A", "--", relative)
+	commit, err := adapter.singleLine(ctx, root, "log", "--max-count=1", "--format=%H", "--", relative)
 	if err != nil || !fullObjectID(commit) {
-		return "", errors.New("path has no readable addition commit")
+		return "", errors.New("path has no readable current commit")
 	}
 	return commit, nil
+}
+
+func (adapter Adapter) CommitTree(ctx context.Context, root, commit string) (string, error) {
+	if !fullObjectID(commit) {
+		return "", errors.New("commit identity is invalid")
+	}
+	tree, err := adapter.singleLine(ctx, root, "rev-parse", commit+"^{tree}")
+	if err != nil || !fullObjectID(tree) {
+		return "", errors.New("cannot resolve commit tree")
+	}
+	return tree, nil
 }
 
 func (adapter Adapter) CommitMatches(ctx context.Context, root, commit, expectedParent, subject string) (bool, error) {
 	if !fullObjectID(commit) || !fullObjectID(expectedParent) || !domain.ConventionalSubject(subject) {
 		return false, errors.New("commit recovery identity is invalid")
 	}
-	location, err := adapter.Locate(ctx, root)
-	if err != nil {
-		return false, err
-	}
-	if location.Head != commit {
-		return false, nil
-	}
-	parent, err := adapter.singleLine(ctx, location.Root, "rev-parse", commit+"^1")
+	parent, err := adapter.singleLine(ctx, root, "rev-parse", commit+"^1")
 	if err != nil {
 		return false, errors.New("cannot read recovery commit parent")
 	}
-	actualSubject, err := adapter.singleLine(ctx, location.Root, "show", "--no-patch", "--format=%s", commit)
+	actualSubject, err := adapter.singleLine(ctx, root, "show", "--no-patch", "--format=%s", commit)
 	if err != nil {
 		return false, errors.New("cannot read recovery commit subject")
 	}
 	return parent == expectedParent && actualSubject == subject, nil
+}
+
+func (adapter Adapter) CommitPaths(ctx context.Context, root, expectedParent, commit string) ([]string, error) {
+	if !fullObjectID(expectedParent) || !fullObjectID(commit) {
+		return nil, errors.New("commit path identity is invalid")
+	}
+	output, err := adapter.run(ctx, root, "diff", "--name-only", "-z", "--no-renames", "--diff-filter=ACDMRTUXB", expectedParent, commit, "--")
+	if err != nil {
+		return nil, errors.New("cannot reconstruct commit path set")
+	}
+	return parseNULPaths(output, adapter.maxPaths)
 }
 
 func (adapter Adapter) Commit(ctx context.Context, request domain.CommitRequest) (domain.RepositoryLocation, error) {
@@ -84,6 +99,9 @@ func (adapter Adapter) Commit(ctx context.Context, request domain.CommitRequest)
 	}
 	if pending.Head != request.ExpectedCommit || pending.Tree != request.ExpectedTree {
 		return domain.RepositoryLocation{}, errors.New("expected Git candidate changed before commit")
+	}
+	if pending.IndexDirty {
+		return domain.RepositoryLocation{}, errors.New("Git index changed before controlled commit")
 	}
 	if !samePathSet(pending.Paths, request.Paths) {
 		return domain.RepositoryLocation{}, errors.New("pending Git paths do not match the exact commit path set")
