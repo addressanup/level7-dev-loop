@@ -79,7 +79,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build build-control-check policy-check ready-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -141,7 +141,47 @@ policy-check: build-control-check
 ready-check: toolchain-check
 	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol --require-ready
 
-import-check: toolchain-check
+l7-import-closure-check: toolchain-check
+	@set -eu; \
+	 validate_imports() { \
+	   label=$$1; \
+	   imports=$$2; \
+	   allowed=$$3; \
+	   for imported in $$imports; do \
+	     accepted=false; \
+	     for allowed_import in $$allowed; do \
+	       if test "$$imported" = "$$allowed_import"; then accepted=true; break; fi; \
+	     done; \
+	     if test "$$accepted" != true; then \
+	       printf 'l7-import-closure-check: %s imports non-allowlisted %s\n' "$$label" "$$imported" >&2; \
+	       return 1; \
+	     fi; \
+	   done; \
+	 }; \
+	 domain_allowed=''; \
+	 app_allowed='context $(CORE_MODULE_PATH)/internal/l7/domain strings unicode/utf8'; \
+	 presentation_allowed='bytes encoding/json fmt $(CORE_MODULE_PATH)/internal/l7/domain strconv'; \
+	 for target in '$(HOST_GOOS)/$(HOST_GOARCH)' 'darwin/arm64' 'darwin/amd64'; do \
+	   goos=$${target%/*}; \
+	   goarch=$${target#*/}; \
+	   domain_imports=$$(GOOS="$$goos" GOARCH="$$goarch" GOARM64=v8.0 GOAMD64=v1 "$(GO)" list -mod=readonly -f '{{join .Imports " "}}' ./internal/l7/domain); \
+	   app_imports=$$(GOOS="$$goos" GOARCH="$$goarch" GOARM64=v8.0 GOAMD64=v1 "$(GO)" list -mod=readonly -f '{{join .Imports " "}}' ./internal/l7/app); \
+	   presentation_imports=$$(GOOS="$$goos" GOARCH="$$goarch" GOARM64=v8.0 GOAMD64=v1 "$(GO)" list -mod=readonly -f '{{join .Imports " "}}' ./internal/l7/presentation); \
+	   validate_imports "internal/l7/domain ($$target)" "$$domain_imports" "$$domain_allowed"; \
+	   validate_imports "internal/l7/app ($$target)" "$$app_imports" "$$app_allowed"; \
+	   validate_imports "internal/l7/presentation ($$target)" "$$presentation_imports" "$$presentation_allowed"; \
+	 done; \
+	 if validate_imports 'non-domain repository probe' "$$app_allowed $(CORE_MODULE_PATH)/internal/evaluator" "$$app_allowed" >/dev/null 2>&1; then \
+	   printf 'l7-import-closure-check: accepted non-domain repository probe\n' >&2; \
+	   exit 1; \
+	 fi; \
+	 if validate_imports 'indirect filesystem probe' "$$app_allowed io/ioutil" "$$app_allowed" >/dev/null 2>&1; then \
+	   printf 'l7-import-closure-check: accepted indirect filesystem probe\n' >&2; \
+	   exit 1; \
+	 fi; \
+	 printf 'l7-import-closure-check: PASS (3 package closures; host plus darwin/arm64 and darwin/amd64; 2 negative probes)\n'
+
+import-check: toolchain-check l7-import-closure-check
 	@./scripts/harness/check-import-boundaries.sh "$(GO)"
 
 candidate-check: policy-check import-check

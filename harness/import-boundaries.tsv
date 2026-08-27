@@ -76,6 +76,7 @@ transitive	internal/l7/domain	internal/l7/app	BND-601
 transitive	internal/l7/domain	internal/l7/adapter	BND-601
 transitive	internal/l7/domain	internal/l7/presentation	BND-601
 transitive	internal/l7/domain	internal/harness	BND-601
+allowclosure	internal/l7/domain	internal/l7/domain	BND-604
 effect	internal/l7/domain	os	BND-601
 effect	internal/l7/domain	net	BND-601
 effect	internal/l7/domain	time	BND-601
@@ -86,6 +87,7 @@ effect	internal/l7/domain	syscall	BND-601
 transitive	internal/l7/app	internal/l7/adapter	BND-602
 transitive	internal/l7/app	internal/l7/presentation	BND-602
 transitive	internal/l7/app	internal/harness	BND-602
+allowclosure	internal/l7/app	internal/l7/domain	BND-605
 effect	internal/l7/app	os	BND-602
 effect	internal/l7/app	net	BND-602
 effect	internal/l7/app	time	BND-602
@@ -96,6 +98,7 @@ effect	internal/l7/app	syscall	BND-602
 transitive	internal/l7/presentation	internal/l7/app	BND-603
 transitive	internal/l7/presentation	internal/l7/adapter	BND-603
 transitive	internal/l7/presentation	internal/harness	BND-603
+allowclosure	internal/l7/presentation	internal/l7/domain	BND-606
 effect	internal/l7/presentation	os	BND-603
 effect	internal/l7/presentation	net	BND-603
 effect	internal/l7/presentation	time	BND-603
