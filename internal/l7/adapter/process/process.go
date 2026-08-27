@@ -22,6 +22,7 @@ const (
 	MaxArguments       = 64
 	MaxArgumentBytes   = 4096
 	MaxInputBytes      = 1 << 20
+	pipeDrainDelay     = 500 * time.Millisecond
 )
 
 var ErrOutputLimit = errors.New("process output limit reached")
@@ -135,6 +136,10 @@ func (Runner) Run(ctx context.Context, request Request) (Result, error) {
 	command.Dir = request.Directory
 	command.Env = append([]string{}, request.Environment...)
 	command.Stdin = bytes.NewReader(request.Input)
+	// A descendant can deliberately escape the supervised process group while
+	// retaining inherited pipes. Bound the time Cmd.Wait may spend draining
+	// those pipes after the direct child exits or is terminated.
+	command.WaitDelay = pipeDrainDelay
 	configureProcessGroup(command)
 
 	overflow := make(chan struct{})

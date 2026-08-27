@@ -92,8 +92,12 @@ commits, reviewer mutation, stale identities, protected controls below Tier 3,
 unsafe configuration/state files, executable replacement, and concurrent Level
 7 mutations. Git commit and tree IDs remain canonical; bounded recovery evidence
 lives under `.git/l7/product/`. Cancellation, timeout, and aggregate output limits
-terminate the inherited subprocess group. This is process containment, not a
-general OS sandbox; deliberate session escape remains a documented residual.
+terminate the inherited subprocess group. A bounded pipe-drain delay prevents a
+session-escaped descendant from retaining the command wait and mutation lock;
+the escaped process itself can still survive. This is process containment, not a
+general OS sandbox. Controlled commits run repository hooks with system/global
+Git configuration disabled and a bounded environment, so hooks may require
+repository-local identity and must not depend on ambient configuration.
 
 The adapters currently recognize only the provisional fixture baselines Codex
 `codex-cli 0.149.1` and Claude Code `2.1.241`. Real provider launches and

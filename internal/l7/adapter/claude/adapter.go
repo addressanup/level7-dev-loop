@@ -66,10 +66,10 @@ func arguments(role domain.ProviderRole) []string {
 	tools := "Read,Glob,Grep,Edit,Write,Bash"
 	if role == domain.RoleReviewer {
 		permission = "plan"
-		tools = "Read,Glob,Grep,Bash"
+		tools = "Read,Glob,Grep"
 	}
 	return []string{
-		"--bare",
+		"--safe-mode",
 		"--disable-slash-commands",
 		"--print",
 		"--input-format", "text",

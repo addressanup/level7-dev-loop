@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-const terminationGrace = 250 * time.Millisecond
+const (
+	terminationGrace  = 250 * time.Millisecond
+	finalizationGrace = pipeDrainDelay + terminationGrace
+)
 
 func NotifyContext(parent context.Context) (context.Context, context.CancelFunc) {
 	return signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
@@ -31,7 +34,14 @@ func stopProcessGroup(pid int, done <-chan error) error {
 		return err
 	case <-timer.C:
 		_ = signalProcessGroup(pid, syscall.SIGKILL)
-		return <-done
+		finalization := time.NewTimer(finalizationGrace)
+		defer finalization.Stop()
+		select {
+		case err := <-done:
+			return err
+		case <-finalization.C:
+			return errors.New("process group did not finalize within the bounded drain delay")
+		}
 	}
 }
 

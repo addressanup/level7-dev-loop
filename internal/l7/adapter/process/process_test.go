@@ -60,6 +60,23 @@ func TestRunnerStopsOutputFloodAtAggregateLimit(t *testing.T) {
 	}
 }
 
+func TestRunnerBoundsSessionEscapedInheritedPipes(t *testing.T) {
+	request := helperRequest(t, "escape-pipes")
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	result, err := (Runner{}).Run(ctx, request)
+	if !errors.Is(err, context.DeadlineExceeded) || time.Since(started) > 2*time.Second {
+		t.Fatalf("escaped Run() elapsed=%s result=%+v error=%v", time.Since(started), result, err)
+	}
+	childText := strings.TrimSpace(string(result.Stdout))
+	childPID, parseErr := strconv.Atoi(childText)
+	if parseErr != nil || childPID < 1 {
+		t.Fatalf("escaped child pid=%q error=%v", childText, parseErr)
+	}
+	_ = syscall.Kill(childPID, syscall.SIGKILL)
+}
+
 func TestMinimalEnvironmentStripsAmbientSecrets(t *testing.T) {
 	t.Setenv("L7_TEST_SECRET_TOKEN", "do-not-pass")
 	for _, entry := range MinimalEnvironment() {
@@ -119,6 +136,33 @@ func TestProcessHelper(t *testing.T) {
 			os.Exit(91)
 		}
 		fmt.Fprintln(os.Stdout, command.Process.Pid)
+		time.Sleep(24 * time.Hour)
+	case "escape-pipes":
+		command := exec.Command(os.Args[0], "-test.run=TestProcessHelper", "--", "escaped-hang")
+		command.Env = append(os.Environ(), "L7_PROCESS_HELPER=1")
+		if err := command.Start(); err != nil {
+			os.Exit(93)
+		}
+		marker := filepath.Join(".", ".escaped-session-ready")
+		deadline := time.Now().Add(time.Second)
+		for {
+			if _, err := os.Stat(marker); err == nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				os.Exit(95)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		fmt.Fprintln(os.Stdout, command.Process.Pid)
+		time.Sleep(24 * time.Hour)
+	case "escaped-hang":
+		if _, err := syscall.Setsid(); err != nil {
+			os.Exit(94)
+		}
+		if err := os.WriteFile(filepath.Join(".", ".escaped-session-ready"), []byte("ready\n"), 0o600); err != nil {
+			os.Exit(96)
+		}
 		time.Sleep(24 * time.Hour)
 	default:
 		os.Exit(92)

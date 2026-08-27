@@ -15,10 +15,11 @@ func TestRunTranslatesBothRolesWithoutBypassPermissions(t *testing.T) {
 	for _, test := range []struct {
 		role       domain.ProviderRole
 		permission string
+		tools      string
 		terminal   string
 	}{
-		{role: domain.RoleImplementer, permission: "acceptEdits", terminal: `{"schema":1,"outcome":"complete","summary":"Implemented.","findings":[]}`},
-		{role: domain.RoleReviewer, permission: "plan", terminal: `{"schema":1,"outcome":"complete","summary":"No blocker.","findings":[],"decision":"GO"}`},
+		{role: domain.RoleImplementer, permission: "acceptEdits", tools: "Read,Glob,Grep,Edit,Write,Bash", terminal: `{"schema":1,"outcome":"complete","summary":"Implemented.","findings":[]}`},
+		{role: domain.RoleReviewer, permission: "plan", tools: "Read,Glob,Grep", terminal: `{"schema":1,"outcome":"complete","summary":"No blocker.","findings":[],"decision":"GO"}`},
 	} {
 		t.Run(string(test.role), func(t *testing.T) {
 			var invocation processadapter.Request
@@ -35,8 +36,11 @@ func TestRunTranslatesBothRolesWithoutBypassPermissions(t *testing.T) {
 				t.Fatalf("Run()=%+v error=%v", response, err)
 			}
 			joined := strings.Join(invocation.Arguments, " ")
-			if !strings.Contains(joined, "--permission-mode "+test.permission) || !strings.Contains(joined, "--max-turns 64") || strings.Contains(joined, "bypassPermissions") || strings.Contains(joined, "dangerously-skip") || invocation.Directory != "/repo" || !strings.Contains(string(invocation.Input), `"role": "`+string(test.role)+`"`) {
+			if !strings.Contains(joined, "--permission-mode "+test.permission) || !strings.Contains(joined, "--tools "+test.tools) || !strings.Contains(joined, "--safe-mode") || strings.Contains(joined, "--bare") || !strings.Contains(joined, "--max-turns 64") || strings.Contains(joined, "bypassPermissions") || strings.Contains(joined, "dangerously-skip") || invocation.Directory != "/repo" || !strings.Contains(string(invocation.Input), `"role": "`+string(test.role)+`"`) {
 				t.Fatalf("invocation=%+v", invocation)
+			}
+			if test.role == domain.RoleReviewer && strings.Contains(test.tools, "Bash") {
+				t.Fatalf("reviewer tools include Bash: %q", test.tools)
 			}
 		})
 	}

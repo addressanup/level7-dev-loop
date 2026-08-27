@@ -150,6 +150,19 @@ func TestTierThreeRejectsSelfReviewBeforeProviderLaunch(t *testing.T) {
 	}
 }
 
+func TestReviewerNoGoReturnsToBuildingAndReconstructs(t *testing.T) {
+	fixture := completedVerificationFixture(domain.ProviderCodex)
+	fixture.providerDecision = domain.DecisionNoGO
+	review := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandReview, Agent: domain.ProviderClaude})
+	if review.Outcome != domain.OutcomeBlocked || review.Code != "L7-REVIEW-010" || review.State != string(domain.StateBuilding) || !strings.Contains(review.Next, "l7 run") || !fixture.reviewFound {
+		t.Fatalf("NO_GO review=%+v evidence=%+v", review, fixture.review)
+	}
+	status := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandStatus})
+	if status.Outcome != domain.OutcomeBlocked || status.Code != "L7-BUILD-001" || status.State != string(domain.StateBuilding) || !strings.Contains(status.Next, "l7 run") {
+		t.Fatalf("NO_GO status=%+v", status)
+	}
+}
+
 func TestDirtyCandidateCannotRetainCurrentAssurance(t *testing.T) {
 	fixture := completedVerificationFixture(domain.ProviderCodex)
 	fixture.pendingPaths = []string{"internal/product/change.go"}
