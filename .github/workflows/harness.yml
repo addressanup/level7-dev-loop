@@ -42,9 +42,17 @@ jobs:
         run: make ci GO_VERSION=${{ matrix.go-version }}
 
   cli-macos:
-    name: CLI macOS 15 (arm64)
-    runs-on: macos-15
+    name: CLI macOS 15 (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: amd64
+            runner: macos-15-intel
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,3 +68,35 @@ jobs:
 
       - name: Cross-build declared macOS architectures
         run: make cli-cross-build GO_VERSION=1.26.7
+
+  cli-benchmark:
+    name: CLI paired benchmark gate
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+          path: base
+          persist-credentials: false
+
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          path: candidate
+          persist-credentials: false
+
+      - name: Bootstrap authenticated Go archive
+        working-directory: candidate
+        run: make bootstrap GO_VERSION=1.26.7
+
+      - name: Compare paired same-host medians
+        working-directory: candidate
+        env:
+          L7_BENCHMARK_BASE_ROOT: ${{ github.workspace }}/base
+        run: make cli-benchmark-check GO_VERSION=1.26.7

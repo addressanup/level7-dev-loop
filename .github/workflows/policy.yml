@@ -79,6 +79,7 @@ jobs:
       - name: Evaluate candidate with trusted base controller
         env:
           GH_TOKEN: ${{ github.token }}
+          L7_ACCOUNTABLE_OWNER: ${{ vars.L7_ACCOUNTABLE_OWNER }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -94,12 +95,25 @@ jobs:
 
           checks=$(gh api "repos/${REPOSITORY}/commits/${head}/check-runs")
           baseline=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name | test("^Go .* \\(baseline\\)$")) | select(.conclusion == "success")] | length')
+          macos_arm64=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI macOS 15 (arm64)") | select(.conclusion == "success")] | length')
+          macos_amd64=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI macOS 15 (amd64)") | select(.conclusion == "success")] | length')
+          benchmark_success=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI paired benchmark gate") | select(.conclusion == "success")] | length')
+          benchmark_failure=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI paired benchmark gate") | select(.conclusion == "failure")] | length')
           reviews=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews")
           reviewer=$(printf '%s' "$reviews" | jq -r --arg author "$PR_AUTHOR" --arg head "$head" '[.[] | select(.state == "APPROVED" and .user.login != $author and .commit_id == $head)] | last | .user.login // empty')
+          benchmark_marker="L7-Benchmark-Regression-Accepted: $head"
+          benchmark_acceptance=$(printf '%s' "$reviews" | jq --arg actor "$L7_ACCOUNTABLE_OWNER" --arg head "$head" --arg marker "$benchmark_marker" '[.[] | select(.state == "APPROVED" and .user.login == $actor and .commit_id == $head) | select(any(((.body // "") | split("\n"))[]; . == $marker or . == ($marker + "\r")))] | length')
+          benchmark_current=false
+          if [ "$benchmark_success" -gt 0 ]; then
+            benchmark_current=true
+          elif [ "$benchmark_failure" -gt 0 ] && [ "$benchmark_acceptance" -gt 0 ]; then
+            benchmark_current=true
+            echo "accountable owner explicitly accepted the paired benchmark regression at $head"
+          fi
           verified_ref=
           review_ref=
           ready_ref=
-          if [ "$baseline" -gt 0 ]; then verified_ref=$head; fi
+          if [ "$baseline" -gt 0 ] && [ "$macos_arm64" -gt 0 ] && [ "$macos_amd64" -gt 0 ] && [ "$benchmark_current" = true ]; then verified_ref=$head; fi
           if [ -n "$reviewer" ]; then review_ref=$head; fi
           if [ -n "$verified_ref" ] && [ -n "$review_ref" ]; then ready_ref=$head; fi
 
