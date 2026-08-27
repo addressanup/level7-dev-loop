@@ -124,11 +124,11 @@ func parseMarkdownTable(document string) map[string]string {
 func parseImplementationScope(document string) []string {
 	section := sectionBetween(document, "## Exact implementation file set", "## Acceptance criteria")
 	var result []string
-	lastDirectory := ""
 	for _, line := range strings.Split(section, "\n") {
 		if !strings.HasPrefix(strings.TrimSpace(line), "-") {
 			continue
 		}
+		lastDirectory := ""
 		for _, match := range codeSpanPattern.FindAllStringSubmatch(line, -1) {
 			candidate := match[1]
 			if !strings.Contains(candidate, "/") && lastDirectory != "" {

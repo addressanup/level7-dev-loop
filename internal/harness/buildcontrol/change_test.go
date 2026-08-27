@@ -33,9 +33,9 @@ func TestApprovalAndRemediationTransitionsCannotDeadlock(t *testing.T) {
 }
 
 func TestBriefParserRequiresOneCompleteScopedRecord(t *testing.T) {
-	document := briefDocument("feature-x", tierProduct, "0123456789012345678901234567890123456789", "internal/feature.go")
+	document := briefDocument("feature-x", tierProduct, "0123456789012345678901234567890123456789", "internal/feature.go", "Makefile")
 	brief, findings := parseBrief("docs/artifacts/changes/feature-x.md", []byte(document))
-	if len(findings) != 0 || brief.ID != "feature-x" || brief.Tier != tierProduct || !scopeContains(brief.Scope, "internal/feature.go") {
+	if len(findings) != 0 || brief.ID != "feature-x" || brief.Tier != tierProduct || !scopeContains(brief.Scope, "internal/feature.go") || !scopeContains(brief.Scope, "Makefile") {
 		t.Fatalf("valid brief rejected: brief=%+v findings=%+v", brief, findings)
 	}
 	_, findings = parseBrief("docs/artifacts/changes/feature-x.md", []byte("# incomplete\n"))
