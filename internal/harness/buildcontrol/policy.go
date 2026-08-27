@@ -336,6 +336,16 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 		}
 		return stateVerified, nil
 	}
+	auditData, auditReadErr := repository.show(head, auditPath)
+	if auditReadErr == nil {
+		stale := parseEvidence(auditData)
+		if stale.Result == "NO_GO" && stale.CandidateCommit != verificationCommit {
+			if signals.auditRequest == verificationCommit {
+				return stateAwaitingIndependentAudit, nil
+			}
+			return stateVerified, nil
+		}
+	}
 	decision, auditFindings := validateAudit(repository, head, tree, auditPath, brief, approval, verificationCommit)
 	if len(auditFindings) != 0 {
 		return stateAwaitingIndependentAudit, auditFindings

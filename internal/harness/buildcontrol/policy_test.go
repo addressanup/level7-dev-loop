@@ -171,6 +171,33 @@ func TestBoundNoGoReturnsTier3ToBuilding(t *testing.T) {
 	}
 }
 
+func TestRemediationCanReachFreshAuditAfterHistoricalNoGo(t *testing.T) {
+	repository, briefCommit := tierThreeImplementation(t)
+	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
+	firstCandidate := repository.rev("HEAD")
+	firstTree := repository.rev("HEAD^{tree}")
+	verificationPath := "docs/artifacts/changes/controller-verification.md"
+	auditPath := "docs/artifacts/changes/controller-audit.md"
+	repository.write(verificationPath, evidenceDocument("controller", firstCandidate, firstTree, "PASS", "ci"))
+	firstVerification := repository.commit("test: first verification")
+	firstVerificationTree := repository.rev("HEAD^{tree}")
+	repository.write(auditPath, evidenceDocument("controller", firstVerification, firstVerificationTree, "NO_GO", "auditor"))
+	firstAudit := repository.commit("docs: first no-go")
+	repository.authority("audits", "controller", auditEnvelope{Schema: 1, ChangeID: "controller", Actor: "auditor", CandidateCommit: firstVerification, AuditCommit: firstAudit, Source: "independent-agent"})
+
+	repository.remove(verificationPath)
+	repository.write("internal/harness/buildcontrol/policy.go", "package main\n// remediated\n")
+	remediatedCandidate := repository.commit("fix: remediate audit")
+	remediatedTree := repository.rev("HEAD^{tree}")
+	repository.write(verificationPath, evidenceDocument("controller", remediatedCandidate, remediatedTree, "PASS", "ci"))
+	secondVerification := repository.commit("test: rebound verification")
+
+	report, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller", AuditRequestRef: secondVerification})
+	if len(findings) != 0 || report.State != stateAwaitingIndependentAudit {
+		t.Fatalf("historical NO_GO deadlocked fresh audit: report=%+v findings=%+v", report, findings)
+	}
+}
+
 func TestTierOneAndTwoReachVerifiedReviewedAndReady(t *testing.T) {
 	for _, tier := range []riskTier{tierRoutine, tierProduct} {
 		repository := newTestRepository(t)
