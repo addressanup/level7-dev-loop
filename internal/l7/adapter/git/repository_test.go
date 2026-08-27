@@ -39,7 +39,9 @@ func TestLocateAndSnapshotUseGitIdentityAndBoundedChangedScope(t *testing.T) {
 func TestLocateRejectsOutsideBareAndUnbornRepositories(t *testing.T) {
 	adapter := testAdapter(t, DefaultMaxOutput, DefaultMaxPaths)
 	t.Run("outside", func(t *testing.T) {
-		if _, err := adapter.Locate(context.Background(), physicalTemp(t)); err == nil {
+		root := physicalTemp(t)
+		writeFile(t, filepath.Join(root, ".git"), "gitdir: missing\n")
+		if _, err := adapter.Locate(context.Background(), root); err == nil {
 			t.Fatal("Locate() unexpectedly accepted a non-repository")
 		}
 	})
