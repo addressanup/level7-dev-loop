@@ -59,6 +59,7 @@ func TestRenderAndParseProviderNeutralProtocol(t *testing.T) {
 		[]byte(`{"schema":1,"schema":1}`),
 		[]byte(`{"schema":1,"outcome":"complete","summary":"Implemented.","findings":[],"decision":"GO"}`),
 		[]byte(`{"schema":1,"outcome":"blocked","summary":"Blocked.","findings":[],"decision":"GO"}`),
+		append([]byte(`{"schema":1,"outcome":"complete","summary":"`), 0xff),
 	} {
 		role := domain.RoleReviewer
 		if strings.Contains(string(data), "Implemented") {

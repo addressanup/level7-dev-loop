@@ -143,7 +143,7 @@ func RenderTask(task domain.ProviderTask) ([]byte, error) {
 }
 
 func ParseTerminal(data []byte, role domain.ProviderRole) (domain.ProviderResponse, error) {
-	if !role.Valid() || len(data) < 2 || len(data) > MaxProviderPrompt {
+	if !role.Valid() || len(data) < 2 || len(data) > MaxProviderPrompt || !utf8.Valid(data) {
 		return domain.ProviderResponse{}, errors.New("provider terminal payload is invalid")
 	}
 	var wire terminalWire
