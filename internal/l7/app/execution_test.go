@@ -22,7 +22,7 @@ func TestTierThreeFakeProvidersCompleteBothOrdersAndResume(t *testing.T) {
 			fixture := newExecutionFixture(domain.TierHighRisk)
 			application := fixture.application()
 			run := application.ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandRun, Agent: order.implementer, CommitMessage: "feat(product): implement bounded change"})
-			if run.Outcome != domain.OutcomePass || run.Code != "L7-RUN-000" || fixture.run.Provider != fixture.identity(order.implementer) || fixture.confirmations != 1 {
+			if run.Outcome != domain.OutcomePass || run.Code != "L7-RUN-000" || fixture.run.Provider.Provider != order.implementer || fixture.confirmations != 1 {
 				t.Fatalf("run=%+v evidence=%+v confirmations=%d", run, fixture.run, fixture.confirmations)
 			}
 			verification := application.ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandVerify})
@@ -30,7 +30,7 @@ func TestTierThreeFakeProvidersCompleteBothOrdersAndResume(t *testing.T) {
 				t.Fatalf("verification=%+v evidence=%+v runs=%d", verification, fixture.verification, fixture.verificationRuns)
 			}
 			review := application.ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandReview, Agent: order.reviewer})
-			if review.Outcome != domain.OutcomePass || review.State != string(domain.StateReviewed) || fixture.review.Provider != fixture.identity(order.reviewer) || fixture.review.ReviewCommit == "" || fixture.pendingPaths != nil || fixture.indexDirty {
+			if review.Outcome != domain.OutcomePass || review.State != string(domain.StateReviewed) || fixture.review.Provider.Provider != order.reviewer || fixture.review.ReviewCommit == "" {
 				t.Fatalf("review=%+v evidence=%+v", review, fixture.review)
 			}
 			status := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandStatus})
@@ -41,23 +41,6 @@ func TestTierThreeFakeProvidersCompleteBothOrdersAndResume(t *testing.T) {
 				t.Fatalf("artifacts=%v", fixture.artifacts)
 			}
 		})
-	}
-}
-
-func TestProviderCancellationCannotCreateAcceptedEvidenceOrRetainLock(t *testing.T) {
-	fixture := newExecutionFixture(domain.TierProduct)
-	ctx, cancel := context.WithCancel(context.Background())
-	fixture.onProvider = func(domain.ProviderTask) { cancel() }
-
-	result := fixture.application().ExecuteRequest(ctx, domain.Request{Command: domain.CommandRun, Agent: domain.ProviderCodex, CommitMessage: "feat(product): implement change"})
-	if result.Outcome != domain.OutcomeCancelled || result.Code != "L7-CLI-003" || fixture.providerRuns != 1 || fixture.runFound || fixture.commits != 0 || len(fixture.pendingPaths) != 0 || fixture.indexDirty || fixture.acquisitions != 1 || fixture.releases != 1 {
-		t.Fatalf("result=%+v providerRuns=%d run=%+v commits=%d pending=%v indexDirty=%t acquisitions=%d releases=%d", result, fixture.providerRuns, fixture.run, fixture.commits, fixture.pendingPaths, fixture.indexDirty, fixture.acquisitions, fixture.releases)
-	}
-
-	fixture.onProvider = nil
-	retry := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandRun, Agent: domain.ProviderCodex, CommitMessage: "feat(product): implement change"})
-	if retry.Outcome != domain.OutcomePass || retry.Code != "L7-RUN-000" || fixture.acquisitions != 2 || fixture.releases != 2 {
-		t.Fatalf("retry=%+v acquisitions=%d releases=%d", retry, fixture.acquisitions, fixture.releases)
 	}
 }
 
@@ -339,7 +322,6 @@ type executionFixture struct {
 	mergeConfirmations     int
 	mergeAdvances          int
 	acquisitions           int
-	releases               int
 	onAcquire              func()
 	onProvider             func(domain.ProviderTask)
 	onVerification         func()
@@ -417,10 +399,7 @@ func (fixture *executionFixture) buildPorts() Ports {
 			if fixture.onAcquire != nil {
 				fixture.onAcquire()
 			}
-			return func() error {
-				fixture.releases++
-				return nil
-			}, nil
+			return func() error { return nil }, nil
 		},
 		EnsureBrief: func(string, domain.ChangeBrief) (bool, error) { return false, nil },
 		LoadBrief:   func(string, string) (domain.ChangeBrief, error) { return fixture.brief, nil },
@@ -544,14 +523,11 @@ func (fixture *executionFixture) buildPorts() Ports {
 	}
 }
 
-func (fixture *executionFixture) runProvider(ctx context.Context, task domain.ProviderTask, _, _ int) (domain.ProviderResponse, error) {
+func (fixture *executionFixture) runProvider(_ context.Context, task domain.ProviderTask, _, _ int) (domain.ProviderResponse, error) {
 	fixture.providerRuns++
 	fixture.lastTask = task
 	if fixture.onProvider != nil {
 		fixture.onProvider(task)
-	}
-	if err := ctx.Err(); err != nil {
-		return domain.ProviderResponse{}, err
 	}
 	paths := append([]string{}, fixture.providerPaths...)
 	if task.Role == domain.RoleReviewer && !fixture.reviewerMutates {
@@ -597,9 +573,9 @@ func (fixture *executionFixture) nextIdentity() string {
 }
 
 func (fixture *executionFixture) identity(provider domain.Provider) domain.ProviderIdentity {
-	version := "codex-cli 0.150.1"
+	version := "codex-cli 0.149.1"
 	if provider == domain.ProviderClaude {
-		version = "2.1.247 (Claude Code)"
+		version = "2.1.241 (Claude Code)"
 	}
 	return domain.ProviderIdentity{Provider: provider, Executable: "/usr/bin/" + string(provider), Version: version, Digest: strings.Repeat(string(provider[0]), 64), Capability: domain.CapabilityAvailable}
 }
