@@ -83,3 +83,28 @@ func TestRiskTierValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestScopeContainmentIsExactOrExplicitlyRecursive(t *testing.T) {
+	scope := []string{"README.md", "internal/widget/**"}
+	for _, path := range []string{"README.md", "internal/widget/file.go", "internal/widget/nested/file.go"} {
+		if !ScopeContains(scope, path) {
+			t.Fatalf("scope does not contain %q", path)
+		}
+	}
+	for _, path := range []string{"README.md.bak", "internal/widget", "internal/widgets/file.go", "other.go"} {
+		if ScopeContains(scope, path) {
+			t.Fatalf("scope unexpectedly contains %q", path)
+		}
+	}
+}
+
+func TestExpandedPathsAllowsOnlyDeclaredAndProductOwnedRecords(t *testing.T) {
+	got := ExpandedPaths(
+		[]string{"internal/widget/**"},
+		[]string{"internal/widget/file.go", "docs/artifacts/changes/example.md", "outside.txt"},
+		[]string{"docs/artifacts/changes/example.md"},
+	)
+	if len(got) != 1 || got[0] != "outside.txt" {
+		t.Fatalf("ExpandedPaths()=%v, want [outside.txt]", got)
+	}
+}

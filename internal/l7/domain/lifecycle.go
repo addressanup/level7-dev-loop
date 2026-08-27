@@ -91,6 +91,85 @@ type LifecycleFacts struct {
 	AssuranceStale          bool
 }
 
+type RepositoryLocation struct {
+	Root      string
+	CommonDir string
+	Head      string
+	Tree      string
+}
+
+type RepositorySnapshot struct {
+	RepositoryLocation
+	Base         string
+	ChangedPaths []string
+}
+
+type Configuration struct {
+	LocalLifecycle bool
+}
+
+type ChangeBrief struct {
+	ID                 string
+	Tier               RiskTier
+	Base               string
+	Path               string
+	Problem            string
+	Scope              []string
+	AcceptanceCriteria []string
+	Risks              []string
+	Rollback           []string
+}
+
+type ActiveKind string
+
+const (
+	ActiveTierOne ActiveKind = "tier-1"
+	ActiveBrief   ActiveKind = "brief"
+)
+
+type ActiveChange struct {
+	Kind      ActiveKind
+	ID        string
+	Tier      RiskTier
+	Base      string
+	Problem   string
+	Scope     []string
+	BriefPath string
+}
+
+func ScopeContains(scope []string, relative string) bool {
+	for _, declared := range scope {
+		if declared == relative {
+			return true
+		}
+		if hasSuffix(declared, "/**") {
+			prefix := declared[:len(declared)-2]
+			if hasPrefix(relative, prefix) && len(relative) > len(prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func ExpandedPaths(scope, changed []string, permitted []string) []string {
+	expanded := make([]string, 0)
+	for _, relative := range changed {
+		if !ScopeContains(scope, relative) && !ScopeContains(permitted, relative) {
+			expanded = append(expanded, relative)
+		}
+	}
+	return expanded
+}
+
+func hasPrefix(value, prefix string) bool {
+	return len(value) >= len(prefix) && value[:len(prefix)] == prefix
+}
+
+func hasSuffix(value, suffix string) bool {
+	return len(value) >= len(suffix) && value[len(value)-len(suffix):] == suffix
+}
+
 func DeriveLifecycle(facts LifecycleFacts) (LifecycleState, bool) {
 	if !facts.Tier.Valid() || !facts.PlanPresent || lifecycleFactsConflict(facts) {
 		return "", false
