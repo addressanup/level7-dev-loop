@@ -112,6 +112,16 @@ func TestRepositoryInputLimitCanNarrowBriefIntake(t *testing.T) {
 	}
 }
 
+func TestStatusOutputIsBoundedBeforeRenderingChangedPaths(t *testing.T) {
+	fixture := plannedTierOneFixture()
+	fixture.configuration.MaxCommandOutputBytes = 64 << 10
+	fixture.snapshotPaths = [][]string{{strings.Repeat("x", 4096), strings.Repeat("y", 4096)}}
+	result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandStatus})
+	if result.Outcome != domain.OutcomeBlocked || result.Code != "L7-OUTPUT-001" || result.Repository != nil {
+		t.Fatalf("bounded output result=%+v", result)
+	}
+}
+
 func TestStatusFailsClosedOnScopeExpansion(t *testing.T) {
 	fixture := plannedTierOneFixture()
 	fixture.snapshotPaths = [][]string{{"internal/example/change.go", "outside.txt"}}
@@ -203,7 +213,7 @@ type lifecycleFixture struct {
 func newLifecycleFixture() *lifecycleFixture {
 	fixture := &lifecycleFixture{
 		location:      domain.RepositoryLocation{Root: "/repo", CommonDir: "/repo/.git", Head: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40)},
-		configuration: domain.Configuration{LocalLifecycle: true, MaxInputBytes: 1 << 20, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000},
+		configuration: domain.Configuration{LocalLifecycle: true, MaxInputBytes: 1 << 20, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000, MaxCommandOutputBytes: 8 << 20},
 		snapshotPaths: [][]string{{}, {}, {}},
 	}
 	fixture.ports = Ports{

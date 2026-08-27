@@ -246,6 +246,9 @@ func (application Application) status(ctx context.Context, request domain.Reques
 		if !sameCandidate(location, snapshot.RepositoryLocation) {
 			return application.failure("L7-GIT-002", request.Command, "changed", "Git identity changed during idle status reconstruction", "retry l7 status against a stable repository")
 		}
+		if !repositoryOutputFits(configuration.MaxCommandOutputBytes, snapshot, nil) {
+			return application.result(domain.OutcomeBlocked, "L7-OUTPUT-001", string(request.Command), "bounded", "Git status exceeds the configured command-output limit", "narrow the active scope or explicitly raise the bounded output limit")
+		}
 		recheckedConfiguration, configFound, configErr := application.ports.LoadConfiguration(location.Root)
 		_, recheckedActiveFound, activeErr := application.ports.LoadActive(location.CommonDir)
 		if configErr != nil || !configFound || activeErr != nil || recheckedActiveFound || !sameConfiguration(configuration, recheckedConfiguration) {
@@ -281,6 +284,9 @@ func (application Application) status(ctx context.Context, request domain.Reques
 	snapshot, err := application.ports.Snapshot(ctx, location.Root, active.Base, configuration.MaxGitOutputBytes, configuration.MaxGitPaths)
 	if err != nil {
 		return application.failure("L7-GIT-001", request.Command, "invalid", "cannot reconstruct Git-derived status: "+bounded(err.Error(), 512), "restore an ancestor base and stable Git worktree, then retry l7 status")
+	}
+	if !repositoryOutputFits(configuration.MaxCommandOutputBytes, snapshot, active.Scope) {
+		return application.result(domain.OutcomeBlocked, "L7-OUTPUT-001", string(request.Command), "bounded", "Git-derived change status exceeds the configured command-output limit", "narrow the active scope or explicitly raise the bounded output limit")
 	}
 	recheckedConfiguration, found, configErr := application.ports.LoadConfiguration(location.Root)
 	recheckedActive, activeFound, activeErr := application.ports.LoadActive(location.CommonDir)
@@ -390,7 +396,7 @@ func sameSnapshot(left, right domain.RepositorySnapshot) bool {
 }
 
 func sameConfiguration(left, right domain.Configuration) bool {
-	return left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && sameStrings(left.ProtectedPaths, right.ProtectedPaths)
+	return left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && left.MaxCommandOutputBytes == right.MaxCommandOutputBytes && sameStrings(left.ProtectedPaths, right.ProtectedPaths)
 }
 
 func sameStoredActive(resolved, stored domain.ActiveChange) bool {
@@ -453,4 +459,33 @@ func requestBytes(request domain.Request) int {
 		}
 	}
 	return total
+}
+
+func repositoryOutputFits(limit int, snapshot domain.RepositorySnapshot, scope []string) bool {
+	if limit < 1 {
+		return false
+	}
+	remaining := limit - 4096
+	for _, value := range []string{snapshot.Root, snapshot.CommonDir, snapshot.Base, snapshot.Head, snapshot.Tree} {
+		if !consumeOutputBudget(&remaining, value) {
+			return false
+		}
+	}
+	for _, group := range [][]string{scope, snapshot.ChangedPaths} {
+		for _, value := range group {
+			if !consumeOutputBudget(&remaining, value) {
+				return false
+			}
+		}
+	}
+	return remaining >= 0
+}
+
+func consumeOutputBudget(remaining *int, value string) bool {
+	const expansionFactor = 12
+	if *remaining < 64 || len(value) > (*remaining-64)/expansionFactor {
+		return false
+	}
+	*remaining -= len(value)*expansionFactor + 64
+	return true
 }

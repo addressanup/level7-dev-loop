@@ -15,7 +15,7 @@ func TestDefaultConfigurationIsValidAndFeatureOff(t *testing.T) {
 	if configuration.Features.LocalLifecycle || configuration.Domain().LocalLifecycle {
 		t.Fatal("local lifecycle is not default OFF")
 	}
-	if configuration.Domain().MaxInputBytes != 1<<20 || configuration.Domain().MaxGitOutputBytes != 16<<20 || configuration.Domain().MaxGitPaths != 100_000 {
+	if configuration.Domain().MaxInputBytes != 1<<20 || configuration.Domain().MaxGitOutputBytes != 16<<20 || configuration.Domain().MaxGitPaths != 100_000 || configuration.Domain().MaxCommandOutputBytes != 8<<20 {
 		t.Fatalf("domain limits=%+v", configuration.Domain())
 	}
 }

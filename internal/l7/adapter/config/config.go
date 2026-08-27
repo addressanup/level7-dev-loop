@@ -94,11 +94,12 @@ func Default(localLifecycle bool) File {
 
 func (configuration File) Domain() domain.Configuration {
 	return domain.Configuration{
-		LocalLifecycle:    configuration.Features.LocalLifecycle,
-		MaxInputBytes:     configuration.Limits.MaxInputBytes,
-		MaxGitOutputBytes: configuration.Limits.MaxGitOutputBytes,
-		MaxGitPaths:       configuration.Limits.MaxGitPaths,
-		ProtectedPaths:    append([]string{}, configuration.ProtectedPaths...),
+		LocalLifecycle:        configuration.Features.LocalLifecycle,
+		MaxInputBytes:         configuration.Limits.MaxInputBytes,
+		MaxGitOutputBytes:     configuration.Limits.MaxGitOutputBytes,
+		MaxGitPaths:           configuration.Limits.MaxGitPaths,
+		MaxCommandOutputBytes: configuration.Limits.MaxCommandOutputBytes,
+		ProtectedPaths:        append([]string{}, configuration.ProtectedPaths...),
 	}
 }
 

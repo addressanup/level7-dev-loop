@@ -414,16 +414,18 @@ func (lock *Lock) Close() error {
 	lock.root = nil
 	unlockErr := syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
 	closeErr := file.Close()
+	var rootErr error
+	if root != nil {
+		rootErr = root.Close()
+	}
 	if unlockErr != nil {
 		return fmt.Errorf("unlock repository: %w", unlockErr)
 	}
 	if closeErr != nil {
 		return fmt.Errorf("close repository lock: %w", closeErr)
 	}
-	if root != nil {
-		if err := root.Close(); err != nil {
-			return fmt.Errorf("close repository lock root: %w", err)
-		}
+	if rootErr != nil {
+		return fmt.Errorf("close repository lock root: %w", rootErr)
 	}
 	return nil
 }
