@@ -91,6 +91,22 @@ func TestTier3RejectsMissingInvalidAndSelfIssuedApproval(t *testing.T) {
 	}
 }
 
+func TestTier3RejectsBriefMutationAfterApproval(t *testing.T) {
+	repository, briefCommit := tierThreeImplementation(t)
+	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
+	name := "docs/artifacts/changes/controller.md"
+	data, err := os.ReadFile(filepath.Join(repository.root, filepath.FromSlash(name)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository.write(name, string(data)+"\nExpanded after approval.\n")
+	repository.commit("docs: mutate approved brief")
+	_, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
+	if rules(findings)["AUTH-004"] == 0 {
+		t.Fatalf("mutated approved brief accepted: %+v", findings)
+	}
+}
+
 func TestTier3ApprovalContinuesThroughVerificationAndIndependentAudit(t *testing.T) {
 	repository, briefCommit := tierThreeImplementation(t)
 	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
@@ -133,6 +149,25 @@ func TestTier3RejectsSelfAudit(t *testing.T) {
 	_, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
 	if rules(findings)["AUDIT-005"] == 0 {
 		t.Fatalf("self-audit accepted: %+v", findings)
+	}
+}
+
+func TestTier3RejectsVerificationMutationInAuditSuccessor(t *testing.T) {
+	repository, briefCommit := tierThreeImplementation(t)
+	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
+	implementationCommit := repository.rev("HEAD")
+	implementationTree := repository.rev("HEAD^{tree}")
+	verificationPath := "docs/artifacts/changes/controller-verification.md"
+	repository.write(verificationPath, evidenceDocument("controller", implementationCommit, implementationTree, "PASS", "ci"))
+	verificationCommit := repository.commit("test: verify controller")
+	verificationTree := repository.rev("HEAD^{tree}")
+	repository.write(verificationPath, evidenceDocument("controller", implementationCommit, implementationTree, "PASS", "ci")+"\nChanged after verification.\n")
+	repository.write("docs/artifacts/changes/controller-audit.md", evidenceDocument("controller", verificationCommit, verificationTree, "GO", "auditor"))
+	auditCommit := repository.commit("docs: audit with evidence mutation")
+	repository.authority("audits", "controller", auditEnvelope{Schema: 1, ChangeID: "controller", Actor: "auditor", CandidateCommit: verificationCommit, AuditCommit: auditCommit, Source: "independent-agent"})
+	_, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"})
+	if rules(findings)["AUDIT-007"] == 0 {
+		t.Fatalf("verification mutation in audit successor accepted: %+v", findings)
 	}
 }
 

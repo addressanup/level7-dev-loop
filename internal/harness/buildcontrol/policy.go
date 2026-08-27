@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"sort"
@@ -263,7 +264,7 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 		return stateBuilding, nil
 	}
 
-	approval, approvalFindings := loadApproval(repository, brief, briefCommit)
+	approval, approvalFindings := loadApproval(repository, head, brief, briefCommit)
 	if len(approvalFindings) != 0 {
 		return stateAwaitingOwnerApproval, approvalFindings
 	}
@@ -287,7 +288,7 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 	return stateReady, nil
 }
 
-func loadApproval(repository gitRepository, brief changeBrief, briefCommit string) (approvalEnvelope, []finding) {
+func loadApproval(repository gitRepository, head string, brief changeBrief, briefCommit string) (approvalEnvelope, []finding) {
 	commonDir, err := repository.commonDir()
 	if err != nil {
 		return approvalEnvelope{}, []finding{newFinding("AUTH-001", brief.ID, err.Error(), "restore access to external approval context")}
@@ -303,6 +304,20 @@ func loadApproval(repository gitRepository, brief changeBrief, briefCommit strin
 	}
 	if approval.Schema != 1 || approval.ChangeID != brief.ID || approval.BriefCommit != briefCommit || approval.Actor == "" || approval.Implementer == "" || (approval.Source != "active-user-interaction" && approval.Source != "trusted-ci") {
 		return approvalEnvelope{}, []finding{newFinding("AUTH-002", brief.ID, "approval identity, source, or brief binding is invalid", "obtain fresh external approval for the exact brief commit")}
+	}
+	approvedBrief, approvedErr := repository.show(briefCommit, brief.Path)
+	currentBrief, currentErr := repository.show(head, brief.Path)
+	if approvedErr != nil || currentErr != nil || !bytes.Equal(approvedBrief, currentBrief) {
+		return approvalEnvelope{}, []finding{newFinding("AUTH-004", brief.Path, "approved brief bytes changed after approval", "restore the approved brief or obtain fresh external approval")}
+	}
+	plannedChanges, planErr := repository.changed(brief.BaseCommit, briefCommit)
+	if planErr != nil {
+		return approvalEnvelope{}, []finding{newFinding("AUTH-005", brief.ID, planErr.Error(), "restore a readable planning commit")}
+	}
+	for _, change := range plannedChanges {
+		if change.Path != brief.Path {
+			return approvalEnvelope{}, []finding{newFinding("AUTH-005", change.Path, "Tier 3 implementation predates the approved planning boundary", "commit the brief before implementing protected work")}
+		}
 	}
 	return approval, nil
 }
@@ -365,6 +380,15 @@ func validateAudit(repository gitRepository, head, headTree, auditPath string, b
 	}
 	if envelope.Schema != 1 || envelope.ChangeID != brief.ID || envelope.CandidateCommit != verificationCommit || envelope.AuditCommit != head || envelope.Actor == "" || envelope.Actor == approval.Actor || envelope.Actor == approval.Implementer || envelope.Actor != record.Reviewer || (envelope.Source != "independent-agent" && envelope.Source != "trusted-ci") {
 		return []finding{newFinding("AUDIT-005", brief.ID, "audit identity, independence, source, or Git binding is invalid", "obtain a separate audit bound to the verified candidate and audit commit")}
+	}
+	auditChanges, auditDiffErr := repository.changed(verificationCommit, head)
+	if auditDiffErr != nil {
+		return []finding{newFinding("AUDIT-007", auditPath, auditDiffErr.Error(), "restore a readable audit-only successor")}
+	}
+	for _, change := range auditChanges {
+		if change.Path != auditPath {
+			return []finding{newFinding("AUDIT-007", change.Path, "verified candidate changed while adding the audit", "rerun verification and audit for the new candidate")}
+		}
 	}
 	if tree, treeErr := repository.tree(head); treeErr != nil || tree != headTree {
 		return []finding{newFinding("AUDIT-006", head, "audit successor tree changed during evaluation", "retry from a stable Git candidate")}
