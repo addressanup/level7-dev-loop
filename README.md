@@ -8,13 +8,15 @@ Code. Its common path is deliberately ordinary:
 Working software, Git identity, automated verification, and normal review carry
 the evidence. Process expands only when risk does.
 
-## Wave 3 local execution preview
+## Wave 4 local readiness preview
 
 The repository includes a default-OFF local lifecycle and execution preview. It
 can adopt an existing Git worktree, record one proportionate change, reconstruct
 its scope and identity from Git, run explicit repository checks, create one
 controlled candidate commit, and coordinate implementation and review through
-isolated Codex or Claude Code adapters.
+isolated Codex or Claude Code adapters. Wave 4 can additionally evaluate exact-
+candidate readiness and, after immediate human confirmation, advance one
+explicit local branch with an atomic fast-forward compare-and-swap.
 
 ```sh
 make build
@@ -77,6 +79,7 @@ Then run the bounded lifecycle explicitly:
 l7 run --agent codex --message "feat(product): implement product feature"
 l7 verify
 l7 review --agent claude
+l7 ready
 l7 status --json
 ```
 
@@ -99,10 +102,45 @@ general OS sandbox. Controlled commits run repository hooks with system/global
 Git configuration disabled and a bounded environment, so hooks may require
 repository-local identity and must not depend on ambient configuration.
 
+`l7 ready` recomputes the candidate, tree, tracked configuration digest,
+verification checks, independent `GO`, identities, audit, and benchmark facts
+under the repository mutation lock. A changed fact invalidates old readiness.
+Tier 3 requires owner, implementer, and reviewer identities to be distinct and
+requires a passing check explicitly designated as a benchmark by the trusted
+repository configuration. The readiness receipt is repository-local evidence;
+Git and the tracked configuration remain canonical.
+
+Trusted automation may invoke `l7 ready --headless --json` with one strict,
+size-bounded JSON document on stdin. This path composes only the pure CI decoder
+and domain evaluator: it does not locate a repository, prompt, launch a provider,
+write product state, access the network, or merge. The envelope and evaluator
+must come from the trusted base; candidate prose and passing tests do not confer
+authority.
+
+After readiness, local integration is explicit and interactive:
+
+```sh
+l7 merge --target release-candidate
+```
+
+The target must already be a local branch at the recorded readiness base, must
+not be checked out in another worktree, and must be an ancestor of the exact
+candidate. Immediately before the effect, the CLI displays the old and new full
+identities and requires the operator to type the full candidate SHA in an active
+terminal. It then revalidates under lock and performs only
+`git update-ref --no-deref <ref> <candidate> <expected-old>`. It never checks
+out, fetches, pushes, rebases, resets, deletes, creates a merge commit, or touches
+a remote. If receipt persistence is interrupted after the ref update, status
+consults Git and the next interactive merge invocation can record recovery; it
+never auto-resets the ref.
+
 The adapters currently recognize only the provisional fixture baselines Codex
 `codex-cli 0.149.1` and Claude Code `2.1.241`. Real provider launches and
-actual-host trials are `NOT_RUN` and separately gated, so Wave 3 makes no current
-provider-support claim. Status stops at `reviewed`: readiness, merge, deployment,
+actual-host trials are `NOT_RUN` and separately gated, so Wave 4 makes no current
+provider-support claim. Build-tagged actual-host probes and both provider-order
+orchestration compile during verification but are skipped; each real order also
+requires an exact source-candidate authorization and live terminal confirmation
+inside a disposable no-remote repository. Deployment, release, publication,
 network orchestration, provider installation, and global configuration remain
 unavailable. This binary is a development candidate, not a released or supported
 CLI.
@@ -157,14 +195,28 @@ deployment, workflow, harness, controller, skill, and plugin-control paths force
 Tier 3.
 
 Repository rules are part of the installation contract. They must restrict risk
-labels to trusted maintainers; require both non-experimental jobs from the
-`Harness` workflow—`Go 1.26.7 (baseline)` and `CLI macOS 15 (arm64)`—plus the
-`Trusted policy` evaluation; dismiss stale reviews; require at least one
-non-author approval; and require CODEOWNER/owner review for protected paths.
-Workflow YAML does not make a check blocking by itself. Installation and upgrade
-must verify those required checks against the live repository ruleset before
-claiming they are blocking. Trusted policy reads exact-head check and review
-identities before it reports `ready`; it does not infer them from candidate text.
+labels to trusted maintainers; require the non-experimental `Harness` jobs
+`Go 1.26.7 (baseline)`, `CLI macOS 15 (arm64)`, `CLI macOS 15 (amd64)`, and
+`CLI paired benchmark gate`, plus the `Trusted policy` evaluation; dismiss stale
+reviews; require at least one non-author approval; and require CODEOWNER/owner
+review for protected paths. Workflow YAML does not make a check blocking by
+itself. Installation and upgrade must verify those required checks against the
+live repository ruleset before claiming they are blocking. Trusted policy reads
+exact-head check and review identities before it reports `ready`; it does not
+infer them from candidate text.
+
+The benchmark job takes five alternating base/candidate samples on one macOS
+host with one pinned toolchain, compares medians, reports every raw `ns/op`
+sample, and blocks regressions above 10%. A failed regression can become current
+only when the configured accountable owner submits an exact-head approved review
+containing this exact line:
+
+```text
+L7-Benchmark-Regression-Accepted: <full-candidate-sha>
+```
+
+That external review marker cannot waive a missing, cancelled, or stale
+benchmark check.
 
 ## Skills
 
@@ -192,11 +244,16 @@ make policy-check
 make verify
 make build
 make cli-cross-build
+make cli-actual-host-compile
+make cli-benchmark-check L7_BENCHMARK_BASE_ROOT=/absolute/path/to/base-checkout
 ```
 
-The baseline and macOS jobs are required by the installation contract above; the
-configured shadow toolchain remains non-blocking. The macOS 15 arm64 job runs the
-same offline suite plus declared macOS cross-builds. This local repository has no
-remote or live ruleset evidence, so it does not claim those jobs are currently
-blocking. Trusted policy remains a separate required gate so technical CI neither
-needs nor manufactures approval. These checks are evidence, not approval.
+The baseline, paired benchmark, and both native macOS architecture jobs are
+required by the installation contract above; the configured shadow toolchain
+remains non-blocking. Each macOS job runs the same offline suite plus declared
+macOS cross-builds. The actual-host target compiles tagged probes with
+`-run '^$'`; it never launches a provider. This local repository has no remote or
+live ruleset evidence, and no hosted or Intel job was run for this candidate, so
+it does not claim those jobs are currently blocking or that Intel runtime support
+was observed. Trusted policy remains a separate required gate so technical CI
+neither needs nor manufactures approval. These checks are evidence, not approval.
