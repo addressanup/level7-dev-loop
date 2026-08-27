@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
@@ -13,12 +15,14 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
-const CompatibleVersion = "codex-cli 0.149.1"
+const CompatibleVersion = "codex-cli 0.150.1"
 
 const maxEvents = 4096
 
 type Adapter struct {
-	runtime provider.Runtime
+	runtime   provider.Runtime
+	mkdirTemp func(string, string) (string, error)
+	removeAll func(string) error
 }
 
 func New() Adapter {
@@ -26,7 +30,7 @@ func New() Adapter {
 }
 
 func NewWithRuntime(runtime provider.Runtime) Adapter {
-	return Adapter{runtime: runtime}
+	return Adapter{runtime: runtime, mkdirTemp: os.MkdirTemp, removeAll: os.RemoveAll}
 }
 
 func (adapter Adapter) Probe(ctx context.Context) (domain.ProviderIdentity, error) {
@@ -50,16 +54,94 @@ func (adapter Adapter) Run(ctx context.Context, task domain.ProviderTask, maxOut
 	if err != nil {
 		return domain.ProviderResponse{Identity: identity, Role: task.Role}, err
 	}
-	result, err := adapter.runtime.Invoke(ctx, identity, task.RepositoryRoot, arguments(task.Role, task.RepositoryRoot), prompt, maxOutputBytes, maxSeconds)
+	schemaPath, cleanupSchema, err := adapter.prepareTerminalSchema(task.Role, task.RepositoryRoot)
 	if err != nil {
 		return domain.ProviderResponse{Identity: identity, Role: task.Role}, err
+	}
+	result, invokeErr := adapter.runtime.Invoke(ctx, identity, task.RepositoryRoot, arguments(task.Role, task.RepositoryRoot, schemaPath), prompt, maxOutputBytes, maxSeconds)
+	cleanupErr := cleanupSchema()
+	if invokeErr != nil {
+		return domain.ProviderResponse{Identity: identity, Role: task.Role}, errors.Join(invokeErr, cleanupErr)
+	}
+	if cleanupErr != nil {
+		return domain.ProviderResponse{Identity: identity, Role: task.Role}, cleanupErr
 	}
 	response, err := parseEvents(result.Stdout, task.Role)
 	response.Identity = identity
 	return response, err
 }
 
-func arguments(role domain.ProviderRole, root string) []string {
+func (adapter Adapter) prepareTerminalSchema(role domain.ProviderRole, repositoryRoot string) (string, func() error, error) {
+	if adapter.mkdirTemp == nil || adapter.removeAll == nil {
+		return "", nil, errors.New("Codex terminal schema storage is not configured")
+	}
+	schema, err := provider.TerminalSchema(role)
+	if err != nil {
+		return "", nil, err
+	}
+	repositoryRoot, err = filepath.EvalSymlinks(repositoryRoot)
+	if err != nil || !filepath.IsAbs(repositoryRoot) {
+		return "", nil, errors.New("Codex repository root is not a physical absolute directory")
+	}
+	temporaryRoot, tempRootErr := filepath.EvalSymlinks(os.TempDir())
+	if tempRootErr != nil || !filepath.IsAbs(temporaryRoot) {
+		temporaryRoot = filepath.Dir(repositoryRoot)
+	} else if inside, compareErr := pathWithin(repositoryRoot, temporaryRoot); compareErr != nil || inside {
+		temporaryRoot = filepath.Dir(repositoryRoot)
+	}
+	directory, err := adapter.mkdirTemp(temporaryRoot, "l7-codex-schema-")
+	if err != nil {
+		return "", nil, fmt.Errorf("create private Codex schema directory: %w", err)
+	}
+	cleanupPath := directory
+	cleanup := func() error {
+		if err := adapter.removeAll(cleanupPath); err != nil {
+			return fmt.Errorf("remove private Codex schema directory: %w", err)
+		}
+		return nil
+	}
+	fail := func(cause error) (string, func() error, error) {
+		return "", nil, errors.Join(cause, cleanup())
+	}
+	if err := os.Chmod(directory, 0o700); err != nil {
+		return fail(fmt.Errorf("set private Codex schema directory mode: %w", err))
+	}
+	physicalDirectory, err := filepath.EvalSymlinks(directory)
+	if err != nil || !filepath.IsAbs(physicalDirectory) {
+		return fail(errors.New("Codex schema directory is not a physical absolute directory"))
+	}
+	cleanupPath = physicalDirectory
+	inside, err := pathWithin(repositoryRoot, physicalDirectory)
+	if err != nil {
+		return fail(fmt.Errorf("compare Codex schema and repository paths: %w", err))
+	}
+	if inside {
+		return fail(errors.New("Codex schema directory must be outside the repository"))
+	}
+	info, err := os.Stat(physicalDirectory)
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0o700 {
+		return fail(errors.New("Codex schema directory is not private"))
+	}
+	path := filepath.Join(physicalDirectory, "terminal-schema.json")
+	if err := localfile.AtomicCreate(path, []byte(schema), 0o600); err != nil {
+		return fail(fmt.Errorf("create private Codex terminal schema: %w", err))
+	}
+	info, err = os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+		return fail(errors.New("Codex terminal schema file is not private"))
+	}
+	return path, cleanup, nil
+}
+
+func pathWithin(root, path string) (bool, error) {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return false, err
+	}
+	return relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))), nil
+}
+
+func arguments(role domain.ProviderRole, root, schemaPath string) []string {
 	sandbox := "workspace-write"
 	if role == domain.RoleReviewer {
 		sandbox = "read-only"
@@ -71,8 +153,8 @@ func arguments(role domain.ProviderRole, root string) []string {
 		"--sandbox", sandbox,
 		"--color", "never",
 		"--json",
+		"--output-schema", schemaPath,
 		"--cd", root,
-		"--skip-git-repo-check",
 		"-",
 	}
 }
@@ -81,17 +163,18 @@ func parseEvents(output []byte, role domain.ProviderRole) (domain.ProviderRespon
 	if !role.Valid() || len(output) == 0 || len(output) > provider.MaxProviderPrompt*64 || !utf8.Valid(output) {
 		return domain.ProviderResponse{}, errors.New("Codex event stream is invalid")
 	}
+	output = []byte(strings.TrimSuffix(string(output), "\n"))
+	if len(output) == 0 {
+		return domain.ProviderResponse{}, errors.New("Codex event framing is invalid")
+	}
 	lines := strings.Split(string(output), "\n")
-	if len(lines) > maxEvents+1 {
+	if len(lines) > maxEvents {
 		return domain.ProviderResponse{}, errors.New("Codex event count exceeds the contract")
 	}
 	var terminal string
 	terminalCount := 0
 	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		if strings.TrimSpace(line) != line {
+		if line == "" || strings.TrimSpace(line) != line {
 			return domain.ProviderResponse{}, errors.New("Codex event framing is invalid")
 		}
 		var event map[string]any
