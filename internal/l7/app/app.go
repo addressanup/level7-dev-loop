@@ -15,6 +15,8 @@ const maxCommandBytes = 160
 
 type Application struct {
 	version string
+	cwd     string
+	ports   Ports
 }
 
 func New(version string) Application {
@@ -24,25 +26,41 @@ func New(version string) Application {
 	return Application{version: version}
 }
 
+func NewLifecycle(version, workingDirectory string, ports Ports) Application {
+	application := New(version)
+	application.cwd = workingDirectory
+	application.ports = ports
+	return application
+}
+
 func (application Application) Execute(ctx context.Context, command domain.Command) domain.Result {
+	return application.ExecuteRequest(ctx, domain.Request{Command: command})
+}
+
+func (application Application) ExecuteRequest(ctx context.Context, request domain.Request) domain.Result {
 	if err := ctx.Err(); err != nil {
-		return application.result(domain.OutcomeCancelled, "L7-CLI-003", string(command), "cancelled", "command cancelled before execution", "run l7 help")
+		return application.result(domain.OutcomeCancelled, "L7-CLI-003", string(request.Command), "cancelled", "command cancelled before execution", "run l7 help")
 	}
 
-	switch command {
+	switch request.Command {
 	case domain.CommandHelp:
-		result := application.result(domain.OutcomePass, "L7-CLI-000", string(command), "available", "Level 7 CLI proving shell", "run l7 status")
+		result := application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 CLI local lifecycle preview", "run l7 status")
 		result.Details = []string{
-			"Usage: l7 <command> [--json]",
-			"Commands: help, version, status",
+			"Usage: l7 <command> [options] [--json]",
+			"Commands: help, version, adopt, brief, status",
+			"Lifecycle behavior remains default OFF until explicitly enabled during adopt.",
 		}
 		return result
 	case domain.CommandVersion:
-		return application.result(domain.OutcomePass, "L7-CLI-000", string(command), "available", "Level 7 CLI proving shell", "run l7 status")
+		return application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 CLI local lifecycle preview", "run l7 status")
+	case domain.CommandAdopt:
+		return application.adopt(ctx, request)
+	case domain.CommandBrief:
+		return application.createBrief(ctx, request)
 	case domain.CommandStatus:
-		return application.result(domain.OutcomeBlocked, "L7-STATUS-001", string(command), "unavailable", "repository workflow status is not implemented in Wave 1", "run l7 help")
+		return application.status(ctx, request)
 	default:
-		return application.Invalid(string(command), "unknown command")
+		return application.Invalid(string(request.Command), "unknown command")
 	}
 }
 

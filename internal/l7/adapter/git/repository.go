@@ -29,6 +29,16 @@ type Adapter struct {
 	maxPaths  int
 }
 
+func (adapter Adapter) WithLimits(maxOutput, maxPaths int) Adapter {
+	if maxOutput > 0 {
+		adapter.maxOutput = maxOutput
+	}
+	if maxPaths > 0 {
+		adapter.maxPaths = maxPaths
+	}
+	return adapter
+}
+
 func New(binary string, maxOutput, maxPaths int) (Adapter, error) {
 	if binary == "" {
 		located, err := exec.LookPath("git")
@@ -40,6 +50,10 @@ func New(binary string, maxOutput, maxPaths int) (Adapter, error) {
 	absolute, err := filepath.Abs(binary)
 	if err != nil {
 		return Adapter{}, fmt.Errorf("resolve Git executable: %w", err)
+	}
+	absolute, err = filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return Adapter{}, fmt.Errorf("resolve physical Git executable: %w", err)
 	}
 	info, err := os.Stat(absolute)
 	if err != nil || !info.Mode().IsRegular() || info.Mode()&0o111 == 0 {
@@ -273,7 +287,7 @@ func parseStatus(data []byte, maximum int) ([]string, error) {
 	}
 	paths := make([]string, 0, len(records))
 	for _, record := range records {
-		if len(record) < 4 || record[2] != ' ' || record[0] == '!' || record[1] == '!' {
+		if len(record) < 4 || record[2] != ' ' || !validStatusCode(record[0]) || !validStatusCode(record[1]) || (record[0] == ' ' && record[1] == ' ') || record[0] == '!' || record[1] == '!' {
 			return nil, errors.New("Git returned an invalid porcelain status record")
 		}
 		value := string(record[3:])
@@ -283,6 +297,10 @@ func parseStatus(data []byte, maximum int) ([]string, error) {
 		paths = append(paths, value)
 	}
 	return paths, nil
+}
+
+func validStatusCode(value byte) bool {
+	return strings.ContainsRune(" MADRCU?!", rune(value))
 }
 
 func combinePaths(maximum int, groups ...[]string) ([]string, error) {

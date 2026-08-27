@@ -187,7 +187,7 @@ func safeLine(value string) bool {
 		return false
 	}
 	for _, character := range value {
-		if character == '\n' || character == '\r' || character == 0 || character == 0x7f {
+		if character == '\n' || character == '\r' || character == 0x7f || (character < 0x20 && character != '\t') {
 			return false
 		}
 	}
@@ -202,6 +202,11 @@ func safeRepositoryPath(value string) bool {
 	plain := strings.TrimSuffix(value, "/**")
 	if plain == "" || plain == "." || plain == ".." || path.Clean(plain) != plain || strings.HasPrefix(plain, "../") || strings.ContainsAny(plain, "*?[") {
 		return false
+	}
+	for _, character := range value {
+		if character == 0x7f || character < 0x20 {
+			return false
+		}
 	}
 	return recursive || !strings.HasSuffix(value, "/")
 }

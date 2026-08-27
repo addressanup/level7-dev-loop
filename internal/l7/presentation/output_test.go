@@ -18,13 +18,36 @@ func TestTextIsDecisionFirstAndEscapesUntrustedValues(t *testing.T) {
 }
 
 func TestJSONHasStableSchemaAndFieldOrder(t *testing.T) {
-	want := "{\"schema\":1,\"outcome\":\"BLOCKED\",\"code\":\"L7-STATUS-001\",\"command\":\"status\",\"state\":\"unavailable\",\"version\":\"test-version\",\"message\":\"not implemented\",\"next\":\"run l7 help\",\"details\":[\"first\"]}\n"
+	want := "{\"schema\":2,\"outcome\":\"BLOCKED\",\"code\":\"L7-STATUS-001\",\"command\":\"status\",\"state\":\"unavailable\",\"version\":\"test-version\",\"message\":\"not implemented\",\"next\":\"run l7 help\",\"details\":[\"first\"]}\n"
 	got, err := JSON(fixtureResult())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != want {
 		t.Fatalf("JSON() mismatch\ngot:  %q\nwant: %q", got, want)
+	}
+}
+
+func TestRepositoryDetailsAreStableAndEscapedInTextAndJSON(t *testing.T) {
+	result := fixtureResult()
+	result.Repository = &domain.RepositoryDetails{
+		Root: "/repo with space", CommonDir: "/repo with space/.git", ChangeID: "change", Tier: domain.TierProduct,
+		Base: "base", Head: "head", Tree: "tree", DeclaredScope: []string{"internal/**"}, ChangedPaths: []string{"internal/file.go"}, ExpandedPaths: []string{"line\nbreak"},
+	}
+	text := string(Text(result))
+	for _, value := range []string{`repository_root="/repo with space"`, `risk_tier=2`, `declared_scope="internal/**"`, `expanded_path="line\nbreak"`} {
+		if !strings.Contains(text, value) {
+			t.Fatalf("Text()=%q, want %q", text, value)
+		}
+	}
+	data, err := JSON(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{`"repository":{"root":"/repo with space"`, `"tier":2`, `"declared_scope":["internal/**"]`, `"expanded_paths":["line\nbreak"]`} {
+		if !strings.Contains(string(data), value) {
+			t.Fatalf("JSON()=%s, want %s", data, value)
+		}
 	}
 }
 

@@ -105,7 +105,10 @@ type RepositorySnapshot struct {
 }
 
 type Configuration struct {
-	LocalLifecycle bool
+	LocalLifecycle    bool
+	MaxGitOutputBytes int
+	MaxGitPaths       int
+	ProtectedPaths    []string
 }
 
 type ChangeBrief struct {

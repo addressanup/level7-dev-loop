@@ -20,3 +20,9 @@ func TestResultExitCode(t *testing.T) {
 		}
 	}
 }
+
+func TestResultSchemaChangesWhenWaveTwoAddsRepositoryDetails(t *testing.T) {
+	if ResultSchema != 2 {
+		t.Fatalf("ResultSchema=%d, want 2", ResultSchema)
+	}
+}

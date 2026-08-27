@@ -7,7 +7,7 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
-func TestExecuteReportsOnlyWaveOneCapabilities(t *testing.T) {
+func TestExecuteWithoutLifecyclePortsRemainsTruthfullyInert(t *testing.T) {
 	application := New("test-version")
 	tests := []struct {
 		command domain.Command
@@ -18,6 +18,8 @@ func TestExecuteReportsOnlyWaveOneCapabilities(t *testing.T) {
 	}{
 		{domain.CommandHelp, domain.OutcomePass, "L7-CLI-000", "available", 0},
 		{domain.CommandVersion, domain.OutcomePass, "L7-CLI-000", "available", 0},
+		{domain.CommandAdopt, domain.OutcomeBlocked, "L7-CAP-001", "unavailable", 2},
+		{domain.CommandBrief, domain.OutcomeBlocked, "L7-CAP-001", "unavailable", 2},
 		{domain.CommandStatus, domain.OutcomeBlocked, "L7-STATUS-001", "unavailable", 2},
 		{domain.Command("run"), domain.OutcomeFailed, "L7-CLI-001", "invalid", 1},
 	}

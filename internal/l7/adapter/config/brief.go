@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -41,6 +42,24 @@ func CreateBrief(root string, brief domain.ChangeBrief) error {
 		return err
 	}
 	return localfile.AtomicCreate(destination, data, 0o644)
+}
+
+func EnsureBrief(root string, brief domain.ChangeBrief) (bool, error) {
+	err := CreateBrief(root, brief)
+	if err == nil {
+		return true, nil
+	}
+	if !errors.Is(err, os.ErrExist) {
+		return false, err
+	}
+	existing, loadErr := LoadBrief(root, brief.Path)
+	if loadErr != nil {
+		return false, fmt.Errorf("existing change brief is invalid: %w", loadErr)
+	}
+	if !sameBrief(existing, brief) {
+		return false, errors.New("existing change brief conflicts with the requested change")
+	}
+	return false, nil
 }
 
 func LoadBrief(root, relative string) (domain.ChangeBrief, error) {
@@ -194,6 +213,9 @@ func ValidateBrief(brief domain.ChangeBrief) error {
 	if !safeBriefLine(brief.Problem) {
 		return errors.New("problem must be one bounded non-empty line")
 	}
+	if strings.HasPrefix(brief.Problem, "## ") {
+		return errors.New("problem must not impersonate a change-brief heading")
+	}
 	if len(brief.Scope) < 1 || len(brief.Scope) > 256 {
 		return errors.New("scope must contain 1..256 paths")
 	}
@@ -298,6 +320,22 @@ func safeBriefLine(value string) bool {
 	}
 	for _, character := range value {
 		if character == '\n' || character == '\r' || character == 0x7f || (character < 0x20 && character != '\t') {
+			return false
+		}
+	}
+	return true
+}
+
+func sameBrief(left, right domain.ChangeBrief) bool {
+	return left.ID == right.ID && left.Tier == right.Tier && left.Base == right.Base && left.Path == right.Path && left.Problem == right.Problem && sameStrings(left.Scope, right.Scope) && sameStrings(left.AcceptanceCriteria, right.AcceptanceCriteria) && sameStrings(left.Risks, right.Risks) && sameStrings(left.Rollback, right.Rollback)
+}
+
+func sameStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
 			return false
 		}
 	}

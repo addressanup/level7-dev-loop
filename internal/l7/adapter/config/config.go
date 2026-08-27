@@ -21,6 +21,8 @@ const (
 	configurationPath = ".l7/config.json"
 )
 
+var configurationNamePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
+
 type File struct {
 	Schema         int                   `json:"schema"`
 	Features       Features              `json:"features"`
@@ -65,7 +67,12 @@ func Default(localLifecycle bool) File {
 }
 
 func (configuration File) Domain() domain.Configuration {
-	return domain.Configuration{LocalLifecycle: configuration.Features.LocalLifecycle}
+	return domain.Configuration{
+		LocalLifecycle:    configuration.Features.LocalLifecycle,
+		MaxGitOutputBytes: configuration.Limits.MaxGitOutputBytes,
+		MaxGitPaths:       configuration.Limits.MaxGitPaths,
+		ProtectedPaths:    append([]string{}, configuration.ProtectedPaths...),
+	}
 }
 
 func Load(root string) (File, error) {
@@ -206,7 +213,7 @@ func ValidateRepositoryPath(value string) error {
 }
 
 func safeName(value string) bool {
-	return regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`).MatchString(value)
+	return configurationNamePattern.MatchString(value)
 }
 
 func safeText(value string, limit int, allowEmpty bool) bool {
