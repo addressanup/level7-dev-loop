@@ -297,13 +297,10 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 			implementation++
 		}
 	}
-	if implementation == 0 {
-		if brief.Tier == tierHighRisk {
-			return stateAwaitingOwnerApproval, nil
-		}
-		return statePlanned, nil
-	}
 	if brief.Tier != tierHighRisk {
+		if implementation == 0 {
+			return statePlanned, nil
+		}
 		if signals.verified != head {
 			return stateBuilding, nil
 		}
@@ -322,6 +319,9 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 	}
 	if approval.Actor == approval.Implementer {
 		return stateAwaitingOwnerApproval, []finding{newFinding("AUTH-003", approval.Actor, "accountable-owner approval is self-issued by the implementer", "obtain an explicit decision from a distinct accountable owner")}
+	}
+	if implementation == 0 {
+		return stateBuilding, nil
 	}
 	if !present[verificationPath] {
 		return stateBuilding, nil

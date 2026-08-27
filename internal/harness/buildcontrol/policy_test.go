@@ -102,6 +102,34 @@ func TestTier3RejectsMissingInvalidAndSelfIssuedApproval(t *testing.T) {
 	}
 }
 
+func TestTier3ValidatesApprovalBeforeImplementation(t *testing.T) {
+	repository, briefCommit := tierThreeBrief(t)
+	options := controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"}
+
+	_, findings := runController(options)
+	if rules(findings)["AUTH-001"] == 0 {
+		t.Fatalf("brief-only Tier 3 change accepted without approval: %+v", findings)
+	}
+
+	repository.write(".git/l7/approvals/controller.json", "{not-json}\n")
+	_, findings = runController(options)
+	if rules(findings)["INPUT-002"] == 0 {
+		t.Fatalf("brief-only Tier 3 change accepted malformed approval: %+v", findings)
+	}
+
+	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "codex", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
+	_, findings = runController(options)
+	if rules(findings)["AUTH-003"] == 0 {
+		t.Fatalf("brief-only Tier 3 change accepted self-issued approval: %+v", findings)
+	}
+
+	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
+	report, findings := runController(options)
+	if len(findings) != 0 || report.State != stateBuilding {
+		t.Fatalf("valid pre-build approval did not authorize implementation: report=%+v findings=%+v", report, findings)
+	}
+}
+
 func TestTier3RejectsBriefMutationAfterApproval(t *testing.T) {
 	repository, briefCommit := tierThreeImplementation(t)
 	repository.authority("approvals", "controller", approvalEnvelope{Schema: 1, ChangeID: "controller", Actor: "owner", Implementer: "codex", BriefCommit: briefCommit, Source: "active-user-interaction"})
@@ -265,6 +293,14 @@ func TestTier3RejectsVerificationMutationInAuditSuccessor(t *testing.T) {
 
 func tierThreeImplementation(t *testing.T) (*testRepository, string) {
 	t.Helper()
+	repository, briefCommit := tierThreeBrief(t)
+	repository.write("internal/harness/buildcontrol/policy.go", "package main\n")
+	repository.commit("refactor: controller")
+	return repository, briefCommit
+}
+
+func tierThreeBrief(t *testing.T) (*testRepository, string) {
+	t.Helper()
 	repository := newTestRepository(t)
 	base := repository.rev("HEAD")
 	repository.write("docs/artifacts/changes/controller.md", briefDocument("controller", tierHighRisk, base,
@@ -272,7 +308,5 @@ func tierThreeImplementation(t *testing.T) (*testRepository, string) {
 		"docs/artifacts/changes/controller-verification.md",
 		"docs/artifacts/changes/controller-audit.md"))
 	briefCommit := repository.commit("docs: approve controller brief")
-	repository.write("internal/harness/buildcontrol/policy.go", "package main\n")
-	repository.commit("refactor: controller")
 	return repository, briefCommit
 }

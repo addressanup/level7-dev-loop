@@ -221,9 +221,9 @@ func nextState(tier riskTier, state workflowState) (workflowState, string, bool)
 		case statePlanned:
 			return stateAwaitingOwnerApproval, "request explicit accountable-owner approval", true
 		case stateAwaitingOwnerApproval:
-			return stateBuilding, "implement the approved scope", true
+			return stateBuilding, "obtain explicit accountable-owner approval, then implement the approved scope", true
 		case stateBuilding:
-			return stateVerified, "run verification and bind it to the Git candidate", true
+			return stateVerified, "implement or remediate the approved scope, then run verification bound to the Git candidate", true
 		case stateVerified:
 			return stateAwaitingIndependentAudit, "request an independent read-only audit", true
 		case stateAwaitingIndependentAudit:
