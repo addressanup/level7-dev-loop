@@ -2,14 +2,17 @@ package app
 
 import (
 	"context"
-	"errors"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
+type readinessFactError string
+
+func (err readinessFactError) Error() string { return string(err) }
+
 func (application Application) readyChange(ctx context.Context, request domain.Request) domain.Result {
 	if request.Headless {
-		return application.result(domain.OutcomeBlocked, "L7-CAP-004", string(request.Command), "unavailable", "headless readiness is not configured in this build", "run l7 help")
+		return application.headlessReadiness(request)
 	}
 	if !application.readinessPortsAvailable() {
 		return application.result(domain.OutcomeBlocked, "L7-CAP-004", string(request.Command), "unavailable", "readiness persistence is not configured in this build", "run l7 help")
@@ -71,17 +74,39 @@ func (application Application) readyChange(ctx context.Context, request domain.R
 	return application.readinessResult(request, recheckedFacts.Evidence, false, "exact candidate readiness is current")
 }
 
+func (application Application) headlessReadiness(request domain.Request) domain.Result {
+	if application.ports.DecodeCI == nil {
+		return application.result(domain.OutcomeBlocked, "L7-CAP-004", string(request.Command), "unavailable", "headless readiness is not configured in this build", "run l7 help")
+	}
+	facts, err := application.ports.DecodeCI(request.Input)
+	if err != nil {
+		return application.failure("L7-READY-003", request.Command, "invalid", "trusted-CI envelope is invalid: "+bounded(err.Error(), 512), "regenerate one strict envelope from trusted CI")
+	}
+	decision := domain.EvaluateReadiness(facts)
+	if !decision.Ready {
+		result := application.result(domain.OutcomeBlocked, "L7-READY-001", string(request.Command), "blocked", "trusted-CI readiness is blocked", "remediate the reported readiness findings and rerun the base-built evaluator")
+		result.Readiness = readinessDetails(facts.Evidence, true, false)
+		for _, finding := range decision.Findings {
+			result.Details = append(result.Details, finding.Code+": "+finding.Message)
+		}
+		return result
+	}
+	result := application.readinessResult(request, facts.Evidence, true, "trusted-CI readiness is current")
+	result.Next = "run l7 status in the candidate worktree before any separately confirmed local merge"
+	return result
+}
+
 func (application Application) localReadinessFacts(ctx context.Context, change executionContext, view evidenceView) (domain.ReadinessFacts, error) {
 	pending, err := application.ports.Pending(ctx, change.location.Root, change.configuration.MaxGitOutputBytes, change.configuration.MaxGitPaths)
 	if err != nil || !sameLocation(change.location, pending.RepositoryLocation) {
-		return domain.ReadinessFacts{}, errors.New("cannot establish a stable clean repository")
+		return domain.ReadinessFacts{}, readinessFactError("cannot establish a stable clean repository")
 	}
 	clean := len(pending.Paths) == 0 && !pending.IndexDirty
 	briefCommit := change.active.Base
 	if change.active.Kind == domain.ActiveBrief {
 		briefCommit, err = application.ports.PathCommit(ctx, change.location.Root, change.active.BriefPath)
 		if err != nil {
-			return domain.ReadinessFacts{}, errors.New("cannot resolve the tracked brief commit")
+			return domain.ReadinessFacts{}, readinessFactError("cannot resolve the tracked brief commit")
 		}
 	}
 	owner := ""

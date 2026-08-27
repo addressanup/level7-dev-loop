@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	authorityadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/authority"
+	ciadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/ci"
 	claudeadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/claude"
 	codexadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/codex"
 	configadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/config"
@@ -37,24 +38,48 @@ func main() {
 }
 
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int {
+	return runWithInput(ctx, arguments, os.Stdin, stdout, stderr)
+}
+
+func runWithInput(ctx context.Context, arguments []string, input io.Reader, stdout, stderr io.Writer) int {
 	workingDirectory, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(stderr, "FAILED code=L7-CLI-004 message=%q\n", "cannot determine working directory")
 		return 1
 	}
-	terminal := authorityadapter.NewTerminal(os.Stdin, stderr, terminalAvailable(os.Stdin) && terminalAvailable(stderr), "accountable-owner")
-	return runAtWithTerminal(ctx, arguments, workingDirectory, stdout, stderr, terminal)
+	terminal := authorityadapter.NewTerminal(input, stderr, terminalAvailable(input) && terminalAvailable(stderr), "accountable-owner")
+	return runAtWithTerminalAndInput(ctx, arguments, workingDirectory, stdout, stderr, terminal, input)
 }
 
 func runAt(ctx context.Context, arguments []string, workingDirectory string, stdout, stderr io.Writer) int {
 	terminal := authorityadapter.NewTerminal(nil, stderr, false, "accountable-owner")
-	return runAtWithTerminal(ctx, arguments, workingDirectory, stdout, stderr, terminal)
+	return runAtWithTerminalAndInput(ctx, arguments, workingDirectory, stdout, stderr, terminal, nil)
 }
 
 func runAtWithTerminal(ctx context.Context, arguments []string, workingDirectory string, stdout, stderr io.Writer, terminal authorityadapter.Terminal) int {
+	return runAtWithTerminalAndInput(ctx, arguments, workingDirectory, stdout, stderr, terminal, nil)
+}
+
+func runAtWithTerminalAndInput(ctx context.Context, arguments []string, workingDirectory string, stdout, stderr io.Writer, terminal authorityadapter.Terminal, input io.Reader) int {
 	baseApplication := cliapp.New(version)
 	request, jsonOutput, invalid := parseArguments(arguments, baseApplication)
-	application, compositionErr := lifecycleApplication(workingDirectory, terminal)
+	application := baseApplication
+	var compositionErr error
+	if invalid == nil && request.Headless {
+		data, err := readHeadlessInput(input)
+		if err != nil {
+			failed := domain.Result{
+				Schema: domain.ResultSchema, Outcome: domain.OutcomeFailed, Code: "L7-READY-003", Command: string(domain.CommandReady), State: "invalid", Version: version,
+				Message: err.Error(), Next: "provide one strict trusted-CI JSON document on bounded stdin",
+			}
+			invalid = &failed
+		} else {
+			request.Input = data
+			application = cliapp.NewLifecycle(version, "", cliapp.Ports{DecodeCI: ciadapter.Decode})
+		}
+	} else if invalid == nil {
+		application, compositionErr = lifecycleApplication(workingDirectory, terminal)
+	}
 	result := domain.Result{}
 	if invalid != nil {
 		result = *invalid
@@ -86,6 +111,20 @@ func runAtWithTerminal(ctx context.Context, arguments []string, workingDirectory
 		return 1
 	}
 	return result.ExitCode()
+}
+
+func readHeadlessInput(input io.Reader) ([]byte, error) {
+	if input == nil {
+		return nil, errors.New("headless readiness requires one JSON document on stdin")
+	}
+	data, err := io.ReadAll(io.LimitReader(input, ciadapter.MaxEnvelopeBytes+1))
+	if err != nil {
+		return nil, errors.New("cannot read headless readiness stdin")
+	}
+	if len(data) < 2 || len(data) > ciadapter.MaxEnvelopeBytes {
+		return nil, errors.New("headless readiness stdin is empty or exceeds the size limit")
+	}
+	return data, nil
 }
 
 func lifecycleApplication(workingDirectory string, terminal authorityadapter.Terminal) (cliapp.Application, error) {
@@ -214,7 +253,7 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 	request := domain.Request{Command: domain.Command(filtered[0])}
 	options := filtered[1:]
 	switch request.Command {
-	case domain.CommandHelp, domain.CommandVersion, domain.CommandStatus, domain.CommandVerify, domain.CommandReady:
+	case domain.CommandHelp, domain.CommandVersion, domain.CommandStatus, domain.CommandVerify:
 		if len(options) != 0 {
 			if strings.HasPrefix(options[0], "-") {
 				return invalid(options[0], "unknown flag", jsonOutput)
@@ -303,6 +342,19 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 			return invalid(strings.Join(filtered, " "), "review requires --agent codex|claude", jsonOutput)
 		}
 		request.Agent = domain.Provider(options[1])
+	case domain.CommandReady:
+		for _, option := range options {
+			if option != "--headless" {
+				return invalid(option, "unknown ready option", jsonOutput)
+			}
+			if request.Headless {
+				return invalid(option, "duplicate --headless flag", jsonOutput)
+			}
+			request.Headless = true
+		}
+		if request.Headless && !jsonOutput {
+			return invalid("--headless", "headless readiness requires --json", false)
+		}
 	default:
 		if len(options) != 0 {
 			return invalid(strings.Join(filtered, " "), "unknown command", jsonOutput)

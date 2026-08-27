@@ -2,11 +2,46 @@ package app
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
+
+func TestHeadlessReadinessUsesOnlyThePureDecoderPort(t *testing.T) {
+	calls := 0
+	application := NewLifecycle("test-version", "", Ports{DecodeCI: func(data []byte) (domain.ReadinessFacts, error) {
+		calls++
+		if string(data) != "trusted" {
+			return domain.ReadinessFacts{}, errors.New("unexpected input")
+		}
+		return readyFactsForApp(), nil
+	}})
+	result := application.ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandReady, Headless: true, Input: []byte("trusted")})
+	if result.Outcome != domain.OutcomePass || result.Code != "L7-READY-000" || calls != 1 || result.Readiness == nil || !result.Readiness.Headless {
+		t.Fatalf("result=%+v calls=%d", result, calls)
+	}
+}
+
+func readyFactsForApp() domain.ReadinessFacts {
+	evidence := testReadinessEvidenceForApp()
+	return domain.ReadinessFacts{Evidence: evidence, PlanCurrent: true, RepositoryClean: true, ApprovalCurrent: true, VerificationCurrent: true, AuditCurrent: true}
+}
+
+func testReadinessEvidenceForApp() domain.ReadinessEvidence {
+	return domain.ReadinessEvidence{
+		ChangeID: "product-change", Tier: domain.TierHighRisk,
+		Base:                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Candidate:           domain.CandidateIdentity{Commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Tree: "cccccccccccccccccccccccccccccccccccccccc"},
+		BriefCommit:         "dddddddddddddddddddddddddddddddddddddddd",
+		ConfigurationDigest: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+		VerificationCommit:  "ffffffffffffffffffffffffffffffffffffffff", ReviewCommit: "1111111111111111111111111111111111111111",
+		Scope: []string{"internal/product/**"}, Checks: []domain.CheckResult{{Name: "benchmark", Benchmark: true, Passed: true}},
+		Owner: "accountable-owner", Implementer: domain.ProviderCodex, Reviewer: domain.ProviderClaude,
+		ReviewDecision: domain.DecisionGO, BenchmarkRequired: true,
+	}
+}
 
 func TestTierThreeReadinessPersistsAndReconstructsExactCandidate(t *testing.T) {
 	fixture := completedRunFixture(domain.TierHighRisk, domain.ProviderCodex)

@@ -39,6 +39,7 @@ type Ports struct {
 	WriteAudit         func(string, domain.ReviewEvidence) (string, error)
 	LoadReadiness      func(string) (domain.ReadinessEvidence, bool, error)
 	SaveReadiness      func(string, domain.ReadinessEvidence) error
+	DecodeCI           func([]byte) (domain.ReadinessFacts, error)
 }
 
 var builtinProtectedPaths = []string{

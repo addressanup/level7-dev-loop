@@ -114,7 +114,6 @@ transitive	internal/l7/adapter/verify	internal/l7/adapter/codex	BND-610
 transitive	internal/l7/adapter/verify	internal/l7/adapter/claude	BND-610
 transitive	internal/l7/adapter/ci	internal/l7/app	BND-611
 transitive	internal/l7/adapter/ci	internal/l7/presentation	BND-611
-transitive	internal/l7/adapter/ci	internal/l7/adapter	BND-611
 transitive	internal/l7/adapter/ci	internal/harness	BND-611
 allowclosure	internal/l7/adapter/ci	internal/l7/domain	BND-612
 effect	internal/l7/adapter/ci	os	BND-611
