@@ -148,6 +148,12 @@ fi
 if l7_direct_effect_allowed internal/l7/adapter/claude net/http; then
 	fail 'BND-607: provider adapter accepted a Level 7 network client'
 fi
+if l7_direct_effect_allowed internal/l7/adapter/ci os/exec; then
+	fail 'BND-611: trusted-CI evaluator accepted direct process execution'
+fi
+if l7_direct_effect_allowed internal/l7/adapter/ci net/http; then
+	fail 'BND-611: trusted-CI evaluator accepted a network client'
+fi
 
 for package in $packages; do
 	case $package in "$module/internal/l7"/*|"$module/cmd/l7") ;; *) continue ;; esac
