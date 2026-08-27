@@ -106,3 +106,9 @@ effect	internal/l7/presentation	math/rand	BND-603
 effect	internal/l7/presentation	crypto/rand	BND-603
 effect	internal/l7/presentation	runtime	BND-603
 effect	internal/l7/presentation	syscall	BND-603
+transitive	internal/l7/adapter/codex	internal/l7/adapter/claude	BND-608
+transitive	internal/l7/adapter/claude	internal/l7/adapter/codex	BND-608
+transitive	internal/l7/adapter/provider	internal/l7/adapter/codex	BND-609
+transitive	internal/l7/adapter/provider	internal/l7/adapter/claude	BND-609
+transitive	internal/l7/adapter/verify	internal/l7/adapter/codex	BND-610
+transitive	internal/l7/adapter/verify	internal/l7/adapter/claude	BND-610

@@ -117,4 +117,47 @@ for package in $packages; do
 	done
 done
 
+l7_direct_effect_allowed()
+{
+	relative_package=$1
+	imported=$2
+	case $imported in
+		os/exec)
+			case $relative_package in
+				internal/l7/adapter/git|internal/l7/adapter/process) return 0 ;;
+				*) return 1 ;;
+			esac
+			;;
+		syscall)
+			case $relative_package in
+				internal/l7/adapter/localfile|internal/l7/adapter/process) return 0 ;;
+				*) return 1 ;;
+			esac
+			;;
+		net|net/*) return 1 ;;
+		*) return 0 ;;
+	esac
+}
+
+l7_direct_effect_allowed internal/l7/adapter/git os/exec || fail 'BND-607: Git effect owner rejected its positive control'
+l7_direct_effect_allowed internal/l7/adapter/process os/exec || fail 'BND-607: process effect owner rejected its positive control'
+l7_direct_effect_allowed internal/l7/adapter/localfile syscall || fail 'BND-607: local-file syscall owner rejected its positive control'
+if l7_direct_effect_allowed internal/l7/adapter/codex os/exec; then
+	fail 'BND-607: provider adapter accepted direct process execution'
+fi
+if l7_direct_effect_allowed internal/l7/adapter/claude net/http; then
+	fail 'BND-607: provider adapter accepted a Level 7 network client'
+fi
+
+for package in $packages; do
+	case $package in "$module/internal/l7"/*|"$module/cmd/l7") ;; *) continue ;; esac
+	relative_package=${package#"$module/"}
+	imports=$($go_bin list -f '{{join .Imports " "}}' "$package")
+	for imported in $imports; do
+		if ! l7_direct_effect_allowed "$relative_package" "$imported"; then
+			fail "BND-607: $relative_package imports reserved direct effect $imported"
+		fi
+	done
+done
+
 printf 'check-import-boundaries: PASS (%s package set)\n' "$(printf '%s\n' "$packages" | awk 'NF { count++ } END { print count + 0 }')"
