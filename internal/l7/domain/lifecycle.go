@@ -106,11 +106,15 @@ type RepositorySnapshot struct {
 
 type Configuration struct {
 	LocalLifecycle        bool
+	Verification          []VerificationCommand
 	MaxInputBytes         int
 	MaxGitOutputBytes     int
 	MaxGitPaths           int
 	MaxCommandOutputBytes int
+	MaxCommandSeconds     int
 	ProtectedPaths        []string
+	Implementer           Provider
+	Reviewer              Provider
 }
 
 type ChangeBrief struct {

@@ -18,6 +18,20 @@ func TestDefaultConfigurationIsValidAndFeatureOff(t *testing.T) {
 	if configuration.Domain().MaxInputBytes != 1<<20 || configuration.Domain().MaxGitOutputBytes != 16<<20 || configuration.Domain().MaxGitPaths != 100_000 || configuration.Domain().MaxCommandOutputBytes != 8<<20 {
 		t.Fatalf("domain limits=%+v", configuration.Domain())
 	}
+	if configuration.Domain().MaxCommandSeconds != 1800 || len(configuration.Domain().Verification) != 0 || configuration.Domain().Implementer != "" || configuration.Domain().Reviewer != "" {
+		t.Fatalf("domain execution defaults=%+v", configuration.Domain())
+	}
+}
+
+func TestDomainConfigurationCopiesExecutionContract(t *testing.T) {
+	configuration := Default(true)
+	configuration.Verification = []VerificationCommand{{Name: "test", Argv: []string{"make", "test"}, Benchmark: true}}
+	configuration.Providers = Providers{Implementer: "codex", Reviewer: "claude"}
+	domainConfiguration := configuration.Domain()
+	configuration.Verification[0].Argv[0] = "changed"
+	if len(domainConfiguration.Verification) != 1 || domainConfiguration.Verification[0].Argv[0] != "make" || !domainConfiguration.Verification[0].Benchmark || domainConfiguration.Implementer != "codex" || domainConfiguration.Reviewer != "claude" {
+		t.Fatalf("Domain()=%+v", domainConfiguration)
+	}
 }
 
 func TestAdoptCreatesIdempotentlyAndEnablesOnlyWhenExplicit(t *testing.T) {

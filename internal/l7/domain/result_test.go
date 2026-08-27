@@ -26,3 +26,11 @@ func TestResultSchemaChangesWhenWaveTwoAddsRepositoryDetails(t *testing.T) {
 		t.Fatalf("ResultSchema=%d, want 2", ResultSchema)
 	}
 }
+
+func TestExecutionCommandsAreExplicit(t *testing.T) {
+	for _, command := range []Command{CommandRun, CommandVerify, CommandReview} {
+		if command == "" {
+			t.Fatal("execution command is empty")
+		}
+	}
+}

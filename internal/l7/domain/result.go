@@ -20,6 +20,9 @@ const (
 	CommandAdopt   Command = "adopt"
 	CommandBrief   Command = "brief"
 	CommandStatus  Command = "status"
+	CommandRun     Command = "run"
+	CommandVerify  Command = "verify"
+	CommandReview  Command = "review"
 )
 
 type Request struct {
@@ -32,6 +35,8 @@ type Request struct {
 	AcceptanceCriteria   []string
 	Risks                []string
 	Rollback             []string
+	Agent                Provider
+	CommitMessage        string
 }
 
 type RepositoryDetails struct {
@@ -58,6 +63,19 @@ type Result struct {
 	Next       string
 	Details    []string
 	Repository *RepositoryDetails
+	Execution  *ExecutionDetails
+}
+
+type ExecutionDetails struct {
+	Role       ProviderRole
+	Provider   Provider
+	Executable string
+	Version    string
+	Digest     string
+	Commit     string
+	Tree       string
+	Decision   ReviewDecision
+	Checks     []CheckResult
 }
 
 func (result Result) ExitCode() int {

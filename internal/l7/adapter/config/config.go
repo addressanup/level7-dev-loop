@@ -93,13 +93,25 @@ func Default(localLifecycle bool) File {
 }
 
 func (configuration File) Domain() domain.Configuration {
+	verification := make([]domain.VerificationCommand, 0, len(configuration.Verification))
+	for _, command := range configuration.Verification {
+		verification = append(verification, domain.VerificationCommand{
+			Name:      command.Name,
+			Argv:      append([]string{}, command.Argv...),
+			Benchmark: command.Benchmark,
+		})
+	}
 	return domain.Configuration{
 		LocalLifecycle:        configuration.Features.LocalLifecycle,
+		Verification:          verification,
 		MaxInputBytes:         configuration.Limits.MaxInputBytes,
 		MaxGitOutputBytes:     configuration.Limits.MaxGitOutputBytes,
 		MaxGitPaths:           configuration.Limits.MaxGitPaths,
 		MaxCommandOutputBytes: configuration.Limits.MaxCommandOutputBytes,
+		MaxCommandSeconds:     configuration.Limits.MaxCommandSeconds,
 		ProtectedPaths:        append([]string{}, configuration.ProtectedPaths...),
+		Implementer:           domain.Provider(configuration.Providers.Implementer),
+		Reviewer:              domain.Provider(configuration.Providers.Reviewer),
 	}
 }
 
