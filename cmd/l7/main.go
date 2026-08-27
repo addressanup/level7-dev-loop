@@ -54,8 +54,19 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 		result := application.Invalid("", "too many arguments")
 		return "", false, &result
 	}
+	jsonCount := 0
+	for _, argument := range arguments {
+		if argument == "--json" {
+			jsonCount++
+		}
+	}
+	jsonOutput := jsonCount > 0
+	if jsonCount > 1 {
+		result := application.Invalid("--json", "duplicate --json flag")
+		return "", true, &result
+	}
+
 	var positional []string
-	jsonOutput := false
 	for _, argument := range arguments {
 		if len(argument) > maxArgumentBytes {
 			result := application.Invalid("", "argument exceeds size limit")
@@ -63,11 +74,7 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 		}
 		switch argument {
 		case "--json":
-			if jsonOutput {
-				result := application.Invalid(argument, "duplicate --json flag")
-				return "", true, &result
-			}
-			jsonOutput = true
+			continue
 		case "--help", "-h":
 			positional = append(positional, string(domain.CommandHelp))
 		case "--version":

@@ -21,6 +21,7 @@ func TestRunCommandContract(t *testing.T) {
 		{"status unavailable", []string{"status"}, 2, []string{"BLOCKED", "L7-STATUS-001", `state="unavailable"`}},
 		{"unknown command", []string{"run"}, 1, []string{"FAILED", "L7-CLI-001", `command="run"`}},
 		{"unknown flag", []string{"status", "--unsafe"}, 1, []string{"FAILED", "unknown flag"}},
+		{"json after unknown flag", []string{"--unsafe", "--json"}, 1, []string{`"outcome":"FAILED"`, `"message":"unknown flag"`}},
 		{"extra command", []string{"help", "status"}, 1, []string{"FAILED", "expected exactly one command"}},
 		{"too many arguments", make([]string, maxArguments+1), 1, []string{"FAILED", "too many arguments"}},
 		{"oversized argument", []string{strings.Repeat("x", maxArgumentBytes+1)}, 1, []string{"FAILED", "argument exceeds size limit"}},
