@@ -27,6 +27,18 @@ type readinessFile struct {
 	BenchmarkRequired   bool                  `json:"benchmark_required"`
 }
 
+type mergeFile struct {
+	Schema              int    `json:"schema"`
+	ChangeID            string `json:"change_id"`
+	TargetRef           string `json:"target_ref"`
+	PreviousCommit      string `json:"previous_commit"`
+	CandidateCommit     string `json:"candidate_commit"`
+	CandidateTree       string `json:"candidate_tree"`
+	ConfigurationDigest string `json:"configuration_digest"`
+	VerificationCommit  string `json:"verification_commit"`
+	ReviewCommit        string `json:"review_commit"`
+}
+
 func LoadReadiness(commonDirectory string) (domain.ReadinessEvidence, bool, error) {
 	var file readinessFile
 	found, err := loadEvidence(commonDirectory, "readiness.json", &file)
@@ -48,6 +60,38 @@ func SaveReadiness(commonDirectory string, evidence domain.ReadinessEvidence) er
 		return fmt.Errorf("refuse to replace invalid readiness evidence: %w", err)
 	}
 	return saveEvidence(commonDirectory, "readiness.json", readinessFromDomain(evidence))
+}
+
+func LoadMerge(commonDirectory string) (domain.MergeReceipt, bool, error) {
+	var file mergeFile
+	found, err := loadEvidence(commonDirectory, "merge.json", &file)
+	if err != nil || !found {
+		return domain.MergeReceipt{}, found, err
+	}
+	receipt := domain.MergeReceipt{
+		ChangeID: file.ChangeID, TargetRef: file.TargetRef, PreviousCommit: file.PreviousCommit,
+		Candidate:           domain.CandidateIdentity{Commit: file.CandidateCommit, Tree: file.CandidateTree},
+		ConfigurationDigest: file.ConfigurationDigest, VerificationCommit: file.VerificationCommit, ReviewCommit: file.ReviewCommit,
+	}
+	if file.Schema != domain.MergeReceiptSchema || !domain.MergeReceiptValid(receipt) {
+		return domain.MergeReceipt{}, false, errors.New("merge receipt is invalid")
+	}
+	return receipt, true, nil
+}
+
+func SaveMerge(commonDirectory string, receipt domain.MergeReceipt) error {
+	if !domain.MergeReceiptValid(receipt) {
+		return errors.New("merge receipt is invalid")
+	}
+	if _, _, err := LoadMerge(commonDirectory); err != nil {
+		return fmt.Errorf("refuse to replace invalid merge receipt: %w", err)
+	}
+	file := mergeFile{
+		Schema: domain.MergeReceiptSchema, ChangeID: receipt.ChangeID, TargetRef: receipt.TargetRef,
+		PreviousCommit: receipt.PreviousCommit, CandidateCommit: receipt.Candidate.Commit, CandidateTree: receipt.Candidate.Tree,
+		ConfigurationDigest: receipt.ConfigurationDigest, VerificationCommit: receipt.VerificationCommit, ReviewCommit: receipt.ReviewCommit,
+	}
+	return saveEvidence(commonDirectory, "merge.json", file)
 }
 
 func readinessFromDomain(evidence domain.ReadinessEvidence) readinessFile {

@@ -31,6 +31,7 @@ func TestFakeProviderEndToEndInBothOrders(t *testing.T) {
 			assertRun(t, repository, []string{"adopt", "--enable-local-lifecycle"}, 0, "L7-ADOPT-000")
 			configureFakeVerification(t, repository)
 			commitAll(t, repository, "chore: adopt Level 7")
+			cliGit(t, repository, "branch", "release-target")
 			brief := []string{
 				"brief", "--id", "provider-change", "--tier", "3", "--problem", "Implement a fake-provider change.",
 				"--scope", "internal/product/**", "--accept", "Fake verification passes.", "--risk", "Provider behavior could drift.", "--rollback", "Revert the candidate.",
@@ -58,6 +59,22 @@ func TestFakeProviderEndToEndInBothOrders(t *testing.T) {
 				t.Fatalf("review stdout=%s", stdout)
 			}
 			assertRun(t, repository, []string{"status"}, 0, `state="reviewed"`)
+
+			stdout = executionRun(t, repository, []string{"ready", "--json"}, authorityadapter.NewTerminal(nil, &prompt, false, "accountable-owner"), 0)
+			if !strings.Contains(stdout, `"state":"ready"`) || !strings.Contains(stdout, `"configuration_digest"`) || !strings.Contains(stdout, `"benchmark":true`) {
+				t.Fatalf("ready stdout=%s", stdout)
+			}
+			candidate := strings.TrimSpace(cliGit(t, repository, "rev-parse", "HEAD"))
+			prompt.Reset()
+			terminal = authorityadapter.NewTerminal(strings.NewReader(candidate+"\n"), &prompt, true, "accountable-owner")
+			stdout = executionRun(t, repository, []string{"merge", "--target", "release-target"}, terminal, 0)
+			if !strings.Contains(stdout, `state="merged"`) || !strings.Contains(stdout, `merge_target_ref="refs/heads/release-target"`) || !strings.Contains(prompt.String(), candidate) {
+				t.Fatalf("merge stdout=%s prompt=%q", stdout, prompt.String())
+			}
+			if target := strings.TrimSpace(cliGit(t, repository, "show-ref", "--hash", "refs/heads/release-target")); target != candidate {
+				t.Fatalf("release-target=%s want=%s", target, candidate)
+			}
+			assertRun(t, repository, []string{"status"}, 0, `state="merged"`)
 
 			artifacts, err := filepath.Glob(filepath.Join(repository, "docs", "artifacts", "changes", "provider-change*.md"))
 			if err != nil || len(artifacts) != 3 {
@@ -90,7 +107,7 @@ func configureFakeVerification(t *testing.T, repository string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	configuration.Verification = []configadapter.VerificationCommand{{Name: "test", Argv: []string{"fake-verify"}}}
+	configuration.Verification = []configadapter.VerificationCommand{{Name: "test", Argv: []string{"fake-verify"}, Benchmark: true}}
 	data, err := json.MarshalIndent(configuration, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -159,7 +176,7 @@ fi
 func assertBoundedRuntimeState(t *testing.T, repository string) {
 	t.Helper()
 	directory := filepath.Join(repository, ".git", "l7", "product")
-	for _, name := range []string{"active.json", "approval.json", "run.json", "verification.json", "review.json"} {
+	for _, name := range []string{"active.json", "approval.json", "run.json", "verification.json", "review.json", "readiness.json", "merge.json"} {
 		data, err := os.ReadFile(filepath.Join(directory, name))
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)

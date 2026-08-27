@@ -166,4 +166,7 @@ for package in $packages; do
 	done
 done
 
+update_ref_owners=$(find cmd/l7 internal/l7 -type f -name '*.go' ! -name '*_test.go' -exec grep -l '"update-ref"' {} + 2>/dev/null || true)
+test "$update_ref_owners" = 'internal/l7/adapter/git/merge.go' || fail "BND-613: update-ref effect owners must be exactly internal/l7/adapter/git/merge.go, found: $update_ref_owners"
+
 printf 'check-import-boundaries: PASS (%s package set)\n' "$(printf '%s\n' "$packages" | awk 'NF { count++ } END { print count + 0 }')"

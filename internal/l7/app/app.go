@@ -67,6 +67,8 @@ func (application Application) ExecuteRequest(ctx context.Context, request domai
 		return application.reviewChange(ctx, request)
 	case domain.CommandReady:
 		return application.readyChange(ctx, request)
+	case domain.CommandMerge:
+		return application.mergeChange(ctx, request)
 	default:
 		return application.Invalid(string(request.Command), "unknown command")
 	}

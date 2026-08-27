@@ -40,6 +40,12 @@ type Ports struct {
 	LoadReadiness      func(string) (domain.ReadinessEvidence, bool, error)
 	SaveReadiness      func(string, domain.ReadinessEvidence) error
 	DecodeCI           func([]byte) (domain.ReadinessFacts, error)
+	InspectMerge       func(context.Context, domain.MergeRequest) (domain.MergeTarget, error)
+	AdvanceMerge       func(context.Context, domain.MergeRequest) error
+	MergeCurrent       func(context.Context, string, domain.MergeReceipt, int) (bool, error)
+	ConfirmMerge       func(context.Context, domain.MergePlan) error
+	LoadMerge          func(string) (domain.MergeReceipt, bool, error)
+	SaveMerge          func(string, domain.MergeReceipt) error
 }
 
 var builtinProtectedPaths = []string{

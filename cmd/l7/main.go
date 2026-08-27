@@ -186,6 +186,12 @@ func lifecycleApplication(workingDirectory string, terminal authorityadapter.Ter
 		SaveReview:       stateadapter.SaveReview,
 		LoadReadiness:    stateadapter.LoadReadiness,
 		SaveReadiness:    stateadapter.SaveReadiness,
+		InspectMerge:     gitClient.InspectMerge,
+		AdvanceMerge:     gitClient.AdvanceMerge,
+		MergeCurrent:     gitClient.MergeCurrent,
+		ConfirmMerge:     terminal.ConfirmMerge,
+		LoadMerge:        stateadapter.LoadMerge,
+		SaveMerge:        stateadapter.SaveMerge,
 		RunProvider: func(ctx context.Context, task domain.ProviderTask, maxOutput, maxSeconds int) (domain.ProviderResponse, error) {
 			switch task.Provider {
 			case domain.ProviderCodex:
@@ -355,6 +361,14 @@ func parseArguments(arguments []string, application cliapp.Application) (domain.
 		if request.Headless && !jsonOutput {
 			return invalid("--headless", "headless readiness requires --json", false)
 		}
+	case domain.CommandMerge:
+		if jsonOutput {
+			return invalid("--json", "merge is interactive and does not support --json", false)
+		}
+		if len(options) != 2 || options[0] != "--target" || options[1] == "" {
+			return invalid(strings.Join(filtered, " "), "merge requires --target <local-branch>", false)
+		}
+		request.TargetBranch = options[1]
 	default:
 		if len(options) != 0 {
 			return invalid(strings.Join(filtered, " "), "unknown command", jsonOutput)

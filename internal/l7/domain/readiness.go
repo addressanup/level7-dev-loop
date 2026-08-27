@@ -40,6 +40,84 @@ type ReadinessDecision struct {
 	Findings []ReadinessFinding
 }
 
+const MergeReceiptSchema = 1
+
+type MergeRequest struct {
+	Root           string
+	TargetBranch   string
+	ExpectedOld    string
+	Candidate      string
+	MaxOutputBytes int
+}
+
+type MergeTarget struct {
+	Branch          string
+	Ref             string
+	CurrentCommit   string
+	ExpectedOld     string
+	Candidate       string
+	AlreadyAdvanced bool
+}
+
+type MergePlan struct {
+	ChangeID       string
+	TargetRef      string
+	PreviousCommit string
+	Candidate      string
+}
+
+type MergeReceipt struct {
+	ChangeID            string
+	TargetRef           string
+	PreviousCommit      string
+	Candidate           CandidateIdentity
+	ConfigurationDigest string
+	VerificationCommit  string
+	ReviewCommit        string
+}
+
+func MergeReceiptValid(receipt MergeReceipt) bool {
+	return safeReadinessToken(receipt.ChangeID, 64) && safeLocalBranchRef(receipt.TargetRef) &&
+		fullReadinessID(receipt.PreviousCommit) && fullReadinessID(receipt.Candidate.Commit) &&
+		fullReadinessID(receipt.Candidate.Tree) && receipt.PreviousCommit != receipt.Candidate.Commit &&
+		hexReadinessDigest(receipt.ConfigurationDigest) && fullReadinessID(receipt.VerificationCommit) &&
+		fullReadinessID(receipt.ReviewCommit)
+}
+
+func safeLocalBranchRef(value string) bool {
+	const prefix = "refs/heads/"
+	if len(value) <= len(prefix) || len(value) > 1024 || !hasPrefix(value, prefix) || hasSuffix(value, "/") || hasSuffix(value, ".") || hasSuffix(value, ".lock") {
+		return false
+	}
+	previousSlash := false
+	for _, character := range value {
+		if character == 0x7f || character < 0x20 || character == '\\' || character == ' ' || character == '~' || character == '^' || character == ':' || character == '?' || character == '*' || character == '[' {
+			return false
+		}
+		if character == '/' {
+			if previousSlash {
+				return false
+			}
+			previousSlash = true
+		} else {
+			previousSlash = false
+		}
+	}
+	return !containsReadiness(value, "..") && !containsReadiness(value, "@{")
+}
+
+func containsReadiness(value, fragment string) bool {
+	if fragment == "" || len(fragment) > len(value) {
+		return false
+	}
+	for index := 0; index+len(fragment) <= len(value); index++ {
+		if value[index:index+len(fragment)] == fragment {
+			return true
+		}
+	}
+	return false
+}
+
 func EvaluateReadiness(facts ReadinessFacts) ReadinessDecision {
 	evidence := facts.Evidence
 	findings := make([]ReadinessFinding, 0)

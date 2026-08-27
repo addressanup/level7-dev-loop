@@ -40,6 +40,23 @@ func TestEvaluateReadinessFailsClosedForFalseReadyFacts(t *testing.T) {
 	}
 }
 
+func TestMergeReceiptRequiresExactLocalRefAndBindings(t *testing.T) {
+	receipt := MergeReceipt{
+		ChangeID: "product-change", TargetRef: "refs/heads/main", PreviousCommit: strings.Repeat("a", 40),
+		Candidate:           CandidateIdentity{Commit: strings.Repeat("b", 40), Tree: strings.Repeat("c", 40)},
+		ConfigurationDigest: strings.Repeat("d", 64), VerificationCommit: strings.Repeat("e", 40), ReviewCommit: strings.Repeat("f", 40),
+	}
+	if !MergeReceiptValid(receipt) {
+		t.Fatalf("valid receipt rejected: %+v", receipt)
+	}
+	for _, target := range []string{"main", "refs/tags/main", "refs/heads/../main", "refs/heads/main.lock", "refs/heads/space name"} {
+		receipt.TargetRef = target
+		if MergeReceiptValid(receipt) {
+			t.Fatalf("unsafe target %q accepted", target)
+		}
+	}
+}
+
 func readyFacts() ReadinessFacts {
 	evidence := ReadinessEvidence{
 		ChangeID: "product-change", Tier: TierHighRisk, Base: strings.Repeat("a", 40),

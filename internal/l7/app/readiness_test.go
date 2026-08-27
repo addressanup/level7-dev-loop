@@ -98,6 +98,71 @@ func TestReadinessRevalidatesAfterLockAcquisition(t *testing.T) {
 	}
 }
 
+func TestConfirmedMergeAdvancesOnceAndStatusReconstructsMerged(t *testing.T) {
+	fixture := completedReadyFixture()
+	result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandMerge, TargetBranch: "release-target"})
+	if result.Outcome != domain.OutcomePass || result.Code != "L7-MERGE-000" || result.State != string(domain.StateMerged) || fixture.mergeConfirmations != 1 || fixture.mergeAdvances != 1 || !fixture.mergeFound || result.Readiness == nil || result.Readiness.TargetRef != "refs/heads/release-target" {
+		t.Fatalf("result=%+v confirmations=%d advances=%d receipt=%+v", result, fixture.mergeConfirmations, fixture.mergeAdvances, fixture.merge)
+	}
+	status := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandStatus})
+	if status.Outcome != domain.OutcomePass || status.State != string(domain.StateMerged) || status.Readiness == nil || status.Readiness.TargetRef != "refs/heads/release-target" {
+		t.Fatalf("status=%+v", status)
+	}
+	idempotent := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandMerge, TargetBranch: "release-target"})
+	if idempotent.Outcome != domain.OutcomePass || fixture.mergeConfirmations != 1 || fixture.mergeAdvances != 1 {
+		t.Fatalf("idempotent=%+v confirmations=%d advances=%d", idempotent, fixture.mergeConfirmations, fixture.mergeAdvances)
+	}
+}
+
+func TestMergeConfirmationAndPostConfirmationRaceFailClosed(t *testing.T) {
+	t.Run("confirmation", func(t *testing.T) {
+		fixture := completedReadyFixture()
+		fixture.mergeConfirmationError = errors.New("mismatch")
+		result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandMerge, TargetBranch: "release-target"})
+		if result.Outcome != domain.OutcomeBlocked || result.Code != "L7-AUTH-003" || fixture.mergeAdvances != 0 || fixture.mergeFound {
+			t.Fatalf("result=%+v advances=%d receipt=%+v", result, fixture.mergeAdvances, fixture.merge)
+		}
+	})
+	t.Run("race", func(t *testing.T) {
+		fixture := completedReadyFixture()
+		fixture.onConfirmMerge = func() { fixture.mergeTargetCommit = strings.Repeat("9", 40) }
+		result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandMerge, TargetBranch: "release-target"})
+		if result.Outcome != domain.OutcomeFailed || result.Code != "L7-MERGE-002" || fixture.mergeAdvances != 0 || fixture.mergeFound {
+			t.Fatalf("result=%+v advances=%d receipt=%+v", result, fixture.mergeAdvances, fixture.merge)
+		}
+	})
+}
+
+func TestMergeRecoversRefEffectWhenReceiptPersistenceWasInterrupted(t *testing.T) {
+	fixture := completedReadyFixture()
+	fixture.mergeSaveError = errors.New("interrupted receipt")
+	first := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandMerge, TargetBranch: "release-target"})
+	if first.Outcome != domain.OutcomeFailed || first.Code != "L7-STATE-011" || fixture.mergeTargetCommit != fixture.readiness.Candidate.Commit || fixture.mergeFound || fixture.mergeAdvances != 1 {
+		t.Fatalf("first=%+v target=%s receipt=%+v advances=%d", first, fixture.mergeTargetCommit, fixture.merge, fixture.mergeAdvances)
+	}
+	fixture.mergeSaveError = nil
+	second := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandMerge, TargetBranch: "release-target"})
+	if second.Outcome != domain.OutcomePass || fixture.mergeAdvances != 1 || fixture.mergeConfirmations != 2 || !fixture.mergeFound || !strings.Contains(second.Message, "recovered") {
+		t.Fatalf("second=%+v confirmations=%d advances=%d receipt=%+v", second, fixture.mergeConfirmations, fixture.mergeAdvances, fixture.merge)
+	}
+}
+
+func completedReadyFixture() *executionFixture {
+	fixture := completedRunFixture(domain.TierHighRisk, domain.ProviderCodex)
+	fixture.configuration.Verification[0].Benchmark = true
+	if result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandVerify}); result.Outcome != domain.OutcomePass {
+		panic("fake verification did not complete: " + result.Message)
+	}
+	if result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandReview, Agent: domain.ProviderClaude}); result.Outcome != domain.OutcomePass {
+		panic("fake review did not complete: " + result.Message)
+	}
+	if result := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandReady}); result.Outcome != domain.OutcomePass {
+		panic("fake readiness did not complete: " + result.Message)
+	}
+	fixture.mergeConfirmations = 0
+	return fixture
+}
+
 func containsDetail(details []string, code string) bool {
 	for _, detail := range details {
 		if strings.HasPrefix(detail, code+":") {

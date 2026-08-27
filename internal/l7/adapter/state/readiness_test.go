@@ -49,6 +49,30 @@ func TestReadinessEvidenceRejectsFalseReadyAndCorruption(t *testing.T) {
 	}
 }
 
+func TestMergeReceiptRoundTripsAndRejectsUnsafeReplacement(t *testing.T) {
+	common := physicalCommonDirectory(t)
+	evidence := testReadinessEvidence()
+	receipt := domain.MergeReceipt{
+		ChangeID: evidence.ChangeID, TargetRef: "refs/heads/main", PreviousCommit: evidence.Base,
+		Candidate: evidence.Candidate, ConfigurationDigest: evidence.ConfigurationDigest,
+		VerificationCommit: evidence.VerificationCommit, ReviewCommit: evidence.ReviewCommit,
+	}
+	if err := SaveMerge(common, receipt); err != nil {
+		t.Fatal(err)
+	}
+	loaded, found, err := LoadMerge(common)
+	if err != nil || !found || loaded != receipt {
+		t.Fatalf("LoadMerge()=%+v found=%v error=%v", loaded, found, err)
+	}
+	path := filepath.Join(common, "l7", "product", "merge.json")
+	if err := os.WriteFile(path, []byte(`{"schema":1,"schema":2}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveMerge(common, receipt); err == nil {
+		t.Fatal("SaveMerge overwrote an unsafe receipt")
+	}
+}
+
 func testReadinessEvidence() domain.ReadinessEvidence {
 	return domain.ReadinessEvidence{
 		ChangeID: "product-change", Tier: domain.TierHighRisk, Base: strings.Repeat("a", 40),

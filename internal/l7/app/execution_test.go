@@ -52,14 +52,15 @@ func TestDisabledFlagBlocksEveryExecutionEffect(t *testing.T) {
 		{Command: domain.CommandVerify},
 		{Command: domain.CommandReview, Agent: domain.ProviderClaude},
 		{Command: domain.CommandReady},
+		{Command: domain.CommandMerge, TargetBranch: "release-target"},
 	} {
 		result := fixture.application().ExecuteRequest(context.Background(), request)
 		if result.Outcome != domain.OutcomeBlocked || result.Code != "L7-FLAG-001" {
 			t.Fatalf("request=%+v result=%+v", request, result)
 		}
 	}
-	if fixture.providerRuns != 0 || fixture.verificationRuns != 0 || fixture.commits != 0 || fixture.acquisitions != 0 || fixture.readinessSaves != 0 {
-		t.Fatalf("effects provider=%d verification=%d commits=%d locks=%d readiness=%d", fixture.providerRuns, fixture.verificationRuns, fixture.commits, fixture.acquisitions, fixture.readinessSaves)
+	if fixture.providerRuns != 0 || fixture.verificationRuns != 0 || fixture.commits != 0 || fixture.acquisitions != 0 || fixture.readinessSaves != 0 || fixture.mergeConfirmations != 0 || fixture.mergeAdvances != 0 {
+		t.Fatalf("effects provider=%d verification=%d commits=%d locks=%d readiness=%d merge-confirm=%d merge-advance=%d", fixture.providerRuns, fixture.verificationRuns, fixture.commits, fixture.acquisitions, fixture.readinessSaves, fixture.mergeConfirmations, fixture.mergeAdvances)
 	}
 }
 
@@ -281,44 +282,52 @@ type fakeCommit struct {
 }
 
 type executionFixture struct {
-	ports             Ports
-	location          domain.RepositoryLocation
-	configuration     domain.Configuration
-	active            domain.ActiveChange
-	brief             domain.ChangeBrief
-	overallPaths      []string
-	pendingPaths      []string
-	indexDirty        bool
-	providerPaths     []string
-	providerStages    bool
-	providerCommits   bool
-	reviewerMutates   bool
-	providerDecision  domain.ReviewDecision
-	verificationError error
-	run               domain.RunEvidence
-	runFound          bool
-	verification      domain.VerificationEvidence
-	verificationFound bool
-	review            domain.ReviewEvidence
-	reviewFound       bool
-	readiness         domain.ReadinessEvidence
-	readinessFound    bool
-	approval          domain.ApprovalBinding
-	approvalFound     bool
-	commitsByID       map[string]fakeCommit
-	treesByCommit     map[string]string
-	artifacts         []string
-	providerRuns      int
-	verificationRuns  int
-	commits           int
-	confirmations     int
-	readinessSaves    int
-	acquisitions      int
-	onAcquire         func()
-	onProvider        func(domain.ProviderTask)
-	onVerification    func()
-	lastTask          domain.ProviderTask
-	nextIdentityIndex int
+	ports                  Ports
+	location               domain.RepositoryLocation
+	configuration          domain.Configuration
+	active                 domain.ActiveChange
+	brief                  domain.ChangeBrief
+	overallPaths           []string
+	pendingPaths           []string
+	indexDirty             bool
+	providerPaths          []string
+	providerStages         bool
+	providerCommits        bool
+	reviewerMutates        bool
+	providerDecision       domain.ReviewDecision
+	verificationError      error
+	run                    domain.RunEvidence
+	runFound               bool
+	verification           domain.VerificationEvidence
+	verificationFound      bool
+	review                 domain.ReviewEvidence
+	reviewFound            bool
+	readiness              domain.ReadinessEvidence
+	readinessFound         bool
+	merge                  domain.MergeReceipt
+	mergeFound             bool
+	mergeTargetCommit      string
+	mergeConfirmationError error
+	mergeSaveError         error
+	approval               domain.ApprovalBinding
+	approvalFound          bool
+	commitsByID            map[string]fakeCommit
+	treesByCommit          map[string]string
+	artifacts              []string
+	providerRuns           int
+	verificationRuns       int
+	commits                int
+	confirmations          int
+	readinessSaves         int
+	mergeConfirmations     int
+	mergeAdvances          int
+	acquisitions           int
+	onAcquire              func()
+	onProvider             func(domain.ProviderTask)
+	onVerification         func()
+	onConfirmMerge         func()
+	lastTask               domain.ProviderTask
+	nextIdentityIndex      int
 }
 
 func newExecutionFixture(tier domain.RiskTier) *executionFixture {
@@ -341,7 +350,7 @@ func newExecutionFixture(tier domain.RiskTier) *executionFixture {
 		},
 		overallPaths: []string{briefPath}, providerPaths: []string{"internal/product/change.go"}, providerDecision: domain.DecisionGO,
 		commitsByID:   map[string]fakeCommit{briefCommit: {parent: base, tree: briefTree, subject: "docs(product): add change brief", paths: []string{briefPath}}},
-		treesByCommit: map[string]string{base: baseTree, briefCommit: briefTree},
+		treesByCommit: map[string]string{base: baseTree, briefCommit: briefTree}, mergeTargetCommit: base,
 	}
 	fixture.ports = fixture.buildPorts()
 	return fixture
@@ -452,6 +461,38 @@ func (fixture *executionFixture) buildPorts() Ports {
 		SaveReadiness: func(_ string, evidence domain.ReadinessEvidence) error {
 			fixture.readiness, fixture.readinessFound = evidence, true
 			fixture.readinessSaves++
+			return nil
+		},
+		InspectMerge: func(_ context.Context, request domain.MergeRequest) (domain.MergeTarget, error) {
+			if request.TargetBranch != "release-target" || request.ExpectedOld != fixture.brief.Base || (fixture.mergeTargetCommit != request.ExpectedOld && fixture.mergeTargetCommit != request.Candidate) {
+				return domain.MergeTarget{}, errors.New("unsafe or divergent target")
+			}
+			return domain.MergeTarget{Branch: request.TargetBranch, Ref: "refs/heads/" + request.TargetBranch, CurrentCommit: fixture.mergeTargetCommit, ExpectedOld: request.ExpectedOld, Candidate: request.Candidate, AlreadyAdvanced: fixture.mergeTargetCommit == request.Candidate}, nil
+		},
+		AdvanceMerge: func(_ context.Context, request domain.MergeRequest) error {
+			if fixture.mergeTargetCommit != request.ExpectedOld {
+				return errors.New("compare-and-swap failed")
+			}
+			fixture.mergeTargetCommit = request.Candidate
+			fixture.mergeAdvances++
+			return nil
+		},
+		MergeCurrent: func(_ context.Context, _ string, receipt domain.MergeReceipt, _ int) (bool, error) {
+			return receipt.TargetRef == "refs/heads/release-target" && fixture.mergeTargetCommit == receipt.Candidate.Commit, nil
+		},
+		ConfirmMerge: func(_ context.Context, _ domain.MergePlan) error {
+			fixture.mergeConfirmations++
+			if fixture.onConfirmMerge != nil {
+				fixture.onConfirmMerge()
+			}
+			return fixture.mergeConfirmationError
+		},
+		LoadMerge: func(string) (domain.MergeReceipt, bool, error) { return fixture.merge, fixture.mergeFound, nil },
+		SaveMerge: func(_ string, receipt domain.MergeReceipt) error {
+			if fixture.mergeSaveError != nil {
+				return fixture.mergeSaveError
+			}
+			fixture.merge, fixture.mergeFound = receipt, true
 			return nil
 		},
 		RunProvider: fixture.runProvider,

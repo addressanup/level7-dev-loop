@@ -517,6 +517,7 @@ func (application Application) statusFromContext(ctx context.Context, request do
 	}
 	readyCurrent := false
 	readinessFound := false
+	readinessEvidence := domain.ReadinessEvidence{}
 	if application.ports.LoadReadiness != nil {
 		readiness, found, readinessErr := application.ports.LoadReadiness(change.location.CommonDir)
 		if readinessErr != nil {
@@ -526,8 +527,29 @@ func (application Application) statusFromContext(ctx context.Context, request do
 		}
 		readinessFound = found
 		if found {
+			readinessEvidence = readiness
 			currentFacts, factsErr := application.localReadinessFacts(ctx, change, view)
 			readyCurrent = factsErr == nil && domain.EvaluateReadiness(currentFacts).Ready && sameReadinessEvidence(readiness, currentFacts.Evidence)
+		}
+	}
+	mergedCurrent := false
+	mergeFound := false
+	mergeReceipt := domain.MergeReceipt{}
+	if application.ports.LoadMerge != nil {
+		merge, found, mergeErr := application.ports.LoadMerge(change.location.CommonDir)
+		if mergeErr != nil {
+			result := application.failure("L7-STATE-011", request.Command, "invalid", "merge receipt cannot be reconstructed: "+bounded(mergeErr.Error(), 512), "repair the unsafe merge receipt before continuing")
+			result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
+			return result
+		}
+		mergeFound, mergeReceipt = found, merge
+		if found && readyCurrent && application.ports.MergeCurrent != nil && mergeReceiptMatchesReadiness(merge, readinessEvidence) {
+			mergedCurrent, mergeErr = application.ports.MergeCurrent(ctx, change.location.Root, merge, change.configuration.MaxGitOutputBytes)
+			if mergeErr != nil {
+				result := application.failure("L7-MERGE-004", request.Command, "recovery-required", "merged target cannot be reconstructed: "+bounded(mergeErr.Error(), 512), "inspect Git and the merge receipt before continuing")
+				result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
+				return result
+			}
 		}
 	}
 	if change.active.Tier == domain.TierHighRisk && workStarted && !ownerCurrent {
@@ -535,11 +557,11 @@ func (application Application) statusFromContext(ctx context.Context, request do
 		result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
 		return result
 	}
-	stale := (view.runFound && !runCurrent) || (view.verificationFound && !verificationCurrent) || (view.reviewFound && !reviewCurrent) || (readinessFound && !readyCurrent)
+	stale := (view.runFound && !runCurrent) || (view.verificationFound && !verificationCurrent) || (view.reviewFound && !reviewCurrent) || (readinessFound && !readyCurrent) || (mergeFound && !mergedCurrent)
 	rejected := reviewCurrent && view.review.Decision == domain.DecisionNoGO
 	facts := domain.LifecycleFacts{
 		Tier: change.active.Tier, PlanPresent: true, OwnerApprovalCurrent: ownerCurrent, WorkStarted: workStarted,
-		VerificationCurrent: verificationCurrent, ReadyCurrent: readyCurrent, AssuranceRejected: rejected, AssuranceStale: stale && workStarted,
+		VerificationCurrent: verificationCurrent, ReadyCurrent: readyCurrent, MergedCurrent: mergedCurrent, AssuranceRejected: rejected, AssuranceStale: stale && workStarted,
 	}
 	if change.active.Tier == domain.TierHighRisk {
 		facts.IndependentAuditCurrent = reviewCurrent && view.review.Decision == domain.DecisionGO
@@ -581,10 +603,20 @@ func (application Application) statusFromContext(ctx context.Context, request do
 	case domain.StateReady:
 		message = "exact candidate readiness is current"
 		next.Action = "run l7 merge --target <branch> and confirm the full candidate SHA"
+	case domain.StateMerged:
+		message = "local target contains the exact ready candidate"
+		next.Action = "run l7 status to inspect the merged local ref"
 	}
 	result := application.result(outcome, code, string(request.Command), string(state), message, next.Action)
 	result.Repository = detailsForSnapshot(change.snapshot, change.active.ID, change.active.Tier, change.active.Scope, nil)
 	result.Execution = executionDetails(view)
+	if readyCurrent {
+		result.Readiness = readinessDetails(readinessEvidence, false, true)
+		if mergedCurrent {
+			result.Readiness.TargetRef = mergeReceipt.TargetRef
+			result.Readiness.PreviousCommit = mergeReceipt.PreviousCommit
+		}
+	}
 	return result
 }
 

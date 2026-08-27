@@ -40,6 +40,8 @@ func TestRunCommandContract(t *testing.T) {
 		{"run missing value", []string{"run", "--agent"}, 1, []string{"FAILED", "missing its value"}},
 		{"verify option", []string{"verify", "--unsafe"}, 1, []string{"FAILED", "unknown flag"}},
 		{"review missing provider", []string{"review"}, 1, []string{"FAILED", "review requires --agent"}},
+		{"merge missing target", []string{"merge"}, 1, []string{"FAILED", "merge requires --target"}},
+		{"merge rejects json", []string{"merge", "--target", "main", "--json"}, 1, []string{"FAILED", "does not support --json"}},
 	}
 	previous := version
 	version = "test-version"
