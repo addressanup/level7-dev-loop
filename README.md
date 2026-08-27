@@ -76,11 +76,14 @@ deployment, workflow, harness, controller, skill, and plugin-control paths force
 Tier 3.
 
 Repository rules are part of the installation contract. They must restrict risk
-labels to trusted maintainers and require the baseline `Harness` check, `Trusted
-policy`, dismissal of stale reviews, at least one non-author approval, and
-CODEOWNER/owner review for protected paths. Trusted policy reads exact-head check
-and review identities before it reports `ready`; it does not infer them from
-candidate text.
+labels to trusted maintainers; require both non-experimental jobs from the
+`Harness` workflow—`Go 1.26.7 (baseline)` and `CLI macOS 15 (arm64)`—plus the
+`Trusted policy` evaluation; dismiss stale reviews; require at least one
+non-author approval; and require CODEOWNER/owner review for protected paths.
+Workflow YAML does not make a check blocking by itself. Installation and upgrade
+must verify those required checks against the live repository ruleset before
+claiming they are blocking. Trusted policy reads exact-head check and review
+identities before it reports `ready`; it does not infer them from candidate text.
 
 ## Skills
 
@@ -110,8 +113,9 @@ make build
 make cli-cross-build
 ```
 
-The baseline technical CI job is blocking; the configured shadow toolchain
-remains non-blocking, and a macOS 15 arm64 job runs the same offline suite plus
-declared macOS cross-builds. Trusted policy remains a separate required gate so
-technical CI neither needs nor manufactures approval. These checks are evidence,
-not approval.
+The baseline and macOS jobs are required by the installation contract above; the
+configured shadow toolchain remains non-blocking. The macOS 15 arm64 job runs the
+same offline suite plus declared macOS cross-builds. This local repository has no
+remote or live ruleset evidence, so it does not claim those jobs are currently
+blocking. Trusted policy remains a separate required gate so technical CI neither
+needs nor manufactures approval. These checks are evidence, not approval.
