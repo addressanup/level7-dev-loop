@@ -21,6 +21,22 @@ func TestTier1FastPathNeedsNoGovernanceArtifact(t *testing.T) {
 	}
 }
 
+func TestTier1IgnoresHistoricalChangeBriefs(t *testing.T) {
+	repository := newTestRepository(t)
+	oldBase := repository.rev("HEAD")
+	repository.write("docs/artifacts/changes/old-feature.md", briefDocument("old-feature", tierProduct, oldBase, "internal/old.go"))
+	repository.write("internal/old.go", "package internal\n")
+	repository.commit("feat: historical feature")
+	base := repository.rev("HEAD")
+	repository.write("docs/note.md", "note\n")
+	repository.commit("docs: routine note")
+
+	report, findings := runController(controllerOptions{Root: repository.root, BaseRef: base, HeadRef: "HEAD", ChangeID: "routine-note", Tier: tierRoutine, TierOneScope: []string{"docs/note.md"}})
+	if len(findings) != 0 || report.Tier != tierRoutine {
+		t.Fatalf("historical brief blocked Tier 1: report=%+v findings=%+v", report, findings)
+	}
+}
+
 func TestTier2RequiresExactlyOneChangeBrief(t *testing.T) {
 	repository := newTestRepository(t)
 	base := repository.rev("HEAD")

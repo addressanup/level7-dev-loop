@@ -62,7 +62,12 @@ func runController(options controllerOptions) (controllerReport, []finding) {
 		return controllerReport{}, []finding{newFinding("GIT-002", head, err.Error(), "restore the candidate Git tree")}
 	}
 
-	brief, briefCommit, briefFindings := discoverBrief(repository, head, options.ChangeID)
+	var brief changeBrief
+	var briefCommit string
+	var briefFindings []finding
+	if options.Tier != tierRoutine {
+		brief, briefCommit, briefFindings = discoverBrief(repository, head, options.ChangeID)
+	}
 	findings := appendFindings(nil, briefFindings...)
 	tier := options.Tier
 	baseRef := options.BaseRef
