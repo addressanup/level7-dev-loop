@@ -63,6 +63,42 @@ func TestHeadlessReadinessRejectsMalformedAndFalseReadyInput(t *testing.T) {
 	}
 }
 
+func TestHeadlessReadinessFailsClosedForForgedAuthorityAndEvidence(t *testing.T) {
+	workingDirectory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		from string
+		to   string
+		code string
+	}{
+		{"owner is implementer", `"owner":"accountable-owner"`, `"owner":"codex"`, "L7-READY-F010"},
+		{"owner is reviewer", `"owner":"accountable-owner"`, `"owner":"claude"`, "L7-READY-F010"},
+		{"self review", `"reviewer":"claude"`, `"reviewer":"codex"`, "L7-READY-F010"},
+		{"NO_GO", `"review_decision":"GO"`, `"review_decision":"NO_GO"`, "L7-READY-F007"},
+		{"missing audit", `"audit_current":true`, `"audit_current":false`, "L7-READY-F009"},
+		{"stale verification", `"verification_current":true`, `"verification_current":false`, "L7-READY-F008"},
+		{"failing benchmark", `"passed":true`, `"passed":false`, "L7-READY-F006"},
+		{"benchmark waiver", `"benchmark_required":true`, `"benchmark_required":false`, "L7-READY-F011"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			input := strings.Replace(headlessEnvelope(true), test.from, test.to, 1)
+			if input == headlessEnvelope(true) {
+				t.Fatalf("fixture replacement %q was not applied", test.from)
+			}
+			var stdout, stderr bytes.Buffer
+			terminal := authorityadapter.NewTerminal(nil, &stderr, false, "accountable-owner")
+			exit := runAtWithTerminalAndInput(context.Background(), []string{"ready", "--headless", "--json"}, workingDirectory, &stdout, &stderr, terminal, strings.NewReader(input))
+			if exit != 2 || stderr.Len() != 0 || !strings.Contains(stdout.String(), test.code) || strings.Contains(stdout.String(), `"ready":true`) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+			}
+		})
+	}
+}
+
 func headlessEnvelope(clean bool) string {
 	cleanValue := "false"
 	if clean {

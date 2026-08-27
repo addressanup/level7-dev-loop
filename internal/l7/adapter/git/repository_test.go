@@ -124,6 +124,20 @@ func TestPorcelainParserRejectsAmbiguousRecords(t *testing.T) {
 	}
 }
 
+func TestPorcelainParserAcceptsExact10000PathScaleFixture(t *testing.T) {
+	var fixture strings.Builder
+	for index := 0; index < 10_000; index++ {
+		fmt.Fprintf(&fixture, "?? packages/component-%05d/file.go%c", index, 0)
+	}
+	paths, err := parseStatus([]byte(fixture.String()), 10_000)
+	if err != nil || len(paths) != 10_000 || paths[0] != "packages/component-00000/file.go" || paths[len(paths)-1] != "packages/component-09999/file.go" {
+		t.Fatalf("parseStatus() count=%d first=%q last=%q error=%v", len(paths), paths[0], paths[len(paths)-1], err)
+	}
+	if _, err := parseStatus([]byte(fixture.String()), 9_999); err == nil || !strings.Contains(err.Error(), "path count") {
+		t.Fatalf("parseStatus() below-scale bound error=%v", err)
+	}
+}
+
 func BenchmarkParseStatus10000Paths(b *testing.B) {
 	var fixture strings.Builder
 	for index := 0; index < 10_000; index++ {

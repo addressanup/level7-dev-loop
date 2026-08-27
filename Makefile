@@ -79,7 +79,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build cli-benchmark-check cli-actual-host-compile build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -132,6 +132,10 @@ cli-cross-build: install
 	@mkdir -p "$(PROJECT_ROOT)/build/bin"
 	@GOOS=darwin GOARCH=arm64 GOARM64=v8.0 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7-darwin-arm64" $(CLI_PACKAGE)
 	@GOOS=darwin GOARCH=amd64 GOAMD64=v1 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7-darwin-amd64" $(CLI_PACKAGE)
+
+cli-benchmark-check: toolchain-check
+	@test -n "$(L7_BENCHMARK_BASE_ROOT)" || { echo 'L7_BENCHMARK_BASE_ROOT must name a separate base checkout' >&2; exit 1; }
+	@./scripts/harness/check-cli-benchmarks.sh "$(GO)" "$(L7_BENCHMARK_BASE_ROOT)" "$(PROJECT_ROOT)"
 
 build-control-check: toolchain-check
 	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol
@@ -199,6 +203,9 @@ lint: policy-check technical-lint
 typecheck: install
 	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -ldflags='$(HARNESS_IDENTITY_LDFLAGS)' -run '^$$' -count=1 ./...
 
+cli-actual-host-compile: install
+	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -tags l7_actual_provider -run '^$$' -count=1 ./...
+
 test: install
 	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -ldflags='$(HARNESS_IDENTITY_LDFLAGS)' -count=1 -shuffle=off -timeout=2m ./...
 
@@ -220,7 +227,7 @@ cli-reproducible: install
 	 cmp "$$repro_root/l7-a" "$$repro_root/l7-b"; \
 	 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$$repro_root/l7-a"; else shasum -a 256 "$$repro_root/l7-a"; fi
 
-technical-verify: install technical-lint typecheck test reproducible cli-reproducible
+technical-verify: install technical-lint typecheck cli-actual-host-compile test reproducible cli-reproducible
 
 verify: policy-check technical-verify
 

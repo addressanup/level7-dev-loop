@@ -20,11 +20,24 @@ func TestEvaluateReadinessFailsClosedForFalseReadyFacts(t *testing.T) {
 		code string
 	}{
 		{"dirty", func(facts *ReadinessFacts) { facts.RepositoryClean = false }, "L7-READY-F008"},
+		{"stale plan", func(facts *ReadinessFacts) { facts.PlanCurrent = false }, "L7-READY-F008"},
 		{"stale verification", func(facts *ReadinessFacts) { facts.VerificationCurrent = false }, "L7-READY-F008"},
 		{"missing approval", func(facts *ReadinessFacts) { facts.ApprovalCurrent = false }, "L7-READY-F009"},
+		{"missing audit", func(facts *ReadinessFacts) { facts.AuditCurrent = false }, "L7-READY-F009"},
+		{"owner is implementer", func(facts *ReadinessFacts) { facts.Evidence.Owner = string(facts.Evidence.Implementer) }, "L7-READY-F010"},
+		{"owner is reviewer", func(facts *ReadinessFacts) { facts.Evidence.Owner = string(facts.Evidence.Reviewer) }, "L7-READY-F010"},
 		{"self review", func(facts *ReadinessFacts) { facts.Evidence.Reviewer = facts.Evidence.Implementer }, "L7-READY-F010"},
 		{"NO_GO", func(facts *ReadinessFacts) { facts.Evidence.ReviewDecision = DecisionNoGO }, "L7-READY-F007"},
 		{"config drift", func(facts *ReadinessFacts) { facts.Evidence.ConfigurationDigest = "" }, "L7-READY-F004"},
+		{"candidate equals base", func(facts *ReadinessFacts) { facts.Evidence.Candidate.Commit = facts.Evidence.Base }, "L7-READY-F002"},
+		{"missing brief", func(facts *ReadinessFacts) { facts.Evidence.BriefCommit = "" }, "L7-READY-F003"},
+		{"unsafe scope", func(facts *ReadinessFacts) {
+			facts.Evidence.Scope = []string{"internal/product/**", "internal/product/**"}
+		}, "L7-READY-F005"},
+		{"failing check", func(facts *ReadinessFacts) { facts.Evidence.Checks[0].Passed = false }, "L7-READY-F006"},
+		{"duplicate check", func(facts *ReadinessFacts) {
+			facts.Evidence.Checks = append(facts.Evidence.Checks, facts.Evidence.Checks[0])
+		}, "L7-READY-F006"},
 		{"benchmark absent", func(facts *ReadinessFacts) { facts.Evidence.Checks[0].Benchmark = false }, "L7-READY-F013"},
 		{"benchmark waived", func(facts *ReadinessFacts) { facts.Evidence.BenchmarkRequired = false }, "L7-READY-F011"},
 	}
