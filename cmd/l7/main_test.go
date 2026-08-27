@@ -22,6 +22,8 @@ func TestRunCommandContract(t *testing.T) {
 		{"unknown command", []string{"run"}, 1, []string{"FAILED", "L7-CLI-001", `command="run"`}},
 		{"unknown flag", []string{"status", "--unsafe"}, 1, []string{"FAILED", "unknown flag"}},
 		{"extra command", []string{"help", "status"}, 1, []string{"FAILED", "expected exactly one command"}},
+		{"too many arguments", make([]string, maxArguments+1), 1, []string{"FAILED", "too many arguments"}},
+		{"oversized argument", []string{strings.Repeat("x", maxArgumentBytes+1)}, 1, []string{"FAILED", "argument exceeds size limit"}},
 		{"duplicate json", []string{"--json", "status", "--json"}, 1, []string{`"outcome":"FAILED"`, `"message":"duplicate --json flag"`}},
 		{"json status", []string{"status", "--json"}, 2, []string{`{"schema":1`, `"outcome":"BLOCKED"`, `"details":[]`}},
 	}
@@ -71,15 +73,21 @@ func TestRunOutputDoesNotDependOnWriterType(t *testing.T) {
 }
 
 func TestRunReportsOutputFailureOnStderr(t *testing.T) {
-	var stderr bytes.Buffer
-	if exit := run(context.Background(), []string{"version"}, errorWriter{}, &stderr); exit != 1 || !strings.Contains(stderr.String(), "L7-CLI-002") {
-		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
+	for _, writer := range []interface{ Write([]byte) (int, error) }{errorWriter{}, shortWriter{}} {
+		var stderr bytes.Buffer
+		if exit := run(context.Background(), []string{"version"}, writer, &stderr); exit != 1 || !strings.Contains(stderr.String(), "L7-CLI-002") {
+			t.Fatalf("writer=%T exit=%d stderr=%q", writer, exit, stderr.String())
+		}
 	}
 }
 
 type errorWriter struct{}
 
 func (errorWriter) Write([]byte) (int, error) { return 0, errors.New("closed") }
+
+type shortWriter struct{}
+
+func (shortWriter) Write(data []byte) (int, error) { return len(data) / 2, nil }
 
 type ioDiscard struct{}
 

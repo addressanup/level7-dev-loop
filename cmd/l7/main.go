@@ -14,6 +14,11 @@ import (
 
 var version = "0.1.0-dev"
 
+const (
+	maxArguments     = 16
+	maxArgumentBytes = 4096
+)
+
 func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -37,7 +42,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	} else {
 		output = presentation.Text(result)
 	}
-	if _, err := stdout.Write(output); err != nil {
+	if written, err := stdout.Write(output); err != nil || written != len(output) {
 		fmt.Fprintf(stderr, "FAILED code=L7-CLI-002 message=%q\n", "cannot write command output")
 		return 1
 	}
@@ -45,9 +50,17 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 }
 
 func parseArguments(arguments []string, application cliapp.Application) (domain.Command, bool, *domain.Result) {
+	if len(arguments) > maxArguments {
+		result := application.Invalid("", "too many arguments")
+		return "", false, &result
+	}
 	var positional []string
 	jsonOutput := false
 	for _, argument := range arguments {
+		if len(argument) > maxArgumentBytes {
+			result := application.Invalid("", "argument exceeds size limit")
+			return "", jsonOutput, &result
+		}
 		switch argument {
 		case "--json":
 			if jsonOutput {

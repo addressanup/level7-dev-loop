@@ -46,8 +46,9 @@ func TestNewUsesDeterministicDevelopmentVersion(t *testing.T) {
 }
 
 func TestInvalidPreservesBoundedCommandContext(t *testing.T) {
-	result := New("test-version").Invalid("--unknown", "unknown flag")
-	if result.Outcome != domain.OutcomeFailed || result.Command != "--unknown" || result.Message != "unknown flag" || result.Next != "run l7 help" {
+	command := "--" + string(make([]byte, maxCommandBytes*2))
+	result := New("test-version").Invalid(command, "unknown flag")
+	if result.Outcome != domain.OutcomeFailed || len(result.Command) != maxCommandBytes || result.Message != "unknown flag" || result.Next != "run l7 help" {
 		t.Fatalf("unexpected invalid result: %+v", result)
 	}
 }

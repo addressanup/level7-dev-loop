@@ -4,11 +4,14 @@ package app
 import (
 	"context"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
 const developmentVersion = "0.1.0-dev"
+
+const maxCommandBytes = 160
 
 type Application struct {
 	version string
@@ -44,7 +47,7 @@ func (application Application) Execute(ctx context.Context, command domain.Comma
 }
 
 func (application Application) Invalid(command, message string) domain.Result {
-	return application.result(domain.OutcomeFailed, "L7-CLI-001", command, "invalid", message, "run l7 help")
+	return application.result(domain.OutcomeFailed, "L7-CLI-001", bounded(command, maxCommandBytes), "invalid", message, "run l7 help")
 }
 
 func (application Application) result(outcome domain.Outcome, code, command, state, message, next string) domain.Result {
@@ -58,4 +61,14 @@ func (application Application) result(outcome domain.Outcome, code, command, sta
 		Message: message,
 		Next:    next,
 	}
+}
+
+func bounded(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	for limit > 0 && !utf8.RuneStart(value[limit]) {
+		limit--
+	}
+	return value[:limit]
 }
