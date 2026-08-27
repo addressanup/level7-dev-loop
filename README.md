@@ -8,6 +8,24 @@ Code. Its common path is deliberately ordinary:
 Working software, Git identity, automated verification, and normal review carry
 the evidence. Process expands only when risk does.
 
+## Wave 1 CLI proving shell
+
+The repository now includes an inert `l7` command shell that proves the selected
+Go architecture and output contract without performing product effects.
+
+```sh
+make build
+./build/bin/l7 help
+./build/bin/l7 version --json
+./build/bin/l7 status
+```
+
+`help` and `version` are available. `status` deliberately returns `BLOCKED` with
+exit code `2` because repository adoption and lifecycle reconstruction belong to
+Wave 2. The Wave 1 binary cannot inspect or modify a target repository, invoke
+Git, Codex, Claude, verification commands, commits, reviews, merges, networks, or
+deployments. It is a development candidate, not a released or supported CLI.
+
 ## Risk model
 
 | Tier | Examples | Required process |
@@ -88,7 +106,12 @@ settings, import boundaries, lint/type/test gates, and repeat-build check.
 make bootstrap
 make policy-check
 make verify
+make build
+make cli-cross-build
 ```
 
-The baseline CI job is blocking; the configured shadow toolchain remains
-non-blocking. These checks are evidence, not approval.
+The baseline technical CI job is blocking; the configured shadow toolchain
+remains non-blocking, and a macOS 15 arm64 job runs the same offline suite plus
+declared macOS cross-builds. Trusted policy remains a separate required gate so
+technical CI neither needs nor manufactures approval. These checks are evidence,
+not approval.

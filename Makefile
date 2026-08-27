@@ -35,6 +35,9 @@ $(error harness/modules.lock.tsv must contain exactly one active core module)
 endif
 override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness
 override HARNESS_IDENTITY_LDFLAGS := -X $(HARNESS_IMPORT_PATH).expectedGoVersion=$(L7_EXPECT_GO_VERSION) -X $(HARNESS_IMPORT_PATH).expectedGOOS=$(HOST_GOOS) -X $(HARNESS_IMPORT_PATH).expectedGOARCH=$(HOST_GOARCH)
+override L7_CLI_VERSION := 0.1.0-dev
+override CLI_PACKAGE := ./cmd/l7
+override CLI_LDFLAGS := -buildid= -X main.version=$(L7_CLI_VERSION)
 
 override GOENV := off
 override GOTOOLCHAIN := local
@@ -76,7 +79,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build-control-check policy-check ready-check import-check candidate-check format-check lint typecheck test reproducible verify ci
+.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build build-control-check policy-check ready-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -113,11 +116,22 @@ toolchain-check: prepare
 	@grep -Fq 'TEST_TELEMETRY_DIR' "$(GO_ROOT)/src/cmd/internal/telemetry/telemetry.go"
 	@grep -Fq 'TEST_TELEMETRY_DIR' "$(GO_ROOT)/src/cmd/internal/telemetry/counter/counter.go"
 
-# There are intentionally no production modules in Foundation Step 5.
+# The Wave 1 CLI intentionally has no third-party production dependencies.
 install: toolchain-check
 	@"$(GO)" mod download
 	@"$(GO)" mod verify
 	@"$(GO)" mod tidy -diff
+
+build: cli-build
+
+cli-build: install
+	@mkdir -p "$(PROJECT_ROOT)/build/bin"
+	@"$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7" $(CLI_PACKAGE)
+
+cli-cross-build: install
+	@mkdir -p "$(PROJECT_ROOT)/build/bin"
+	@GOOS=darwin GOARCH=arm64 GOARM64=v8.0 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7-darwin-arm64" $(CLI_PACKAGE)
+	@GOOS=darwin GOARCH=amd64 GOAMD64=v1 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7-darwin-amd64" $(CLI_PACKAGE)
 
 build-control-check: toolchain-check
 	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol
@@ -136,9 +150,11 @@ format-check: toolchain-check
 	@unformatted="$$(find . -type f -name '*.go' -not -path './.cache/*' -not -path './build/*' -print0 | xargs -0 "$(GOFMT)" -l)"; \
 	 test -z "$$unformatted" || { printf 'unformatted Go files:\n%s\n' "$$unformatted" >&2; exit 1; }
 
-lint: install policy-check import-check format-check
+technical-lint: install import-check format-check
 	@for script in scripts/harness/*.sh; do sh -n "$$script"; done
 	@"$(GO)" vet -mod=readonly ./...
+
+lint: policy-check technical-lint
 
 typecheck: install
 	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -ldflags='$(HARNESS_IDENTITY_LDFLAGS)' -run '^$$' -count=1 ./...
@@ -155,6 +171,17 @@ reproducible: install
 	 cmp "$$repro_root/harness-a.test" "$$repro_root/harness-b.test"; \
 	 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$$repro_root/harness-a.test"; else shasum -a 256 "$$repro_root/harness-a.test"; fi
 
-verify: install lint typecheck test reproducible
+cli-reproducible: install
+	@set -eu; \
+	 repro_root="$$(mktemp -d "$(PROJECT_ROOT)/.cache/repro/cli-go$(GO_VERSION).XXXXXX")"; \
+	 mkdir "$$repro_root/a-cache" "$$repro_root/b-cache"; \
+	 GOCACHE="$$repro_root/a-cache" "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$$repro_root/l7-a" $(CLI_PACKAGE); \
+	 GOCACHE="$$repro_root/b-cache" "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$$repro_root/l7-b" $(CLI_PACKAGE); \
+	 cmp "$$repro_root/l7-a" "$$repro_root/l7-b"; \
+	 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$$repro_root/l7-a"; else shasum -a 256 "$$repro_root/l7-a"; fi
 
-ci: verify
+technical-verify: install technical-lint typecheck test reproducible cli-reproducible
+
+verify: policy-check technical-verify
+
+ci: technical-verify
