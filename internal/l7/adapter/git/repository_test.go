@@ -141,6 +141,42 @@ func BenchmarkParseStatus10000Paths(b *testing.B) {
 	}
 }
 
+func BenchmarkSnapshot10000Paths(b *testing.B) {
+	root, err := filepath.EvalSymlinks(b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	benchmarkGit(b, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("initial\n"), 0o600); err != nil {
+		b.Fatal(err)
+	}
+	benchmarkGit(b, root, "add", "README.md")
+	benchmarkGit(b, root, "-c", "user.name=Level Seven", "-c", "user.email=l7@example.invalid", "commit", "-q", "-m", "initial")
+	base := strings.TrimSpace(benchmarkGit(b, root, "rev-parse", "HEAD"))
+	directory := filepath.Join(root, "generated")
+	if err := os.Mkdir(directory, 0o700); err != nil {
+		b.Fatal(err)
+	}
+	for index := 0; index < 10_000; index++ {
+		name := filepath.Join(directory, fmt.Sprintf("path-%05d", index))
+		if err := os.WriteFile(name, []byte("x"), 0o600); err != nil {
+			b.Fatal(err)
+		}
+	}
+	adapter, err := New("", DefaultMaxOutput, 10_000)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		snapshot, snapshotErr := adapter.Snapshot(context.Background(), root, base)
+		if snapshotErr != nil || len(snapshot.ChangedPaths) != 10_000 {
+			b.Fatalf("Snapshot() paths=%d error=%v", len(snapshot.ChangedPaths), snapshotErr)
+		}
+	}
+}
+
 func testAdapter(t *testing.T, maxOutput, maxPaths int) Adapter {
 	t.Helper()
 	adapter, err := New("", maxOutput, maxPaths)
@@ -183,6 +219,17 @@ func runGit(t *testing.T, root string, arguments ...string) string {
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v: %s", arguments, err, output)
+	}
+	return string(output)
+}
+
+func benchmarkGit(b *testing.B, root string, arguments ...string) string {
+	b.Helper()
+	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	command.Env = append(os.Environ(), "LC_ALL=C", "GIT_TERMINAL_PROMPT=0")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		b.Fatalf("git %v: %v: %s", arguments, err, output)
 	}
 	return string(output)
 }
