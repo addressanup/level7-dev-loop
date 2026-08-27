@@ -21,7 +21,7 @@ func TestExecuteWithoutLifecyclePortsRemainsTruthfullyInert(t *testing.T) {
 		{domain.CommandAdopt, domain.OutcomeBlocked, "L7-CAP-001", "unavailable", 2},
 		{domain.CommandBrief, domain.OutcomeBlocked, "L7-CAP-001", "unavailable", 2},
 		{domain.CommandStatus, domain.OutcomeBlocked, "L7-STATUS-001", "unavailable", 2},
-		{domain.Command("run"), domain.OutcomeFailed, "L7-CLI-001", "invalid", 1},
+		{domain.CommandRun, domain.OutcomeBlocked, "L7-CAP-003", "unavailable", 2},
 	}
 	for _, test := range tests {
 		result := application.Execute(context.Background(), test.command)

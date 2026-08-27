@@ -17,6 +17,26 @@ type Ports struct {
 	Acquire            func(string) (func() error, error)
 	EnsureBrief        func(string, domain.ChangeBrief) (bool, error)
 	LoadBrief          func(string, string) (domain.ChangeBrief, error)
+	Pending            func(context.Context, string, int, int) (domain.PendingChanges, error)
+	PathCommit         func(context.Context, string, string) (string, error)
+	Commit             func(context.Context, domain.CommitRequest) (domain.RepositoryLocation, error)
+	CommitMatches      func(context.Context, string, string, string, string, int, int) (bool, error)
+	CommitPaths        func(context.Context, string, string, string, int, int) ([]string, error)
+	CommitTree         func(context.Context, string, string) (string, error)
+	PathSetDigest      func([]string) string
+	ConfirmApproval    func(context.Context, string, domain.Provider, string) (domain.ApprovalBinding, error)
+	LoadApproval       func(string) (domain.ApprovalBinding, bool, error)
+	SaveApproval       func(string, domain.ApprovalBinding) error
+	LoadRun            func(string) (domain.RunEvidence, bool, error)
+	SaveRun            func(string, domain.RunEvidence) error
+	LoadVerification   func(string) (domain.VerificationEvidence, bool, error)
+	SaveVerification   func(string, domain.VerificationEvidence) error
+	LoadReview         func(string) (domain.ReviewEvidence, bool, error)
+	SaveReview         func(string, domain.ReviewEvidence) error
+	RunProvider        func(context.Context, domain.ProviderTask, int, int) (domain.ProviderResponse, error)
+	RunVerification    func(context.Context, string, []domain.VerificationCommand, int, int) ([]domain.CheckResult, error)
+	WriteVerification  func(string, domain.VerificationEvidence, string) (string, error)
+	WriteAudit         func(string, domain.ReviewEvidence) (string, error)
 }
 
 var builtinProtectedPaths = []string{
@@ -234,7 +254,7 @@ func (application Application) status(ctx context.Context, request domain.Reques
 		result.Repository = repositoryDetails(location)
 		return result
 	}
-	active, activeFound, err := application.ports.LoadActive(location.CommonDir)
+	initialActive, activeFound, err := application.ports.LoadActive(location.CommonDir)
 	if err != nil {
 		return application.failure("L7-STATE-001", request.Command, "invalid", "active context is invalid: "+bounded(err.Error(), 512), "repair or explicitly recover .git/l7/product/active.json")
 	}
@@ -270,83 +290,17 @@ func (application Application) status(ctx context.Context, request domain.Reques
 		result.Repository = detailsForSnapshot(snapshot, "", 0, nil, nil)
 		return result
 	}
-	brief := domain.ChangeBrief{}
-	if active.Kind == domain.ActiveBrief {
-		brief, err = application.ports.LoadBrief(location.Root, active.BriefPath)
-		if err != nil || brief.ID != active.ID {
-			return application.failure("L7-BRIEF-003", request.Command, "invalid", "active change brief is missing, unsafe, or conflicting", "restore the exact tracked change brief before continuing")
-		}
-		active.Tier = brief.Tier
-		active.Base = brief.Base
-		active.Problem = brief.Problem
-		active.Scope = append([]string{}, brief.Scope...)
+	if !application.executionPortsAvailable() {
+		return application.result(domain.OutcomeBlocked, "L7-CAP-003", string(request.Command), "unavailable", "execution evidence is not configured in this build", "run l7 help")
 	}
-	snapshot, err := application.ports.Snapshot(ctx, location.Root, active.Base, configuration.MaxGitOutputBytes, configuration.MaxGitPaths)
-	if err != nil {
-		return application.failure("L7-GIT-001", request.Command, "invalid", "cannot reconstruct Git-derived status: "+bounded(err.Error(), 512), "restore an ancestor base and stable Git worktree, then retry l7 status")
+	change, blocked := application.loadExecutionContext(ctx, request.Command)
+	if blocked != nil {
+		return *blocked
 	}
-	if !repositoryOutputFits(configuration.MaxCommandOutputBytes, snapshot, active.Scope) {
-		return application.result(domain.OutcomeBlocked, "L7-OUTPUT-001", string(request.Command), "bounded", "Git-derived change status exceeds the configured command-output limit", "narrow the active scope or explicitly raise the bounded output limit")
+	if !sameStoredActive(change.active, initialActive) {
+		return application.failure("L7-STATE-004", request.Command, "changed", "active context changed during status reconstruction", "retry l7 status against stable local state")
 	}
-	recheckedConfiguration, found, configErr := application.ports.LoadConfiguration(location.Root)
-	recheckedActive, activeFound, activeErr := application.ports.LoadActive(location.CommonDir)
-	if configErr != nil || !found || activeErr != nil || !activeFound || !sameConfiguration(configuration, recheckedConfiguration) || !sameStoredActive(active, recheckedActive) {
-		return application.failure("L7-STATE-004", request.Command, "changed", "configuration or active context changed during status reconstruction", "retry l7 status against stable local state")
-	}
-	if active.Kind == domain.ActiveBrief {
-		recheckedBrief, briefErr := application.ports.LoadBrief(location.Root, active.BriefPath)
-		if briefErr != nil || !sameBrief(brief, recheckedBrief) {
-			return application.failure("L7-BRIEF-004", request.Command, "changed", "change brief changed during status reconstruction", "retry l7 status against a stable change brief")
-		}
-	}
-	if active.Tier != domain.TierHighRisk && touchesProtected(active.Scope, configuration.ProtectedPaths) {
-		return application.result(domain.OutcomeBlocked, "L7-RISK-001", string(request.Command), "risk-mismatch", "active scope intersects a protected control without Tier 3 classification", "replace the active change with an explicitly approved Tier 3 brief")
-	}
-	permitted := []string{}
-	if active.BriefPath != "" {
-		permitted = append(permitted, active.BriefPath)
-	}
-	expanded := domain.ExpandedPaths(active.Scope, snapshot.ChangedPaths, permitted)
-	if len(expanded) != 0 {
-		result := application.result(domain.OutcomeBlocked, "L7-SCOPE-001", string(request.Command), string(domain.StateBuilding), "changed paths exceed the declared scope", "restore the expanded paths or begin a new appropriately scoped change")
-		result.Repository = detailsForSnapshot(snapshot, active.ID, active.Tier, active.Scope, expanded)
-		return result
-	}
-	workStarted := false
-	for _, changed := range snapshot.ChangedPaths {
-		if changed != active.BriefPath && domain.ScopeContains(active.Scope, changed) {
-			workStarted = true
-			break
-		}
-	}
-	if active.Tier == domain.TierHighRisk && workStarted {
-		result := application.result(domain.OutcomeBlocked, "L7-AUTH-001", string(request.Command), string(domain.StateAwaitingOwnerApproval), "Tier 3 implementation exists without a current external owner-approval binding", "restore implementation changes and obtain explicit owner approval outside repository text")
-		result.Repository = detailsForSnapshot(snapshot, active.ID, active.Tier, active.Scope, nil)
-		return result
-	}
-	facts := domain.LifecycleFacts{Tier: active.Tier, PlanPresent: true, WorkStarted: workStarted}
-	state, valid := domain.DeriveLifecycle(facts)
-	if !valid {
-		return application.failure("L7-LIFECYCLE-001", request.Command, "invalid", "active lifecycle facts conflict", "restore the last valid Git and local-state combination")
-	}
-	next, _ := domain.NextTransition(active.Tier, state)
-	outcome := domain.OutcomePass
-	code := "L7-STATUS-000"
-	message := "Git-derived lifecycle state is current"
-	if state == domain.StateAwaitingOwnerApproval {
-		outcome = domain.OutcomeBlocked
-		code = "L7-AUTH-002"
-		message = "Tier 3 is awaiting explicit external owner approval"
-	}
-	if state == domain.StateBuilding {
-		outcome = domain.OutcomeBlocked
-		code = "L7-CAP-002"
-		message = "implementation is present; candidate-bound verification arrives in Wave 3"
-		next.Action = "run the repository's relevant checks manually and retain the candidate for Wave 3 verification"
-	}
-	result := application.result(outcome, code, string(request.Command), string(state), message, next.Action)
-	result.Repository = detailsForSnapshot(snapshot, active.ID, active.Tier, active.Scope, nil)
-	return result
+	return application.statusFromContext(ctx, request, change)
 }
 
 func (application Application) lifecyclePortsAvailable() bool {
@@ -396,7 +350,7 @@ func sameSnapshot(left, right domain.RepositorySnapshot) bool {
 }
 
 func sameConfiguration(left, right domain.Configuration) bool {
-	return left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && left.MaxCommandOutputBytes == right.MaxCommandOutputBytes && sameStrings(left.ProtectedPaths, right.ProtectedPaths)
+	return left.LocalLifecycle == right.LocalLifecycle && left.MaxInputBytes == right.MaxInputBytes && left.MaxGitOutputBytes == right.MaxGitOutputBytes && left.MaxGitPaths == right.MaxGitPaths && left.MaxCommandOutputBytes == right.MaxCommandOutputBytes && left.MaxCommandSeconds == right.MaxCommandSeconds && left.Implementer == right.Implementer && left.Reviewer == right.Reviewer && sameStrings(left.ProtectedPaths, right.ProtectedPaths) && sameVerificationCommands(left.Verification, right.Verification)
 }
 
 func sameStoredActive(resolved, stored domain.ActiveChange) bool {

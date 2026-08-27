@@ -141,7 +141,7 @@ func TestStatusDistinguishesPlannedFromUnsupportedVerification(t *testing.T) {
 	fixture.snapshotIndex = 0
 	fixture.snapshotPaths = [][]string{{"internal/example/change.go"}}
 	building := fixture.application().ExecuteRequest(context.Background(), domain.Request{Command: domain.CommandStatus})
-	if building.Outcome != domain.OutcomeBlocked || building.State != string(domain.StateBuilding) || building.Code != "L7-CAP-002" || !strings.Contains(building.Message, "Wave 3") {
+	if building.Outcome != domain.OutcomeBlocked || building.State != string(domain.StateBuilding) || building.Code != "L7-BUILD-001" {
 		t.Fatalf("building status=%+v", building)
 	}
 }
@@ -213,7 +213,7 @@ type lifecycleFixture struct {
 func newLifecycleFixture() *lifecycleFixture {
 	fixture := &lifecycleFixture{
 		location:      domain.RepositoryLocation{Root: "/repo", CommonDir: "/repo/.git", Head: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40)},
-		configuration: domain.Configuration{LocalLifecycle: true, MaxInputBytes: 1 << 20, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000, MaxCommandOutputBytes: 8 << 20},
+		configuration: domain.Configuration{LocalLifecycle: true, MaxInputBytes: 1 << 20, MaxGitOutputBytes: 1 << 20, MaxGitPaths: 1000, MaxCommandOutputBytes: 8 << 20, MaxCommandSeconds: 30},
 		snapshotPaths: [][]string{{}, {}, {}},
 	}
 	fixture.ports = Ports{
@@ -251,6 +251,42 @@ func newLifecycleFixture() *lifecycleFixture {
 			return true, nil
 		},
 		LoadBrief: func(string, string) (domain.ChangeBrief, error) { return fixture.brief, nil },
+		Pending: func(context.Context, string, int, int) (domain.PendingChanges, error) {
+			return domain.PendingChanges{RepositoryLocation: fixture.location, Paths: []string{}}, nil
+		},
+		PathCommit: func(context.Context, string, string) (string, error) { return fixture.location.Head, nil },
+		Commit: func(context.Context, domain.CommitRequest) (domain.RepositoryLocation, error) {
+			return fixture.location, nil
+		},
+		CommitMatches: func(context.Context, string, string, string, string, int, int) (bool, error) {
+			return true, nil
+		},
+		CommitPaths:   func(context.Context, string, string, string, int, int) ([]string, error) { return []string{}, nil },
+		CommitTree:    func(context.Context, string, string) (string, error) { return fixture.location.Tree, nil },
+		PathSetDigest: func([]string) string { return strings.Repeat("d", 64) },
+		ConfirmApproval: func(context.Context, string, domain.Provider, string) (domain.ApprovalBinding, error) {
+			return domain.ApprovalBinding{}, errors.New("not approved")
+		},
+		LoadApproval: func(string) (domain.ApprovalBinding, bool, error) { return domain.ApprovalBinding{}, false, nil },
+		SaveApproval: func(string, domain.ApprovalBinding) error { return nil },
+		LoadRun:      func(string) (domain.RunEvidence, bool, error) { return domain.RunEvidence{}, false, nil },
+		SaveRun:      func(string, domain.RunEvidence) error { return nil },
+		LoadVerification: func(string) (domain.VerificationEvidence, bool, error) {
+			return domain.VerificationEvidence{}, false, nil
+		},
+		SaveVerification: func(string, domain.VerificationEvidence) error { return nil },
+		LoadReview:       func(string) (domain.ReviewEvidence, bool, error) { return domain.ReviewEvidence{}, false, nil },
+		SaveReview:       func(string, domain.ReviewEvidence) error { return nil },
+		RunProvider: func(context.Context, domain.ProviderTask, int, int) (domain.ProviderResponse, error) {
+			return domain.ProviderResponse{}, errors.New("not configured")
+		},
+		RunVerification: func(context.Context, string, []domain.VerificationCommand, int, int) ([]domain.CheckResult, error) {
+			return nil, errors.New("not configured")
+		},
+		WriteVerification: func(string, domain.VerificationEvidence, string) (string, error) {
+			return "", errors.New("not configured")
+		},
+		WriteAudit: func(string, domain.ReviewEvidence) (string, error) { return "", errors.New("not configured") },
 	}
 	return fixture
 }

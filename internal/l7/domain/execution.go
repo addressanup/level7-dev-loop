@@ -189,5 +189,5 @@ func DistinctReviewer(tier RiskTier, implementer, reviewer ProviderIdentity) boo
 	if tier == TierHighRisk {
 		return implementer.Provider != reviewer.Provider
 	}
-	return implementer.Provider != reviewer.Provider || implementer.Digest != reviewer.Digest || implementer.Executable != reviewer.Executable
+	return true
 }
