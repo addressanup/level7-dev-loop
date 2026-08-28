@@ -56,6 +56,28 @@ func TestProbeDegradesUnknownVersion(t *testing.T) {
 	}
 }
 
+func TestRunDoesNotSemanticallyInvokeFailedTargetVersions(t *testing.T) {
+	for _, failedTarget := range []string{"2.1.247", "2.1.247 (Claude Code)"} {
+		t.Run(failedTarget, func(t *testing.T) {
+			probes := 0
+			semanticInvocations := 0
+			adapter := NewWithRuntime(provider.NewRuntime(fakeResolve("claude"), func(_ context.Context, request processadapter.Request) (processadapter.Result, error) {
+				if len(request.Arguments) == 1 && request.Arguments[0] == "--version" {
+					probes++
+					return processadapter.Result{ExitCode: 0, Stdout: []byte(failedTarget + "\n")}, nil
+				}
+				semanticInvocations++
+				return processadapter.Result{}, errors.New("unexpected semantic Claude invocation")
+			}))
+
+			response, err := adapter.Run(context.Background(), providerTask(domain.RoleImplementer), 1<<20, 30)
+			if err == nil || !strings.Contains(err.Error(), "no qualified adapter contract") || response.Identity.Version != failedTarget || response.Identity.Capability != domain.CapabilityDegraded || response.Role != domain.RoleImplementer || probes != 1 || semanticInvocations != 0 {
+				t.Fatalf("Run()=%+v error=%v probes=%d semantic_invocations=%d", response, err, probes, semanticInvocations)
+			}
+		})
+	}
+}
+
 func TestRunRejectsUnknownErrorOrProseResults(t *testing.T) {
 	outputs := [][]byte{
 		[]byte(`{"type":"result","subtype":"success","is_error":false,"structured_output":{},"unknown":true}`),
