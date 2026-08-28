@@ -3,8 +3,6 @@ package claude
 import (
 	"context"
 	"errors"
-	"fmt"
-	"slices"
 	"strings"
 	"testing"
 
@@ -12,128 +10,6 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/provider"
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
-
-const actualClaudeUnknownOption = "--l7-unknown-option"
-
-type actualClaudeInterfaceCase struct {
-	name         string
-	arguments    []string
-	wantExitZero bool
-}
-
-func actualClaudeInterfaceCases(base []string) ([]actualClaudeInterfaceCase, error) {
-	turns := -1
-	for index, argument := range base {
-		if argument == "--help" || argument == actualClaudeUnknownOption {
-			return nil, errors.New("base Claude argv already contains a test-only interface option")
-		}
-		if argument != "--max-turns" {
-			continue
-		}
-		if turns >= 0 || index+1 >= len(base) || base[index+1] != "64" {
-			return nil, errors.New("base Claude argv must contain exactly one --max-turns 64 pair")
-		}
-		turns = index
-	}
-	if turns < 0 {
-		return nil, errors.New("base Claude argv is missing --max-turns 64")
-	}
-	clone := func() []string { return append([]string{}, base...) }
-	positive := append(clone(), "--help")
-	unknown := append(clone(), actualClaudeUnknownOption, "--help")
-	invalidTurns := clone()
-	invalidTurns[turns+1] = "not-an-integer"
-	invalidTurns = append(invalidTurns, "--help")
-	return []actualClaudeInterfaceCase{
-		{name: "positive", arguments: positive, wantExitZero: true},
-		{name: "unknown-option", arguments: unknown},
-		{name: "invalid-max-turns", arguments: invalidTurns},
-	}, nil
-}
-
-func actualClaudeInterfaceOutcome(observation actualClaudeInterfaceCase, result processadapter.Result, err error) error {
-	if err != nil {
-		return fmt.Errorf("bounded no-model invocation failed: %w", err)
-	}
-	if observation.wantExitZero && result.ExitCode != 0 {
-		return fmt.Errorf("expected successful exit, got %d", result.ExitCode)
-	}
-	if !observation.wantExitZero && result.ExitCode == 0 {
-		return errors.New("negative parser control exited successfully")
-	}
-	return nil
-}
-
-func TestActualClaudeInterfaceCasesPreserveMaxTurnsAndRoleArgv(t *testing.T) {
-	for _, role := range []domain.ProviderRole{domain.RoleImplementer, domain.RoleReviewer} {
-		base := arguments(role)
-		original := append([]string{}, base...)
-		observations, err := actualClaudeInterfaceCases(base)
-		if err != nil || len(observations) != 3 {
-			t.Fatalf("%s observations=%+v error=%v", role, observations, err)
-		}
-		if !slices.Equal(base, original) {
-			t.Fatalf("%s base argv mutated: got=%v want=%v", role, base, original)
-		}
-		if !slices.Equal(observations[0].arguments[:len(base)], base) || observations[0].arguments[len(base)] != "--help" || !observations[0].wantExitZero {
-			t.Fatalf("%s positive observation=%+v", role, observations[0])
-		}
-		if !slices.Equal(observations[1].arguments[:len(base)], base) || !slices.Equal(observations[1].arguments[len(base):], []string{actualClaudeUnknownOption, "--help"}) || observations[1].wantExitZero {
-			t.Fatalf("%s unknown observation=%+v", role, observations[1])
-		}
-		if len(observations[2].arguments) != len(base)+1 || observations[2].arguments[len(base)] != "--help" || observations[2].wantExitZero {
-			t.Fatalf("%s invalid turns observation=%+v", role, observations[2])
-		}
-		differences := 0
-		for index := range base {
-			if observations[2].arguments[index] != base[index] {
-				differences++
-				if base[index] != "64" || observations[2].arguments[index] != "not-an-integer" {
-					t.Fatalf("%s invalid turns changed unexpected argument %d: got=%q want=%q", role, index, observations[2].arguments[index], base[index])
-				}
-			}
-		}
-		if differences != 1 {
-			t.Fatalf("%s invalid turns differences=%d", role, differences)
-		}
-	}
-}
-
-func TestActualClaudeInterfaceCasesAndOutcomesFailClosed(t *testing.T) {
-	for _, base := range [][]string{
-		{"--print"},
-		{"--max-turns"},
-		{"--max-turns", "63"},
-		{"--max-turns", "64", "--max-turns", "64"},
-		{"--max-turns", "64", "--help"},
-		{"--max-turns", "64", actualClaudeUnknownOption},
-	} {
-		if observations, err := actualClaudeInterfaceCases(base); err == nil || observations != nil {
-			t.Fatalf("unsafe base argv accepted: %v", base)
-		}
-	}
-	positive := actualClaudeInterfaceCase{name: "positive", wantExitZero: true}
-	negative := actualClaudeInterfaceCase{name: "negative"}
-	if err := actualClaudeInterfaceOutcome(positive, processadapter.Result{ExitCode: 0}, nil); err != nil {
-		t.Fatalf("valid positive rejected: %v", err)
-	}
-	if err := actualClaudeInterfaceOutcome(negative, processadapter.Result{ExitCode: 2}, nil); err != nil {
-		t.Fatalf("valid negative rejected: %v", err)
-	}
-	for _, test := range []struct {
-		observation actualClaudeInterfaceCase
-		result      processadapter.Result
-		err         error
-	}{
-		{observation: positive, result: processadapter.Result{ExitCode: 2}},
-		{observation: negative, result: processadapter.Result{ExitCode: 0}},
-		{observation: positive, err: errors.New("runner failed")},
-	} {
-		if err := actualClaudeInterfaceOutcome(test.observation, test.result, test.err); err == nil {
-			t.Fatalf("unsafe outcome accepted: %+v", test)
-		}
-	}
-}
 
 func TestRunTranslatesBothRolesWithoutBypassPermissions(t *testing.T) {
 	for _, test := range []struct {
