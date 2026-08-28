@@ -1,4 +1,5 @@
 # role	version	goos	goarch	filename	size	sha256	archive_url	signature_url
+baseline	1.26.7	darwin	amd64	go1.26.7.darwin-amd64.tar.gz	67852067	92e8b34bff3c89ab16404c595669ac8cb004cc2f676dcbd1f5b87a6b8def3b47	https://go.dev/dl/go1.26.7.darwin-amd64.tar.gz	https://go.dev/dl/go1.26.7.darwin-amd64.tar.gz.asc
 baseline	1.26.7	darwin	arm64	go1.26.7.darwin-arm64.tar.gz	64772572	020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d	https://go.dev/dl/go1.26.7.darwin-arm64.tar.gz	https://go.dev/dl/go1.26.7.darwin-arm64.tar.gz.asc
 baseline	1.26.7	linux	amd64	go1.26.7.linux-amd64.tar.gz	66890901	ffb5f8de10c62550dfddab66b36b57030721e0a44a3218e9e1181d7b59f121ca	https://go.dev/dl/go1.26.7.linux-amd64.tar.gz	https://go.dev/dl/go1.26.7.linux-amd64.tar.gz.asc
 shadow	1.27.0	darwin	arm64	go1.27.0.darwin-arm64.tar.gz	68303667	90493b3bbd5e10f91d12153198bf1994fd756399b4fec93b49b0c6e2acdeeb3e	https://go.dev/dl/go1.27.0.darwin-arm64.tar.gz	https://go.dev/dl/go1.27.0.darwin-arm64.tar.gz.asc

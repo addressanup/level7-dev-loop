@@ -71,7 +71,12 @@ func TestSnapshotRejectsInvalidMissingAndNonAncestorBases(t *testing.T) {
 	if _, err := adapter.Snapshot(context.Background(), repository, missing); err == nil || !strings.Contains(err.Error(), "available Git commit") {
 		t.Fatalf("missing base error=%v", err)
 	}
-	unrelated := strings.TrimSpace(runGit(t, repository, "commit-tree", "HEAD^{tree}", "-m", "unrelated"))
+	unrelated := strings.TrimSpace(runGit(t, repository,
+		"-c", "user.useConfigOnly=true",
+		"-c", "user.name=Level Seven",
+		"-c", "user.email=l7@example.invalid",
+		"commit-tree", "HEAD^{tree}", "-m", "unrelated",
+	))
 	if _, err := adapter.Snapshot(context.Background(), repository, unrelated); err == nil || !strings.Contains(err.Error(), "not an ancestor") {
 		t.Fatalf("non-ancestor base error=%v", err)
 	}
