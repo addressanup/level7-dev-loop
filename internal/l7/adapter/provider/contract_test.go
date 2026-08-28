@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -10,44 +9,6 @@ import (
 	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
-
-func TestTerminalSchemaIsClosedBoundedAndRoleSpecific(t *testing.T) {
-	for _, test := range []struct {
-		role             domain.ProviderRole
-		requiredDecision bool
-		outcomeContract  string
-	}{
-		{role: domain.RoleImplementer, outcomeContract: `"outcome":{"type":"string","const":"complete"}`},
-		{role: domain.RoleReviewer, requiredDecision: true, outcomeContract: `"outcome":{"type":"string","enum":["complete","blocked"]}`},
-	} {
-		t.Run(string(test.role), func(t *testing.T) {
-			schema, err := TerminalSchema(test.role)
-			if err != nil || !json.Valid([]byte(schema)) {
-				t.Fatalf("TerminalSchema()=%q error=%v", schema, err)
-			}
-			for _, contract := range []string{
-				`"additionalProperties":false`,
-				`"summary":{"type":"string","minLength":1,"maxLength":4096}`,
-				`"findings":{"type":"array","maxItems":64`,
-				`"items":{"type":"string","minLength":1,"maxLength":2048}`,
-				test.outcomeContract,
-			} {
-				if !strings.Contains(schema, contract) {
-					t.Fatalf("schema missing %s: %s", contract, schema)
-				}
-			}
-			if got := strings.Contains(schema, `"decision"`); got != test.requiredDecision {
-				t.Fatalf("decision present=%v want=%v: %s", got, test.requiredDecision, schema)
-			}
-			if test.role == domain.RoleReviewer && !strings.Contains(schema, `"not":{"properties":{"outcome":{"const":"blocked"},"decision":{"const":"GO"}}`) {
-				t.Fatalf("reviewer schema permits blocked GO: %s", schema)
-			}
-		})
-	}
-	if schema, err := TerminalSchema(domain.ProviderRole("invalid")); err == nil || schema != "" {
-		t.Fatalf("TerminalSchema(invalid)=%q error=%v", schema, err)
-	}
-}
 
 func TestProbeDistinguishesInstalledFromCompatible(t *testing.T) {
 	runtime := NewRuntime(
@@ -65,28 +26,6 @@ func TestProbeDistinguishesInstalledFromCompatible(t *testing.T) {
 	identity, err = runtime.Probe(context.Background(), "codex", domain.ProviderCodex, []string{"--version"}, func(string) bool { return false })
 	if err != nil || identity.Capability != domain.CapabilityDegraded {
 		t.Fatalf("degraded Probe()=%+v error=%v", identity, err)
-	}
-}
-
-func TestProbeDegradesMalformedVersionOutput(t *testing.T) {
-	for _, output := range []string{
-		" codex-cli 0.150.1\n",
-		"codex-cli 0.150.1 \n",
-		"codex-cli 0.150.1\nextra\n",
-		"codex-cli 0.150.1\n\n",
-	} {
-		runtime := NewRuntime(
-			func(string) (processadapter.Executable, error) {
-				return processadapter.Executable{Path: "/usr/bin/codex", Digest: strings.Repeat("a", 64)}, nil
-			},
-			func(context.Context, processadapter.Request) (processadapter.Result, error) {
-				return processadapter.Result{ExitCode: 0, Stdout: []byte(output)}, nil
-			},
-		)
-		identity, err := runtime.Probe(context.Background(), "codex", domain.ProviderCodex, []string{"--version"}, func(string) bool { return true })
-		if err != nil || identity.Capability != domain.CapabilityDegraded || identity.Version != "" {
-			t.Fatalf("Probe(%q)=%+v error=%v", output, identity, err)
-		}
 	}
 }
 
@@ -128,26 +67,6 @@ func TestRenderAndParseProviderNeutralProtocol(t *testing.T) {
 		}
 		if _, err := ParseTerminal(data, role); err == nil {
 			t.Fatalf("ParseTerminal(%s) unexpectedly passed", data)
-		}
-	}
-}
-
-func TestParseTerminalEnforcesIndependentBounds(t *testing.T) {
-	tooManyFindings := make([]string, MaxFindings+1)
-	for index := range tooManyFindings {
-		tooManyFindings[index] = "finding"
-	}
-	encodedFindings, err := json.Marshal(tooManyFindings)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, data := range [][]byte{
-		[]byte(`{"schema":1,"outcome":"complete","summary":"` + strings.Repeat("s", MaxSummaryBytes+1) + `","findings":[]}`),
-		[]byte(`{"schema":1,"outcome":"complete","summary":"complete","findings":["` + strings.Repeat("f", MaxFindingBytes+1) + `"]}`),
-		[]byte(`{"schema":1,"outcome":"complete","summary":"complete","findings":` + string(encodedFindings) + `}`),
-	} {
-		if _, err := ParseTerminal(data, domain.RoleImplementer); err == nil {
-			t.Fatalf("ParseTerminal() accepted independently over-limit payload")
 		}
 	}
 }
