@@ -74,11 +74,22 @@ grep -Fqx 'core	active	.	continuallabs.ltd/level7-dev-loop' harness/modules.lock
 grep -Fqx 'updater	reserved	cmd/l7up	UNSET' harness/modules.lock.tsv || fail 'updater must remain a reserved module until its boundary harness is approved'
 
 toolchain_records=$(awk -F '\t' '$1 !~ /^#/ && NF { count++ } END { print count + 0 }' harness/toolchains.lock.tsv)
-test "$toolchain_records" -eq 4 || fail "expected four platform toolchain records, found $toolchain_records"
+test "$toolchain_records" -eq 5 || fail "expected five platform toolchain records, found $toolchain_records"
 awk -F '\t' '
 	$1 !~ /^#/ && (NF != 9 || $7 !~ /^[0-9a-f]{64}$/ || $8 !~ /^https:\/\/go\.dev\/dl\// || $9 !~ /^https:\/\/go\.dev\/dl\/.*\.asc$/) { bad = 1 }
 	END { exit bad }
 ' harness/toolchains.lock.tsv || fail 'malformed toolchain lock'
+awk -F '\t' '
+	$1 !~ /^#/ && NF { records[$1 FS $2 FS $3 FS $4]++ }
+	END {
+		if (records["baseline" FS "1.26.7" FS "darwin" FS "amd64"] != 1) bad = 1
+		if (records["baseline" FS "1.26.7" FS "darwin" FS "arm64"] != 1) bad = 1
+		if (records["baseline" FS "1.26.7" FS "linux" FS "amd64"] != 1) bad = 1
+		if (records["shadow" FS "1.27.0" FS "darwin" FS "arm64"] != 1) bad = 1
+		if (records["shadow" FS "1.27.0" FS "linux" FS "amd64"] != 1) bad = 1
+		exit bad
+	}
+' harness/toolchains.lock.tsv || fail 'unexpected toolchain platform matrix'
 grep -Fq 'go-version: 1.26.7' .github/workflows/harness.yml || fail 'CI baseline Go version is missing'
 grep -Fq 'go-version: 1.27.0' .github/workflows/harness.yml || fail 'CI shadow Go version is missing'
 grep -Fq 'experimental: false' .github/workflows/harness.yml || fail 'CI baseline must remain blocking'
