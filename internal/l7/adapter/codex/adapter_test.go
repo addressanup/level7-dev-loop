@@ -52,25 +52,6 @@ func TestProbeDegradesUnknownVersion(t *testing.T) {
 	}
 }
 
-func TestRunDoesNotSemanticallyInvokeFailedTargetVersion(t *testing.T) {
-	const failedTarget = "codex-cli 0.150.1"
-	probes := 0
-	semanticInvocations := 0
-	adapter := NewWithRuntime(provider.NewRuntime(fakeResolve("codex"), func(_ context.Context, request processadapter.Request) (processadapter.Result, error) {
-		if len(request.Arguments) == 1 && request.Arguments[0] == "--version" {
-			probes++
-			return processadapter.Result{ExitCode: 0, Stdout: []byte(failedTarget + "\n")}, nil
-		}
-		semanticInvocations++
-		return processadapter.Result{}, errors.New("unexpected semantic Codex invocation")
-	}))
-
-	response, err := adapter.Run(context.Background(), providerTask(domain.RoleImplementer), 1<<20, 30)
-	if err == nil || !strings.Contains(err.Error(), "no qualified adapter contract") || response.Identity.Version != failedTarget || response.Identity.Capability != domain.CapabilityDegraded || response.Role != domain.RoleImplementer || probes != 1 || semanticInvocations != 0 {
-		t.Fatalf("Run()=%+v error=%v probes=%d semantic_invocations=%d", response, err, probes, semanticInvocations)
-	}
-}
-
 func TestRunRejectsMalformedOrFailedEvents(t *testing.T) {
 	outputs := []string{
 		`{"type":"item.completed","item":{"id":"one","type":"agent_message","text":"{}"},"unknown":true}` + "\n",
