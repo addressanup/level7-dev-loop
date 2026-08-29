@@ -145,6 +145,43 @@ network orchestration, provider installation, and global configuration remain
 unavailable. This binary is a development candidate, not a released or supported
 CLI.
 
+## Wave 5 dual-host development packages
+
+Wave 5 adds an offline distribution foundation without installing or publishing
+anything. One strict descriptor at `distribution/package.json` generates the
+Codex, Claude, root-plugin, and legacy marketplace metadata. The two host
+packages share prerelease version `0.1.0-dev.5` but have separate manifests,
+catalogs, compatibility entries, inventories, digests, and archives.
+
+```sh
+make distribution-check
+make distribution
+```
+
+`make distribution-check` compares the tracked generated manifests with the
+authored descriptor, builds each archive twice, compares exact bytes, reinspects
+every allowlisted entry, and runs disposable filesystem fixtures for install,
+identical reinstall, interrupted upgrade recovery, rollback, conflict preview,
+and removal. The fixtures preserve unowned files and canonical project artifacts
+and block on missing or stale ownership receipts. They do not invoke a host
+package manager and are not actual-host lifecycle evidence.
+
+`make distribution` writes ignored development output under
+`build/distributions/`. The Codex layout uses `.codex-plugin/plugin.json` and a
+repo-marketplace catalog at `.agents/plugins/marketplace.json`; the Claude layout
+uses `.claude-plugin/plugin.json` for both its package and marketplace roots, as
+required by their distinct host contracts. Skills remain at each plugin root.
+See the [official OpenAI packaging contract](https://developers.openai.com/plugins/build/plugins)
+and [official Claude plugin reference](https://code.claude.com/docs/en/plugins-reference).
+
+Each package includes matching changelog and MIT license text, an explicit inert
+permission declaration, a claim-withheld compatibility entry, a complete file
+inventory, an SPDX SBOM, and an unsigned provenance input. The latter files are
+development build evidence only: there is no trusted signature, notarization,
+channel, revocation, authenticated updater, publication, release, or stable
+v1.0 claim. All provider execution and real Codex/Claude installation cells
+remain `NOT_RUN`; a package pass for one host cannot promote the other.
+
 ## Risk model
 
 | Tier | Examples | Required process |
@@ -245,6 +282,8 @@ make verify
 make build
 make cli-cross-build
 make cli-actual-host-compile
+make distribution-check
+make distribution
 make cli-benchmark-check L7_BENCHMARK_BASE_ROOT=/absolute/path/to/base-checkout
 ```
 

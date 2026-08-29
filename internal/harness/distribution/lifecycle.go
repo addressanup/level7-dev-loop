@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -595,8 +594,4 @@ func pendingPath(root, host string) string {
 
 func packageDirectory(root, host, digest string) string {
 	return filepath.Join(root, "packages", host, digest)
-}
-
-func equalFile(data []byte, expected string) bool {
-	return bytes.Equal(data, []byte(expected))
 }

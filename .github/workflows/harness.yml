@@ -38,7 +38,7 @@ jobs:
       - name: Bootstrap authenticated Go archive
         run: make bootstrap GO_VERSION=${{ matrix.go-version }}
 
-      - name: Verify technical harness offline
+      - name: Verify technical harness and distribution offline
         run: make ci GO_VERSION=${{ matrix.go-version }}
 
   cli-macos:
@@ -63,7 +63,7 @@ jobs:
       - name: Bootstrap authenticated Go archive
         run: make bootstrap GO_VERSION=1.26.7
 
-      - name: Verify inert CLI offline
+      - name: Verify inert CLI and distribution offline
         run: make ci GO_VERSION=1.26.7
 
       - name: Cross-build declared macOS architectures

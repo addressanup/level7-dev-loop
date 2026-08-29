@@ -18,3 +18,8 @@ wave-01-v1	priority-p0	P0-v1.0-scope	approved	release-blocking	source-bound	L7-B
 wave-01-v1	priority-p1	P1-v1.x-scope	approved	post-v1.0	source-bound	L7-BL-001
 wave-01-v1	priority-p2	P2-later-scope	approved	no-commitment	source-bound	L7-BL-001
 wave-01-v1	priority-change-control	scope-priority-change	approval-required	impact-diff+accountable-approval	source-bound	L7-BL-001
+wave-05-v1	codex-development-package	Codex-CLI-plugin-layout	offline-package-qualified	A0-development-only	withheld	L7-BL-012
+wave-05-v1	claude-development-package	Claude-Code-plugin-layout	offline-package-qualified	A0-development-only	withheld	L7-BL-013
+wave-05-v1	distribution-lifecycle	filesystem-lifecycle-fixtures	offline-package-qualified	no-real-host-effect	unqualified	L7-BL-014
+wave-05-v1	package-authenticity	signing-channel-revocation	absent	none	withheld	L7-BL-014
+wave-05-v1	actual-host-lifecycle	Codex-and-Claude-install-matrix	NOT_RUN	none	withheld	L7-BL-014
