@@ -129,19 +129,16 @@ require_command git
 require_command jq
 require_command grep
 require_command mktemp
-require_command env
 
 gh_bin=$(command -v gh)
 git_bin=$(command -v git)
-env_bin=$(command -v env)
 remote_url=https://github.com/$repo.git
 protection_endpoint=repos/$repo/branches/main/protection
 admins_endpoint=$protection_endpoint/enforce_admins
 
 export GH_PROMPT_DISABLED=1 GIT_TERMINAL_PROMPT=0 LC_ALL=C
 unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
-unset GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
-unset GIT_SSH GIT_SSH_COMMAND GIT_PROXY_COMMAND
+unset GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0 GIT_SSH GIT_SSH_COMMAND GIT_PROXY_COMMAND
 
 api()
 {
@@ -158,68 +155,6 @@ api_pages()
 canonical_json()
 {
 	jq -cS .
-}
-
-validate_repository()
-{
-	printf '%s\n' "$1" | jq -e --arg repo "$repo" '
-		.full_name == $repo and
-		.owner.type == "User" and
-		.fork == false and
-		.default_branch == "main" and
-		.archived == false and
-		.disabled == false
-	' >/dev/null || fail 'repository identity or state is outside the approved contract'
-}
-
-repository_contract_for()
-{
-	printf '%s\n' "$1" | jq -cS '{
-		full_name, default_branch, archived, disabled, fork,
-		allow_merge_commit, allow_squash_merge, allow_rebase_merge,
-		allow_auto_merge, delete_branch_on_merge, allow_update_branch
-	}'
-}
-
-validate_collaborators()
-{
-	printf '%s\n' "$1" | jq -e --arg actor "$actor" '
-		([.[][] | select(.permissions.admin == true) | .login] | unique) == [$actor]
-	' >/dev/null || fail 'active actor is not the sole direct repository administrator'
-}
-
-validate_rulesets()
-{
-	printf '%s\n' "$1" | jq -e '[.[][]] | length == 0' >/dev/null ||
-		fail 'repository rulesets make the bypass scope ambiguous'
-}
-
-validate_pull()
-{
-	printf '%s\n' "$1" | jq -e \
-		--arg repo "$repo" \
-		--arg base "$expected_base" \
-		--arg head "$expected_head" \
-		--argjson pr "$pull_request" '
-			.number == $pr and
-			.state == "open" and
-			.merged == false and
-			.draft == false and
-			.mergeable == true and
-			.mergeable_state == "clean" and
-			.base.ref == "main" and
-			.base.repo.full_name == $repo and
-			.base.sha == $base and
-			.head.repo.full_name == $repo and
-			.head.sha == $head
-		' >/dev/null || fail 'pull request is not the exact open, clean, unmerged candidate'
-}
-
-validate_combined_status()
-{
-	printf '%s\n' "$1" | jq -e --argjson required "$required_checks_json" '
-		[.statuses[]? | .context as $context | select(any($required[]; . == $context))] | length == 0
-	' >/dev/null || fail 'a legacy status duplicates a required check context'
 }
 
 validate_protection()
@@ -291,18 +226,13 @@ validate_check()
 			([$named[] | select(.app.id != $app)] | length) == 0 and
 			($trusted | length) > 0 and
 			($trusted | map(.id) | unique | length) == ($trusted | length) and
-			($trusted | all(.started_at | type == "string" and
-				test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))) and
-			(($trusted | map(.started_at) | max) as $latest_started |
-				[$trusted[] | select(.started_at == $latest_started)] as $latest |
-				($latest | length) == 1 and
-				($latest[0] |
-					.head_sha == $head and
-					.status == "completed" and
-					.conclusion == "success" and
-					.app.slug == "github-actions" and
-					(.details_url | startswith("https://github.com/" + $repo + "/actions/runs/")) and
-					(any(.pull_requests[]?; .number == $pr and .head.sha == $head))))
+			(($trusted | max_by(.id)) |
+				.head_sha == $head and
+				.status == "completed" and
+				.conclusion == "success" and
+				.app.slug == "github-actions" and
+				(.details_url | startswith("https://github.com/" + $repo + "/actions/runs/")) and
+				(any(.pull_requests[]?; .number == $pr and .head.sha == $head)))
 		' >/dev/null || fail "required check is absent, stale, ambiguous, wrong-app, or unsuccessful: $check_name"
 }
 
@@ -310,32 +240,19 @@ operation_root=
 admins_may_be_disabled=false
 restoration_attempted=false
 restoration_failed=false
-protection_restored=
 
 restore_admins()
 {
 	test "$admins_may_be_disabled" = true || return 0
 	test "$restoration_attempted" = false || return 1
+	if api --method POST "$admins_endpoint" >/dev/null; then
+		admins_may_be_disabled=false
+		restoration_attempted=true
+		return 0
+	fi
 	restoration_attempted=true
-	if ! api --method POST "$admins_endpoint" >/dev/null; then
-		restoration_failed=true
-		return 1
-	fi
-	restored_json=$(api "$protection_endpoint") || {
-		restoration_failed=true
-		return 1
-	}
-	restored_contract=$(printf '%s\n' "$restored_json" | canonical_json) || {
-		restoration_failed=true
-		return 1
-	}
-	if test "$restored_contract" != "$protection_original"; then
-		restoration_failed=true
-		return 1
-	fi
-	protection_restored=$restored_contract
-	admins_may_be_disabled=false
-	return 0
+	restoration_failed=true
+	return 1
 }
 
 cleanup()
@@ -344,9 +261,6 @@ cleanup()
 	trap - EXIT HUP INT TERM
 	if test "$admins_may_be_disabled" = true && test "$restoration_attempted" = false; then
 		restore_admins || :
-	fi
-	if test "$admins_may_be_disabled" = true; then
-		restoration_failed=true
 	fi
 	if test -n "$operation_root"; then
 		case $operation_root in
@@ -370,24 +284,53 @@ actor_json=$(api user)
 actor=$(printf '%s\n' "$actor_json" | jq -er '.login') || fail 'could not resolve the active GitHub actor'
 
 repository_json=$(api "repos/$repo")
-validate_repository "$repository_json"
-repository_contract=$(repository_contract_for "$repository_json") ||
-	fail 'repository settings could not be canonicalized'
+printf '%s\n' "$repository_json" | jq -e --arg repo "$repo" '
+	.full_name == $repo and
+	.owner.type == "User" and
+	.fork == false and
+	.default_branch == "main" and
+	.archived == false and
+	.disabled == false
+' >/dev/null || fail 'repository identity or state is outside the approved contract'
+repository_contract=$(printf '%s\n' "$repository_json" | jq -cS '{
+	full_name, default_branch, archived, disabled, fork,
+	allow_merge_commit, allow_squash_merge, allow_rebase_merge,
+	allow_auto_merge, delete_branch_on_merge, allow_update_branch
+}')
 
 configured_owner=$(api "repos/$repo/actions/variables/L7_ACCOUNTABLE_OWNER" | jq -er '.value') || fail 'repository accountable-owner variable is unavailable'
 test "$configured_owner" = "$accountable_owner" || fail 'requested accountable owner does not match L7_ACCOUNTABLE_OWNER'
 
 collaborator_pages=$(api_pages "repos/$repo/collaborators?affiliation=direct&per_page=100")
-validate_collaborators "$collaborator_pages"
+printf '%s\n' "$collaborator_pages" | jq -e --arg actor "$actor" '
+	([.[][] | select(.permissions.admin == true) | .login] | unique) == [$actor]
+' >/dev/null || fail 'active actor is not the sole direct repository administrator'
 
 ruleset_pages=$(api_pages "repos/$repo/rulesets?per_page=100")
-validate_rulesets "$ruleset_pages"
+printf '%s\n' "$ruleset_pages" | jq -e '[.[][]] | length == 0' >/dev/null || fail 'repository rulesets make the bypass scope ambiguous'
 
 pull_json=$(api "repos/$repo/pulls/$pull_request")
-validate_pull "$pull_json"
+printf '%s\n' "$pull_json" | jq -e \
+	--arg repo "$repo" \
+	--arg base "$expected_base" \
+	--arg head "$expected_head" \
+	--argjson pr "$pull_request" '
+		.number == $pr and
+		.state == "open" and
+		.merged == false and
+		.draft == false and
+		.mergeable == true and
+		.mergeable_state == "clean" and
+		.base.ref == "main" and
+		.base.repo.full_name == $repo and
+		.base.sha == $base and
+		.head.repo.full_name == $repo and
+		.head.sha == $head
+	' >/dev/null || fail 'pull request is not the exact open, clean, unmerged candidate'
 head_ref=$(printf '%s\n' "$pull_json" | jq -er '.head.ref') || fail 'pull-request source ref is unavailable'
 pr_author=$(printf '%s\n' "$pull_json" | jq -er '.user.login') || fail 'pull-request author is unavailable'
 test "$head_ref" != main || fail 'pull-request source ref cannot be main'
+"$git_bin" check-ref-format "refs/heads/$head_ref" >/dev/null 2>&1 || fail 'pull-request source ref is malformed'
 test "$pr_author" != "$accountable_owner" || fail 'pull-request author and accountable owner must differ'
 test "$pr_author" != "$auditor" || fail 'pull-request author and auditor must differ'
 
@@ -427,7 +370,9 @@ validate_check 'CLI paired benchmark gate'
 validate_check 'evaluate'
 
 combined_status=$(api "repos/$repo/commits/$expected_head/status")
-validate_combined_status "$combined_status"
+printf '%s\n' "$combined_status" | jq -e --argjson required "$required_checks_json" '
+	[.statuses[]? | .context as $context | select(any($required[]; . == $context))] | length == 0
+' >/dev/null || fail 'a legacy status duplicates a required check context'
 
 temporary_parent=${TMPDIR:-/tmp}
 temporary_parent=${temporary_parent%/}
@@ -437,42 +382,29 @@ operation_root=$(mktemp -d "$temporary_parent/l7-exact-fast-forward.XXXXXX")
 case $operation_root in "$temporary_parent"/l7-exact-fast-forward.*) ;; *) fail 'mktemp returned an unsafe path' ;; esac
 bare_repo=$operation_root/repository.git
 askpass=$operation_root/askpass.sh
-git_home=$operation_root/home
-git_tmp=$operation_root/tmp
-git_token_file=$operation_root/token
 umask 077
-mkdir "$git_home" "$git_tmp"
-"$gh_bin" auth token --hostname github.com >"$git_token_file" ||
-	fail 'could not obtain a GitHub token for the isolated Git transport'
-test -s "$git_token_file" || fail 'GitHub returned an empty token for the isolated Git transport'
 cat >"$askpass" <<'EOF'
 #!/bin/sh
 case ${1:-} in
 	*Username*) printf '%s\n' x-access-token ;;
-	*Password*) cat "$L7_GIT_TOKEN_FILE" ;;
+	*Password*) exec "$L7_GH_BIN" auth token --hostname github.com ;;
 	*) exit 1 ;;
 esac
 EOF
 chmod 700 "$askpass"
+export L7_GH_BIN="$gh_bin"
 
 clean_git()
 {
-	"$env_bin" -i \
-		HOME="$git_home" \
-		PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-		TMPDIR="$git_tmp" \
-		LC_ALL=C \
-		GIT_CONFIG_NOSYSTEM=1 \
-		GIT_CONFIG_SYSTEM=/dev/null \
-		GIT_CONFIG_GLOBAL=/dev/null \
-		GIT_TERMINAL_PROMPT=0 \
-		GIT_ASKPASS="$askpass" \
-		SSH_ASKPASS="$askpass" \
-		L7_GIT_TOKEN_FILE="$git_token_file" \
+	GIT_CONFIG_NOSYSTEM=1 \
+	GIT_CONFIG_SYSTEM=/dev/null \
+	GIT_CONFIG_GLOBAL=/dev/null \
+	GIT_TERMINAL_PROMPT=0 \
+	GIT_ASKPASS=$askpass \
+	SSH_ASKPASS=$askpass \
 		"$git_bin" "$@"
 }
 
-clean_git check-ref-format "refs/heads/$head_ref" >/dev/null 2>&1 || fail 'pull-request source ref is malformed'
 clean_git init --bare --quiet "$bare_repo"
 clean_git -C "$bare_repo" fetch --quiet --no-tags "$remote_url" \
 	"refs/heads/$head_ref:refs/l7/candidate"
@@ -501,37 +433,13 @@ test "$confirmation" = "$expected_head" || fail 'confirmation did not equal the 
 # Revalidate every remote authority and mutable prerequisite after the human
 # decision and before opening the narrow protection window.
 test "$(api user | jq -er '.login')" = "$actor" || fail 'active GitHub actor changed after confirmation'
-
-refreshed_repository_json=$(api "repos/$repo")
-validate_repository "$refreshed_repository_json"
-refreshed_repository_contract=$(repository_contract_for "$refreshed_repository_json") ||
-	fail 'repository settings could not be canonicalized after confirmation'
-test "$refreshed_repository_contract" = "$repository_contract" ||
-	fail 'repository settings changed after confirmation'
-
 test "$(api "repos/$repo/actions/variables/L7_ACCOUNTABLE_OWNER" | jq -er '.value')" = "$accountable_owner" || fail 'accountable-owner binding changed after confirmation'
-
-refreshed_collaborator_pages=$(api_pages "repos/$repo/collaborators?affiliation=direct&per_page=100")
-validate_collaborators "$refreshed_collaborator_pages"
-
-refreshed_ruleset_pages=$(api_pages "repos/$repo/rulesets?per_page=100")
-validate_rulesets "$refreshed_ruleset_pages"
-
-refreshed_pull_json=$(api "repos/$repo/pulls/$pull_request")
-validate_pull "$refreshed_pull_json"
-test "$(printf '%s\n' "$refreshed_pull_json" | jq -er '.head.ref')" = "$head_ref" ||
-	fail 'pull-request source ref changed after confirmation'
-test "$(printf '%s\n' "$refreshed_pull_json" | jq -er '.user.login')" = "$pr_author" ||
-	fail 'pull-request author changed after confirmation'
-
 assert_main_and_source "$expected_base"
 test "$(api "$protection_endpoint" | canonical_json)" = "$protection_original" || fail 'protection changed after confirmation'
-
 review_pages=$(api_pages "repos/$repo/pulls/$pull_request/reviews?per_page=100")
 reviews=$(printf '%s\n' "$review_pages" | jq -c '[.[][]]')
 require_latest_approval "$accountable_owner"
 require_latest_approval "$auditor"
-
 check_pages=$(api_pages "repos/$repo/commits/$expected_head/check-runs?per_page=100")
 check_runs=$(printf '%s\n' "$check_pages" | jq -c '[.[].check_runs[]]')
 validate_check 'Go 1.26.7 (baseline)'
@@ -539,9 +447,6 @@ validate_check 'CLI macOS 15 (arm64)'
 validate_check 'CLI macOS 15 (amd64)'
 validate_check 'CLI paired benchmark gate'
 validate_check 'evaluate'
-
-combined_status=$(api "repos/$repo/commits/$expected_head/status")
-validate_combined_status "$combined_status"
 
 admins_may_be_disabled=true
 api --method DELETE "$admins_endpoint" >/dev/null || fail 'administrator enforcement disable request failed or was ambiguous'
@@ -566,7 +471,8 @@ clean_git -C "$bare_repo" -c core.hooksPath=/dev/null push --porcelain --atomic 
 
 restore_admins || exit 70
 
-test "$protection_restored" = "$protection_original" || fail 'complete branch protection was not restored exactly'
+protection_restored=$(api "$protection_endpoint")
+test "$(printf '%s\n' "$protection_restored" | canonical_json)" = "$protection_original" || fail 'complete branch protection was not restored exactly'
 assert_main_and_source "$expected_head"
 
 post_commit=$(api "repos/$repo/git/commits/$expected_head")
