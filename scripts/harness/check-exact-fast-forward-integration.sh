@@ -346,6 +346,33 @@ export L7_OPERATOR="$operator"
 case_output=$test_root/output
 case_status=0
 
+feed_terminal()
+{
+	prompt_seen=false
+	attempt=0
+	while test "$attempt" -lt 20; do
+		if grep -Fq 'Type the complete candidate SHA to continue:' "$case_output"; then
+			prompt_seen=true
+			break
+		fi
+		if grep -Eq 'BLOCKED|PASS' "$case_output"; then
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		sleep 1
+	done
+	test "$prompt_seen" = true || return 0
+	printf '%s\n' "$confirmation"
+	attempt=0
+	while test "$attempt" -lt 20; do
+		if grep -Eq 'BLOCKED|PASS' "$case_output"; then
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		sleep 1
+	done
+}
+
 run_case()
 {
 	FAKE_SCENARIO=$1
@@ -360,20 +387,21 @@ run_case()
 	if test "$mode" = terminal; then
 		case $(uname -s) in
 			Darwin)
-				(sleep 1; printf '%s\n' "$confirmation") | script -q /dev/null "$test_root/invoke.sh" >"$case_output" 2>&1
+				feed_terminal | script -q /dev/null "$test_root/invoke.sh" >"$case_output" 2>&1
 				;;
 			Linux)
-				(sleep 1; printf '%s\n' "$confirmation") | script -q -e -c "$test_root/invoke.sh" /dev/null >"$case_output" 2>&1
+				feed_terminal | script -q -e -c "$test_root/invoke.sh" /dev/null >"$case_output" 2>&1
 				;;
 			*)
 				set -e
 				fail 'contract test requires Darwin or Linux script(1) PTY support'
 				;;
 		esac
+		case_status=$?
 	else
 		printf '%s\n' "$confirmation" | "$test_root/invoke.sh" >"$case_output" 2>&1
+		case_status=$?
 	fi
-	case_status=$?
 	set -e
 }
 
