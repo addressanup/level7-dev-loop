@@ -352,7 +352,18 @@ func installFixture(root string, built builtPackage, fault string) error {
 		if !ok || !equalReceiptPackage(installed, wanted) {
 			return errors.New("same-digest reinstall does not match its ownership receipt")
 		}
-		return verifyInstallBaseState(root, built.Host, receipt)
+		if err := verifyInstallBaseState(root, built.Host, receipt); err != nil {
+			return err
+		}
+		if err := ensureDurableRoot(root); err != nil {
+			return err
+		}
+		for _, relative := range []string{pendingRelative(built.Host), pendingRemovalRelative(built.Host), receiptRelative(built.Host)} {
+			if err := syncLifecycleRecordParent(root, relative); err != nil {
+				return err
+			}
+		}
+		return syncDirectoryTree(root, filepath.Join("packages", built.Host))
 	}
 
 	packageReceipt := receiptPackageFromBuilt(built)
@@ -370,9 +381,6 @@ func installFixture(root string, built builtPackage, fault string) error {
 		return err
 	}
 	finalDirectory := packageDirectory(root, built.Host, built.ArchiveDigest)
-	if err := ensurePhysicalDirectory(root, filepath.Join("packages", built.Host), true); err != nil {
-		return err
-	}
 	stage := pendingStageDirectory(root, built.Host, built.ArchiveDigest)
 	stagePresent, err := physicalDirectoryState(root, pendingStageRelative(built.Host, built.ArchiveDigest))
 	if err != nil {
@@ -380,6 +388,17 @@ func installFixture(root string, built builtPackage, fault string) error {
 	}
 	if stagePresent {
 		return errors.New("journal-free lifecycle stage requires manual recovery")
+	}
+	if err := ensureDurableRoot(root); err != nil {
+		return err
+	}
+	for _, relative := range []string{pendingRelative(built.Host), pendingRemovalRelative(built.Host), receiptRelative(built.Host)} {
+		if err := syncLifecycleRecordParent(root, relative); err != nil {
+			return err
+		}
+	}
+	if err := syncNearestExistingDirectory(root, filepath.Join(root, "packages", built.Host)); err != nil {
+		return err
 	}
 	if _, statErr := os.Lstat(finalDirectory); statErr == nil {
 		if err := verifyInstalledDirectory(root, finalDirectory, packageReceipt); err != nil {
@@ -391,7 +410,7 @@ func installFixture(root string, built builtPackage, fault string) error {
 		if err := writeLifecycleJSON(root, pendingRelative(built.Host), pending); err != nil {
 			return err
 		}
-		if err := os.Mkdir(stage, 0o755); err != nil {
+		if err := makeDurableDirectory(root, pendingStageRelative(built.Host, built.ArchiveDigest)); err != nil {
 			return err
 		}
 		for _, entry := range built.Entries {
@@ -405,7 +424,7 @@ func installFixture(root string, built builtPackage, fault string) error {
 		if fault == "before-publish" {
 			return errFixtureInterrupted
 		}
-		if err := os.Rename(stage, finalDirectory); err != nil {
+		if err := renameDurably(root, pendingStageRelative(built.Host, built.ArchiveDigest), filepath.Join("packages", built.Host, built.ArchiveDigest)); err != nil {
 			return err
 		}
 		if fault == "after-publish" {
@@ -434,6 +453,22 @@ func recoverFixture(root, host string) error {
 	if removalErr != nil && !errors.Is(removalErr, os.ErrNotExist) {
 		return removalErr
 	}
+	if !installPresent && !removalPresent {
+		if _, err := os.Lstat(root); errors.Is(err, os.ErrNotExist) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
+	if err := ensureDurableRoot(root); err != nil {
+		return err
+	}
+	if err := syncLifecycleRecordParent(root, pendingRelative(host)); err != nil {
+		return err
+	}
+	if err := syncLifecycleRecordParent(root, pendingRemovalRelative(host)); err != nil {
+		return err
+	}
 	if installPresent && removalPresent {
 		return errors.New("conflicting install and removal transactions require manual recovery")
 	}
@@ -441,7 +476,10 @@ func recoverFixture(root, host string) error {
 		return completePendingRemoval(root, host, removal, "")
 	}
 	if !installPresent {
-		return nil
+		if err := syncLifecycleRecordParent(root, receiptRelative(host)); err != nil {
+			return err
+		}
+		return syncNearestExistingDirectory(root, filepath.Join(root, "packages", host))
 	}
 	if err := ensurePhysicalDirectory(root, filepath.Join("packages", host), false); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -455,7 +493,10 @@ func recoverFixture(root, host string) error {
 			if err := verifyInstallBaseState(root, host, receipt); err != nil {
 				return err
 			}
-			return os.Remove(pendingPath(root, host))
+			if err := syncNearestExistingDirectory(root, filepath.Join(root, "packages", host)); err != nil {
+				return err
+			}
+			return removeDurably(root, pendingRelative(host), true)
 		}
 		return err
 	}
@@ -477,17 +518,25 @@ func recoverFixture(root, host string) error {
 			return err
 		}
 		if stagePresent {
+			if err := syncDirectoryTree(root, filepath.Dir(pendingStageRelative(host, pending.Package.Digest))); err != nil {
+				return err
+			}
 			if err := cleanupPendingStage(root, host, pending.Package); err != nil {
 				return err
 			}
+		} else if err := syncNearestExistingDirectory(root, filepath.Dir(packageDirectory(root, host, pending.Package.Digest))); err != nil {
+			return err
 		}
 		if err := verifyInstallBaseState(root, host, receipt); err != nil {
 			return err
 		}
-		return os.Remove(pendingPath(root, host))
+		return removeDurably(root, pendingRelative(host), true)
 	}
 	if stagePresent {
 		return errors.New("pending install has both staged and published package trees")
+	}
+	if err := syncRenameDirectories(root, pendingStageRelative(host, pending.Package.Digest), directoryRelative); err != nil {
+		return err
 	}
 	directory := filepath.Join(root, directoryRelative)
 	if err := verifyInstalledDirectory(root, directory, pending.Package); err != nil {
@@ -540,20 +589,25 @@ func cleanupPendingStage(root, host string, receipt receiptPackage) error {
 			return err
 		}
 		name := filepath.Join(stage, filepath.FromSlash(file.Path))
-		if exists {
-			if err := os.Remove(name); err != nil {
-				return err
-			}
+		fileRelative, err := filepath.Rel(root, name)
+		if err != nil {
+			return err
 		}
-		removeEmptyParents(filepath.Dir(name), stage)
+		if err := removeDurably(root, fileRelative, !exists); err != nil {
+			return err
+		}
+		if err := removeEmptyParents(filepath.Dir(name), stage); err != nil {
+			return err
+		}
 	}
-	if err := os.Remove(stage); err != nil && !errors.Is(err, os.ErrNotExist) {
+	stageRelative, err := filepath.Rel(root, stage)
+	if err != nil {
 		return err
 	}
-	return nil
+	return removeDurably(root, stageRelative, true)
 }
 
-func writeStagedRegular(stage string, entry archiveEntry) error {
+func writeStagedRegular(stage string, entry archiveEntry) (result error) {
 	if err := validateArchiveEntries([]archiveEntry{entry}); err != nil {
 		return err
 	}
@@ -561,7 +615,7 @@ func writeStagedRegular(stage string, entry archiveEntry) error {
 	if err != nil {
 		return fmt.Errorf("unsafe staged package path %q: %w", entry.Name, err)
 	}
-	if err := ensurePhysicalDirectory(stage, filepath.Dir(clean), true); err != nil {
+	if err := ensureDurableDirectory(stage, filepath.Dir(clean)); err != nil {
 		return err
 	}
 	target := filepath.Join(stage, clean)
@@ -573,21 +627,43 @@ func writeStagedRegular(stage string, entry archiveEntry) error {
 	if err != nil {
 		return err
 	}
+	fileOpen := true
+	fileLinked := true
+	defer func() {
+		if fileOpen {
+			result = errors.Join(result, file.Close())
+		}
+		if fileLinked {
+			result = errors.Join(result, removeDurably(stage, clean, true))
+		}
+	}()
 	if _, err := file.Write(entry.Data); err != nil {
-		return errors.Join(err, file.Close())
+		return err
 	}
 	if err := file.Chmod(entry.Mode.Perm()); err != nil {
-		return errors.Join(err, file.Close())
+		return err
 	}
 	if err := file.Sync(); err != nil {
-		return errors.Join(err, file.Close())
+		return err
 	}
-	return file.Close()
+	if err := file.Close(); err != nil {
+		fileOpen = false
+		return err
+	}
+	fileOpen = false
+	if err := lifecycleSyncDirectory(filepath.Dir(target)); err != nil {
+		return err
+	}
+	fileLinked = false
+	return nil
 }
 
 func completePending(root, host, fault string) error {
 	pending, err := loadPending(root, host)
 	if err != nil {
+		return err
+	}
+	if err := syncLifecycleRecordParent(root, pendingRelative(host)); err != nil {
 		return err
 	}
 	receipt, err := loadLifecycleReceipt(root, host, false)
@@ -606,7 +682,13 @@ func completePending(root, host, fault string) error {
 		if err := verifyReceiptPackageSet(root, filepath.Join("packages", host), receipt, false); err != nil {
 			return err
 		}
-		return os.Remove(pendingPath(root, host))
+		if err := syncDirectoryTree(root, filepath.Join("packages", host)); err != nil {
+			return err
+		}
+		if err := syncLifecycleRecordParent(root, receiptRelative(host)); err != nil {
+			return err
+		}
+		return removeDurably(root, pendingRelative(host), true)
 	}
 	nextReceipt, err := prospectiveLifecycleReceipt(receipt, pending)
 	if err != nil {
@@ -622,13 +704,16 @@ func completePending(root, host, fault string) error {
 	if err := verifyReceiptPackageSet(root, filepath.Join("packages", host), nextReceipt, false); err != nil {
 		return err
 	}
+	if err := syncDirectoryTree(root, filepath.Join("packages", host)); err != nil {
+		return err
+	}
 	if err := writeLifecycleJSON(root, receiptRelative(host), nextReceipt); err != nil {
 		return err
 	}
 	if fault == "after-receipt" {
 		return errFixtureInterrupted
 	}
-	return os.Remove(pendingPath(root, host))
+	return removeDurably(root, pendingRelative(host), true)
 }
 
 func newPendingInstall(receipt lifecycleReceipt, host string, installed receiptPackage) (pendingInstall, lifecycleReceipt, error) {
@@ -730,6 +815,17 @@ func rollbackFixture(root, host string) error {
 	if err := verifyInstalledDirectory(root, packageDirectory(root, host, previous.Digest), previous); err != nil {
 		return err
 	}
+	if err := ensureDurableRoot(root); err != nil {
+		return err
+	}
+	for _, relative := range []string{pendingRelative(host), pendingRemovalRelative(host)} {
+		if err := syncLifecycleRecordParent(root, relative); err != nil {
+			return err
+		}
+	}
+	if err := syncDirectoryTree(root, filepath.Join("packages", host)); err != nil {
+		return err
+	}
 	receipt.ActiveDigest, receipt.PreviousDigest = receipt.PreviousDigest, receipt.ActiveDigest
 	return writeLifecycleJSON(root, receiptRelative(host), receipt)
 }
@@ -792,6 +888,12 @@ func removeFixtureWithFault(root, host, fault string) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	if err := ensureDurableRoot(root); err != nil {
+		return err
+	}
+	if err := syncLifecycleRecordParent(root, pendingRelative(host)); err != nil {
+		return err
+	}
 
 	removal, err := loadPendingRemoval(root, host)
 	if errors.Is(err, os.ErrNotExist) {
@@ -828,6 +930,12 @@ func completePendingRemoval(root, host string, removal pendingRemoval, fault str
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	if err := syncLifecycleRecordParent(root, pendingRemovalRelative(host)); err != nil {
+		return err
+	}
+	if err := syncLifecycleRecordParent(root, pendingRelative(host)); err != nil {
+		return err
+	}
 
 	receipt, err := loadLifecycleReceipt(root, host, false)
 	if err != nil {
@@ -859,16 +967,27 @@ func completePendingRemoval(root, host string, removal pendingRemoval, fault str
 		if err := verifyReceiptPackageSet(root, sourceRelative, removal.Receipt, false); err != nil {
 			return err
 		}
-		if err := ensurePhysicalDirectory(root, "removing", true); err != nil {
+		if err := ensureDurableDirectory(root, "removing"); err != nil {
 			return err
 		}
-		if err := os.Rename(filepath.Join(root, sourceRelative), filepath.Join(root, quarantineRelative)); err != nil {
+		if err := renameDurably(root, sourceRelative, quarantineRelative); err != nil {
 			return err
 		}
 		sourcePresent = false
 		quarantinePresent = true
 		if fault == "after-removal-rename" {
 			return errFixtureInterrupted
+		}
+	} else if quarantinePresent {
+		if err := syncRenameDirectories(root, sourceRelative, quarantineRelative); err != nil {
+			return err
+		}
+	} else {
+		if err := syncNearestExistingDirectory(root, filepath.Join(root, filepath.Dir(sourceRelative))); err != nil {
+			return err
+		}
+		if err := syncNearestExistingDirectory(root, filepath.Join(root, filepath.Dir(quarantineRelative))); err != nil {
+			return err
 		}
 	}
 
@@ -894,22 +1013,32 @@ func completePendingRemoval(root, host string, removal pendingRemoval, fault str
 					return err
 				}
 				name := filepath.Join(packageRoot, filepath.FromSlash(file.Path))
+				fileRelative, err := filepath.Rel(root, name)
+				if err != nil {
+					return err
+				}
+				if err := removeDurably(root, fileRelative, !exists); err != nil {
+					return err
+				}
 				if exists {
-					if err := os.Remove(name); err != nil {
-						return err
-					}
 					removedFiles++
 					if fault == "after-first-owned-delete" && removedFiles == 1 {
 						return errFixtureInterrupted
 					}
 				}
-				removeEmptyParents(filepath.Dir(name), packageRoot)
+				if err := removeEmptyParents(filepath.Dir(name), packageRoot); err != nil {
+					return err
+				}
 			}
-			if err := os.Remove(packageRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
+			packageRelative, err := filepath.Rel(root, packageRoot)
+			if err != nil {
+				return err
+			}
+			if err := removeDurably(root, packageRelative, true); err != nil {
 				return err
 			}
 		}
-		if err := os.Remove(quarantineRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := removeDurably(root, quarantineRelative, true); err != nil {
 			return err
 		}
 		quarantinePresent = false
@@ -926,30 +1055,55 @@ func completePendingRemoval(root, host string, removal pendingRemoval, fault str
 		if !equalLifecycleReceipt(receipt, removal.Receipt) {
 			return errors.New("lifecycle receipt changed before removal finalization")
 		}
-		if err := os.Remove(receiptPath(root, host)); err != nil {
+		if err := removeDurably(root, receiptRelative(host), false); err != nil {
 			return err
 		}
 		if fault == "after-removal-receipt" {
 			return errFixtureInterrupted
 		}
 	}
-	if err := os.Remove(pendingRemovalPath(root, host)); err != nil {
+	for _, directory := range []string{
+		filepath.Join(root, "packages"),
+		filepath.Join(root, "removing"),
+		filepath.Dir(receiptPath(root, host)),
+	} {
+		if err := removeEmptyParents(directory, root); err != nil {
+			return err
+		}
+	}
+	if err := removeDurably(root, pendingRemovalRelative(host), true); err != nil {
 		return err
 	}
-	removeEmptyParents(filepath.Dir(receiptPath(root, host)), root)
-	removeEmptyParents(filepath.Dir(pendingRemovalPath(root, host)), root)
-	removeEmptyParents(filepath.Join(root, "packages"), root)
-	removeEmptyParents(filepath.Join(root, "removing"), root)
 	return nil
 }
 
-func removeEmptyParents(directory, stop string) {
+func removeEmptyParents(directory, stop string) error {
 	for directory != stop && directory != "." && directory != string(filepath.Separator) {
-		if err := os.Remove(directory); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return
+		relative, err := filepath.Rel(stop, directory)
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return errors.New("empty-parent cleanup escapes its stop boundary")
+		}
+		if err := removeDurably(stop, relative, true); err != nil {
+			info, statErr := os.Lstat(directory)
+			if statErr == nil && info.IsDir() && info.Mode()&fs.ModeSymlink == 0 {
+				entries, readErr := os.ReadDir(directory)
+				if readErr == nil && len(entries) != 0 {
+					return nil
+				}
+			}
+			return err
 		}
 		directory = filepath.Dir(directory)
 	}
+	return nil
+}
+
+func syncLifecycleRecordParent(root, relative string) error {
+	clean, err := cleanRelativePath(filepath.ToSlash(relative))
+	if err != nil {
+		return err
+	}
+	return syncNearestExistingDirectory(root, filepath.Join(root, filepath.Dir(clean)))
 }
 
 func validateBuiltPackage(built builtPackage) error {
@@ -1631,7 +1785,7 @@ func writeLifecycleJSON(root, relative string, value any) error {
 	if err != nil {
 		return err
 	}
-	return writeRegular(root, relative, data)
+	return writeDurableRegular(root, relative, data)
 }
 
 func validateLifecycleJSONBound(value any) error {
