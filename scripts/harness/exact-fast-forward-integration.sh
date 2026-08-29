@@ -170,6 +170,8 @@ validate_repository()
 		.archived == false and
 		.disabled == false
 	' >/dev/null || fail 'repository identity or state is outside the approved contract'
+	printf '%s\n' "$1" | jq -e '.delete_branch_on_merge == false' >/dev/null ||
+		fail 'automatic source-branch deletion is enabled'
 }
 
 repository_contract_for()

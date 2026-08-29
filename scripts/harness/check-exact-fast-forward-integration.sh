@@ -116,15 +116,21 @@ case "$method:$endpoint" in
 	GET:repos/$FAKE_REPO)
 		repository_call=$(next_count repository-calls)
 		allow_auto_merge=false
+		delete_branch_on_merge=false
 		if test "$FAKE_SCENARIO" = post_confirmation_repository_change && test "$repository_call" -eq 2; then
 			allow_auto_merge=true
 		fi
-		jq -n --arg repo "$FAKE_REPO" --argjson allow_auto_merge "$allow_auto_merge" '{
+		if test "$FAKE_SCENARIO" = automatic_branch_deletion_enabled ||
+			{ test "$FAKE_SCENARIO" = post_confirmation_branch_deletion_change && test "$repository_call" -eq 2; }; then
+			delete_branch_on_merge=true
+		fi
+		jq -n --arg repo "$FAKE_REPO" --argjson allow_auto_merge "$allow_auto_merge" \
+			--argjson delete_branch_on_merge "$delete_branch_on_merge" '{
 			full_name:$repo, owner:{type:"User"}, fork:false,
 			default_branch:"main", archived:false, disabled:false,
 			allow_merge_commit:true, allow_squash_merge:true,
 			allow_rebase_merge:true, allow_auto_merge:$allow_auto_merge,
-			delete_branch_on_merge:false, allow_update_branch:false
+			delete_branch_on_merge:$delete_branch_on_merge, allow_update_branch:false
 		}'
 		;;
 	GET:repos/$FAKE_REPO/actions/variables/L7_ACCOUNTABLE_OWNER)
@@ -571,9 +577,11 @@ expect_failure ambiguous_check terminal "$head" 'required check is absent, stale
 expect_failure tied_check_time terminal "$head" 'required check is absent, stale, ambiguous, wrong-app, or unsuccessful: Go 1.26.7 (baseline)' none
 expect_failure missing_check_time terminal "$head" 'required check is absent, stale, ambiguous, wrong-app, or unsuccessful: Go 1.26.7 (baseline)' none
 expect_failure unsafe_protection terminal "$head" 'main protection does not match the approved contract' none
+expect_failure automatic_branch_deletion_enabled terminal "$head" 'automatic source-branch deletion is enabled' none
 expect_failure valid nonterminal "$head" 'active terminal input and output are required' none
 expect_failure valid terminal "$race" 'confirmation did not equal the complete candidate SHA' none
 expect_failure post_confirmation_repository_change terminal "$head" 'repository settings changed after confirmation' none
+expect_failure post_confirmation_branch_deletion_change terminal "$head" 'automatic source-branch deletion is enabled' none
 expect_failure post_confirmation_admin_change terminal "$head" 'active actor is not the sole direct repository administrator' none
 expect_failure post_confirmation_ruleset_change terminal "$head" 'repository rulesets make the bypass scope ambiguous' none
 expect_failure post_confirmation_pr_change terminal "$head" 'pull request is not the exact open, clean, unmerged candidate' none
@@ -615,4 +623,4 @@ fi
 test "$(sed -n '1p' "$state_dir/main")" = "$head" || fail 'valid scenario did not leave main at the exact head'
 test "$(sed -n '1p' "$state_dir/admins")" = true || fail 'valid scenario did not restore administrator enforcement'
 
-printf 'check-exact-fast-forward-integration: PASS (3 malformed-input probes, 21 failure scenarios, 2 ordered success scenarios)\n'
+printf 'check-exact-fast-forward-integration: PASS (3 malformed-input probes, 23 failure scenarios, 2 ordered success scenarios)\n'
