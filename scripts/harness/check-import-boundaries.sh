@@ -90,7 +90,7 @@ while IFS="$tab" read -r mode source_prefix forbidden_prefix rule; do
 		esac
 		for imported in $imports; do
 			case $forbidden_prefix in
-				os|net|time|math/rand|crypto/rand|runtime|syscall) forbidden_path=$forbidden_prefix ;;
+				os|os/exec|net|time|math/rand|crypto/rand|runtime|syscall) forbidden_path=$forbidden_prefix ;;
 				*) forbidden_path="$module/$forbidden_prefix" ;;
 			esac
 			if matches_prefix "$imported" "$forbidden_path"; then

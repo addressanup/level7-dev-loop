@@ -123,3 +123,9 @@ effect	internal/l7/adapter/ci	math/rand	BND-611
 effect	internal/l7/adapter/ci	crypto/rand	BND-611
 effect	internal/l7/adapter/ci	runtime	BND-611
 effect	internal/l7/adapter/ci	syscall	BND-611
+transitive	internal/harness/distribution	internal/l7	BND-701
+transitive	internal/harness/distribution	internal/evaluator	BND-701
+transitive	internal/harness/distribution	internal/render	BND-701
+effect	internal/harness/distribution	net	BND-702
+effect	internal/harness/distribution	os/exec	BND-702
+effect	internal/harness/distribution	syscall	BND-702
