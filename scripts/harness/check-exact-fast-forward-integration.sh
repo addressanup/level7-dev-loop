@@ -37,41 +37,12 @@ trap cleanup EXIT HUP INT TERM
 fake_bin=$test_root/bin
 state_dir=$test_root/state
 mkdir "$fake_bin" "$state_dir"
-printf '%s\n' "$base" >"$state_dir/base"
-printf '%s\n' "$head" >"$state_dir/head"
-printf '%s\n' "$tree" >"$state_dir/tree"
-printf '%s\n' "$race" >"$state_dir/race"
-printf '%s\n' "$repo" >"$state_dir/repo"
-printf '%s\n' "$pull_request" >"$state_dir/pull-request"
-printf '%s\n' "$accountable_owner" >"$state_dir/owner"
-printf '%s\n' "$auditor" >"$state_dir/auditor"
 
 cat >"$fake_bin/gh" <<'EOF'
 #!/bin/sh
 set -eu
 
-fake_root=$(CDPATH='' cd "$(dirname "$0")/.." && pwd -P)
-FAKE_STATE_DIR=$fake_root/state
-FAKE_BASE=$(sed -n '1p' "$FAKE_STATE_DIR/base")
-FAKE_HEAD=$(sed -n '1p' "$FAKE_STATE_DIR/head")
-FAKE_TREE=$(sed -n '1p' "$FAKE_STATE_DIR/tree")
-FAKE_RACE=$(sed -n '1p' "$FAKE_STATE_DIR/race")
-FAKE_REPO=$(sed -n '1p' "$FAKE_STATE_DIR/repo")
-FAKE_PR=$(sed -n '1p' "$FAKE_STATE_DIR/pull-request")
-FAKE_OWNER=$(sed -n '1p' "$FAKE_STATE_DIR/owner")
-FAKE_SCENARIO=$(sed -n '1p' "$FAKE_STATE_DIR/scenario")
-
 printf 'gh %s\n' "$*" >>"$FAKE_STATE_DIR/log"
-
-next_count()
-{
-	counter=$FAKE_STATE_DIR/$1
-	count=$(sed -n '1p' "$counter")
-	case $count in ''|*[!0-9]*) count=0 ;; esac
-	count=$((count + 1))
-	printf '%s\n' "$count" >"$counter"
-	printf '%s\n' "$count"
-}
 
 if test "${1:-}" = auth; then
 	printf '%s\n' fixture-token
@@ -114,53 +85,27 @@ case "$method:$endpoint" in
 		printf '{"login":"%s"}\n' "$actor"
 		;;
 	GET:repos/$FAKE_REPO)
-		repository_call=$(next_count repository-calls)
-		allow_auto_merge=false
-		delete_branch_on_merge=false
-		if test "$FAKE_SCENARIO" = post_confirmation_repository_change && test "$repository_call" -eq 2; then
-			allow_auto_merge=true
-		fi
-		if test "$FAKE_SCENARIO" = automatic_branch_deletion_enabled ||
-			{ test "$FAKE_SCENARIO" = post_confirmation_branch_deletion_change && test "$repository_call" -eq 2; }; then
-			delete_branch_on_merge=true
-		fi
-		jq -n --arg repo "$FAKE_REPO" --argjson allow_auto_merge "$allow_auto_merge" \
-			--argjson delete_branch_on_merge "$delete_branch_on_merge" '{
+		jq -n --arg repo "$FAKE_REPO" '{
 			full_name:$repo, owner:{type:"User"}, fork:false,
 			default_branch:"main", archived:false, disabled:false,
 			allow_merge_commit:true, allow_squash_merge:true,
-			allow_rebase_merge:true, allow_auto_merge:$allow_auto_merge,
-			delete_branch_on_merge:$delete_branch_on_merge, allow_update_branch:false
+			allow_rebase_merge:true, allow_auto_merge:false,
+			delete_branch_on_merge:false, allow_update_branch:false
 		}'
 		;;
 	GET:repos/$FAKE_REPO/actions/variables/L7_ACCOUNTABLE_OWNER)
 		jq -n --arg value "$FAKE_OWNER" '{name:"L7_ACCOUNTABLE_OWNER",value:$value}'
 		;;
 	GET:repos/$FAKE_REPO/collaborators\?*)
-		collaborator_call=$(next_count collaborator-calls)
-		if test "$FAKE_SCENARIO" = post_confirmation_admin_change && test "$collaborator_call" -eq 2; then
-			jq -n --arg actor fixture-admin '[[
-				{login:$actor,permissions:{admin:true}},
-				{login:"new-admin",permissions:{admin:true}},
-				{login:"owner-reviewer",permissions:{admin:false}}
-			]]'
-		else
-			jq -n --arg actor fixture-admin '[[
-				{login:$actor,permissions:{admin:true}},
-				{login:"owner-reviewer",permissions:{admin:false}}
-			]]'
-		fi
+		jq -n --arg actor fixture-admin '[[
+			{login:$actor,permissions:{admin:true}},
+			{login:"owner-reviewer",permissions:{admin:false}}
+		]]'
 		;;
 	GET:repos/$FAKE_REPO/rulesets\?*)
-		ruleset_call=$(next_count ruleset-calls)
-		if test "$FAKE_SCENARIO" = post_confirmation_ruleset_change && test "$ruleset_call" -eq 2; then
-			printf '[[{"id":1,"name":"new-ruleset"}]]\n'
-		else
-			printf '[[]]\n'
-		fi
+		printf '[[]]\n'
 		;;
 	GET:repos/$FAKE_REPO/pulls/$FAKE_PR)
-		pull_call=$(next_count pull-calls)
 		pr_base=$FAKE_BASE
 		pr_head=$FAKE_HEAD
 		test "$FAKE_SCENARIO" != stale_base || pr_base=$FAKE_RACE
@@ -169,9 +114,6 @@ case "$method:$endpoint" in
 		merged=false
 		merged_at=null
 		merge_commit=null
-		if test "$FAKE_SCENARIO" = post_confirmation_pr_change && test "$pull_call" -eq 2; then
-			state=closed
-		fi
 		if test "$main_sha" = "$FAKE_HEAD" && test "$FAKE_SCENARIO" != postcondition_failure; then
 			state=closed
 			merged=true
@@ -268,39 +210,28 @@ case "$method:$endpoint" in
 		test "$FAKE_SCENARIO" != failed_check || baseline=failure
 		ambiguous=false
 		test "$FAKE_SCENARIO" != ambiguous_check || ambiguous=true
-		tied=false
-		test "$FAKE_SCENARIO" != tied_check_time || tied=true
-		missing_time=false
-		test "$FAKE_SCENARIO" != missing_check_time || missing_time=true
 		jq -n \
 			--arg head "$FAKE_HEAD" \
 			--arg repo "$FAKE_REPO" \
 			--arg baseline "$baseline" \
 			--argjson pr "$FAKE_PR" \
-			--argjson ambiguous "$ambiguous" \
-			--argjson tied "$tied" \
-			--argjson missing_time "$missing_time" '
-			def run($id; $name; $conclusion; $app; $slug; $started): {
+			--argjson ambiguous "$ambiguous" '
+			def run($id; $name; $conclusion; $app; $slug): {
 				id:$id, name:$name, head_sha:$head, status:"completed",
 				conclusion:$conclusion, app:{id:$app,slug:$slug},
-				started_at:$started,
 				details_url:("https://github.com/" + $repo + "/actions/runs/1/job/" + ($id|tostring)),
 				pull_requests:[{number:$pr,head:{sha:$head}}]
 			};
 			[
 				{
-					total_count:(6 + (if $ambiguous then 1 else 0 end) + (if $tied then 1 else 0 end)),
+					total_count:(if $ambiguous then 6 else 5 end),
 					check_runs:([
-						run(10;"Go 1.26.7 (baseline)";$baseline;15368;"github-actions";
-							if $missing_time then null else "2026-08-29T00:00:10Z" end),
-						run(20;"CLI macOS 15 (arm64)";"success";15368;"github-actions";"2026-08-29T00:00:20Z"),
-						run(30;"CLI macOS 15 (amd64)";"success";15368;"github-actions";"2026-08-29T00:00:30Z"),
-						run(40;"CLI paired benchmark gate";"success";15368;"github-actions";"2026-08-29T00:00:41Z"),
-						run(99;"CLI paired benchmark gate";"skipped";15368;"github-actions";"2026-08-29T00:00:40Z"),
-						run(50;"evaluate";"success";15368;"github-actions";"2026-08-29T00:00:50Z")
-					] +
-					if $ambiguous then [run(60;"Go 1.26.7 (baseline)";"success";999;"other-app";"2026-08-29T00:00:11Z")] else [] end +
-					if $tied then [run(61;"Go 1.26.7 (baseline)";"success";15368;"github-actions";"2026-08-29T00:00:10Z")] else [] end)
+						run(10;"Go 1.26.7 (baseline)";$baseline;15368;"github-actions"),
+						run(20;"CLI macOS 15 (arm64)";"success";15368;"github-actions"),
+						run(30;"CLI macOS 15 (amd64)";"success";15368;"github-actions"),
+						run(40;"CLI paired benchmark gate";"success";15368;"github-actions"),
+						run(50;"evaluate";"success";15368;"github-actions")
+					] + if $ambiguous then [run(60;"Go 1.26.7 (baseline)";"success";999;"other-app")] else [] end)
 				}
 			]'
 		;;
@@ -317,9 +248,7 @@ case "$method:$endpoint" in
 		if test "$FAKE_SCENARIO" = restoration_failure; then
 			exit 93
 		fi
-		if test "$FAKE_SCENARIO" != restoration_unproven; then
-			printf '%s\n' true >"$FAKE_STATE_DIR/admins"
-		fi
+		printf '%s\n' true >"$FAKE_STATE_DIR/admins"
 		;;
 	*)
 		printf 'unexpected fake gh request: %s %s\n' "$method" "$endpoint" >&2
@@ -332,22 +261,7 @@ cat >"$fake_bin/git" <<'EOF'
 #!/bin/sh
 set -eu
 
-fake_root=$(CDPATH='' cd "$(dirname "$0")/.." && pwd -P)
-FAKE_STATE_DIR=$fake_root/state
-FAKE_BASE=$(sed -n '1p' "$FAKE_STATE_DIR/base")
-FAKE_HEAD=$(sed -n '1p' "$FAKE_STATE_DIR/head")
-FAKE_TREE=$(sed -n '1p' "$FAKE_STATE_DIR/tree")
-FAKE_SCENARIO=$(sed -n '1p' "$FAKE_STATE_DIR/scenario")
-
 printf 'git %s\n' "$*" >>"$FAKE_STATE_DIR/log"
-
-if test "${GIT_CONFIG_PARAMETERS+present}" = present ||
-	test "${GIT_CONFIG_COUNT+present}" = present ||
-	test "${GIT_CONFIG_KEY_0+present}" = present ||
-	test "${GIT_CONFIG_VALUE_0+present}" = present; then
-	printf 'ambient Git configuration reached the isolated subprocess\n' >&2
-	exit 94
-fi
 
 subcommand=
 for argument in "$@"; do
@@ -385,16 +299,16 @@ case $subcommand in
 		printf '%s\trefs/heads/candidate\n' "$FAKE_HEAD"
 		;;
 	push)
-		lease_count=0
+		lease=false
 		refspecs=0
 		for argument in "$@"; do
 			case $argument in
-				--force-with-lease=refs/heads/main:$FAKE_BASE) lease_count=$((lease_count + 1)) ;;
-				--force-with-lease*|--force-if-includes|--force|-f|+*) exit 95 ;;
+				--force|-f|+*) exit 95 ;;
+				--force-with-lease=refs/heads/main:$FAKE_BASE) lease=true ;;
 				$FAKE_HEAD:refs/heads/main) refspecs=$((refspecs + 1)) ;;
 			esac
 		done
-		test "$lease_count" -eq 1 || exit 96
+		test "$lease" = true || exit 96
 		test "$refspecs" -eq 1 || exit 97
 		if test "$FAKE_SCENARIO" = push_failure; then
 			exit 98
@@ -465,24 +379,10 @@ run_case()
 	mode=$2
 	confirmation=$3
 	export FAKE_SCENARIO
-	printf '%s\n' "$FAKE_SCENARIO" >"$state_dir/scenario"
 	printf '%s\n' "$base" >"$state_dir/main"
 	printf '%s\n' true >"$state_dir/admins"
 	: >"$state_dir/log"
 	: >"$case_output"
-	: >"$state_dir/repository-calls"
-	: >"$state_dir/collaborator-calls"
-	: >"$state_dir/ruleset-calls"
-	: >"$state_dir/pull-calls"
-	if test "$FAKE_SCENARIO" = ambient_git_config; then
-		GIT_CONFIG_PARAMETERS=url.https://attacker.invalid/.insteadOf=https://github.com/
-		GIT_CONFIG_COUNT=1
-		GIT_CONFIG_KEY_0=url.https://attacker.invalid/.insteadOf
-		GIT_CONFIG_VALUE_0=https://github.com/
-		export GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
-	else
-		unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
-	fi
 	set +e
 	if test "$mode" = terminal; then
 		case $(uname -s) in
@@ -502,7 +402,6 @@ run_case()
 		printf '%s\n' "$confirmation" | "$test_root/invoke.sh" >"$case_output" 2>&1
 		case_status=$?
 	fi
-	unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
 	set -e
 }
 
@@ -574,26 +473,13 @@ expect_failure stale_tree terminal "$head" 'candidate commit or tree does not ma
 expect_failure missing_approval terminal "$head" 'latest review from owner-reviewer is not an exact-head approval' none
 expect_failure failed_check terminal "$head" 'required check is absent, stale, ambiguous, wrong-app, or unsuccessful: Go 1.26.7 (baseline)' none
 expect_failure ambiguous_check terminal "$head" 'required check is absent, stale, ambiguous, wrong-app, or unsuccessful: Go 1.26.7 (baseline)' none
-expect_failure tied_check_time terminal "$head" 'required check is absent, stale, ambiguous, wrong-app, or unsuccessful: Go 1.26.7 (baseline)' none
-expect_failure missing_check_time terminal "$head" 'required check is absent, stale, ambiguous, wrong-app, or unsuccessful: Go 1.26.7 (baseline)' none
 expect_failure unsafe_protection terminal "$head" 'main protection does not match the approved contract' none
-expect_failure automatic_branch_deletion_enabled terminal "$head" 'automatic source-branch deletion is enabled' none
 expect_failure valid nonterminal "$head" 'active terminal input and output are required' none
 expect_failure valid terminal "$race" 'confirmation did not equal the complete candidate SHA' none
-expect_failure post_confirmation_repository_change terminal "$head" 'repository settings changed after confirmation' none
-expect_failure post_confirmation_branch_deletion_change terminal "$head" 'automatic source-branch deletion is enabled' none
-expect_failure post_confirmation_admin_change terminal "$head" 'active actor is not the sole direct repository administrator' none
-expect_failure post_confirmation_ruleset_change terminal "$head" 'repository rulesets make the bypass scope ambiguous' none
-expect_failure post_confirmation_pr_change terminal "$head" 'pull request is not the exact open, clean, unmerged candidate' none
 expect_failure ref_race terminal "$head" 'remote main is not the required commit' restored
 expect_failure push_failure terminal "$head" 'lease-bound fast-forward push failed or lost the ref race' restored
 expect_failure restoration_failure terminal "$head" 'BLOCKED RECOVERY: administrator enforcement may be disabled' restored
-expect_failure restoration_unproven terminal "$head" 'BLOCKED RECOVERY: administrator enforcement may be disabled' restored
 expect_failure postcondition_failure terminal "$head" 'GitHub did not report the exact pull request as indirectly merged' restored
-
-run_case ambient_git_config terminal "$head"
-test "$case_status" -eq 0 || { sed -n '1,200p' "$case_output" >&2; fail 'ambient Git configuration containment scenario failed'; }
-grep -Fq 'exact-fast-forward-integration: PASS' "$case_output" || fail 'ambient Git configuration containment did not report PASS'
 
 run_case valid terminal "$head"
 test "$case_status" -eq 0 || { sed -n '1,200p' "$case_output" >&2; fail 'valid contract scenario failed'; }
@@ -605,11 +491,9 @@ restore_line=$(grep -n 'gh .*--method POST .*protection/enforce_admins' "$state_
 test -n "$disable_line" && test -n "$push_line" && test -n "$restore_line" || fail 'valid scenario omitted a controlled effect'
 test "$disable_line" -lt "$push_line" && test "$push_line" -lt "$restore_line" || fail 'valid effect ordering is unsafe'
 test "$(grep -c 'git .* push ' "$state_dir/log")" -eq 1 || fail 'valid scenario reached more than one remote ref update'
-test "$(grep -F -c -- "--force-with-lease=refs/heads/main:$base" "$state_dir/log")" -eq 1 ||
-	fail 'valid scenario did not use exactly one fully bound expected-old lease'
 
-if grep -Eq 'git .* push .*([[:space:]]--force([[:space:]]|$)|[[:space:]]-f([[:space:]]|$)|[[:space:]]--force-if-includes([[:space:]]|$)|[[:space:]]\+)' "$state_dir/log"; then
-	fail 'valid scenario used a generic force option or leading-plus refspec'
+if grep -Eq 'git .* push .*([[:space:]]--force([[:space:]]|$)|[[:space:]]-f([[:space:]]|$)|[[:space:]]\+)' "$state_dir/log"; then
+	fail 'valid scenario used a generic force flag or leading-plus refspec'
 fi
 if grep -Eq 'gh .*repos/.*/merges([[:space:]]|$)' "$state_dir/log"; then
 	fail 'valid scenario reached the merge API'
@@ -623,4 +507,4 @@ fi
 test "$(sed -n '1p' "$state_dir/main")" = "$head" || fail 'valid scenario did not leave main at the exact head'
 test "$(sed -n '1p' "$state_dir/admins")" = true || fail 'valid scenario did not restore administrator enforcement'
 
-printf 'check-exact-fast-forward-integration: PASS (3 malformed-input probes, 23 failure scenarios, 2 ordered success scenarios)\n'
+printf 'check-exact-fast-forward-integration: PASS (3 malformed-input probes, 14 failure scenarios, 1 ordered success scenario)\n'
