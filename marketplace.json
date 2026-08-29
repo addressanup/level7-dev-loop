@@ -1,5 +1,5 @@
 {
-  "name": "level7-engineering",
+  "name": "level7-engineering-development",
   "owner": {
     "name": "Level 7 Engineering"
   },
@@ -7,7 +7,19 @@
     {
       "name": "level7-dev-loop",
       "source": ".",
-      "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed."
+      "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed.",
+      "version": "0.1.0-dev.5",
+      "author": {
+        "name": "Level 7 Engineering"
+      },
+      "repository": "https://github.com/addressanup/level7-dev-loop",
+      "license": "MIT",
+      "category": "Development Tools",
+      "tags": [
+        "workflow",
+        "risk-tier"
+      ],
+      "strict": true
     }
   ]
 }

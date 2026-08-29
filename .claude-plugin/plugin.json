@@ -1,10 +1,14 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "level7-dev-loop",
-  "version": "1.0.0",
+  "displayName": "Level 7 Dev Loop",
+  "version": "0.1.0-dev.5",
   "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed.",
   "author": {
     "name": "Level 7 Engineering"
   },
+  "homepage": "https://github.com/addressanup/level7-dev-loop#readme",
+  "repository": "https://github.com/addressanup/level7-dev-loop",
   "license": "MIT",
   "keywords": [
     "workflow",

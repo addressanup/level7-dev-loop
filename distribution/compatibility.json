@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "artifact_schema": "lean-risk-v1",
+  "entries": [
+    {
+      "host": "codex",
+      "host_product": "Codex CLI",
+      "declared_surface": "development package layout and local marketplace metadata",
+      "adapter_fixture_version": "codex-cli 0.149.1",
+      "qualification_target": "codex-cli 0.150.1",
+      "operating_systems": [
+        {
+          "goos": "darwin",
+          "goarch": "arm64",
+          "package_build": "TESTED",
+          "host_runtime": "NOT_RUN"
+        },
+        {
+          "goos": "darwin",
+          "goarch": "amd64",
+          "package_build": "TESTED",
+          "host_runtime": "NOT_RUN"
+        }
+      ],
+      "required_capabilities": [
+        ".codex-plugin/plugin.json",
+        "skills/<name>/SKILL.md"
+      ],
+      "optional_capabilities": [],
+      "degraded_behavior": "Missing, mismatched, or unobserved host behavior withholds support and permits no provider execution claim.",
+      "provider_execution": "NOT_RUN",
+      "actual_host_lifecycle": "NOT_RUN",
+      "rollback": "Preview package-manager-owned state and remove only exact Level 7-owned development package bytes.",
+      "support_claim": "WITHHELD"
+    },
+    {
+      "host": "claude",
+      "host_product": "Claude Code",
+      "declared_surface": "development package layout and local marketplace metadata",
+      "adapter_fixture_version": "2.1.241",
+      "qualification_target": "2.1.247 (Claude Code)",
+      "operating_systems": [
+        {
+          "goos": "darwin",
+          "goarch": "arm64",
+          "package_build": "TESTED",
+          "host_runtime": "NOT_RUN"
+        },
+        {
+          "goos": "darwin",
+          "goarch": "amd64",
+          "package_build": "TESTED",
+          "host_runtime": "NOT_RUN"
+        }
+      ],
+      "required_capabilities": [
+        ".claude-plugin/plugin.json",
+        "skills/<name>/SKILL.md"
+      ],
+      "optional_capabilities": [],
+      "degraded_behavior": "Missing, mismatched, or unobserved host behavior withholds support and permits no provider execution claim.",
+      "provider_execution": "NOT_RUN",
+      "actual_host_lifecycle": "NOT_RUN",
+      "rollback": "Preview package-manager-owned state and remove only exact Level 7-owned development package bytes.",
+      "support_claim": "WITHHELD"
+    }
+  ]
+}
