@@ -450,26 +450,63 @@ func validateHost(name string, host hostDescriptor, manifest, catalog string) er
 }
 
 func validateCompatibility(matrix compatibilityMatrix) error {
-	if matrix.Schema != 1 || matrix.ArtifactSchema != "lean-risk-v1" || len(matrix.Entries) != 2 || matrix.Entries[0].Host != "codex" || matrix.Entries[1].Host != "claude" {
+	expected := expectedCompatibilityEntries()
+	if matrix.Schema != 1 || matrix.ArtifactSchema != "lean-risk-v1" || len(matrix.Entries) != len(expected) {
 		return errors.New("compatibility matrix identity or host ordering is invalid")
 	}
-	for _, entry := range matrix.Entries {
-		if entry.HostProduct == "" || entry.DeclaredSurface == "" || entry.AdapterFixtureVersion == "" || entry.QualificationTarget == "" ||
-			len(entry.OperatingSystems) != 2 || len(entry.RequiredCapabilities) == 0 || entry.ProviderExecution != "NOT_RUN" ||
-			entry.ActualHostLifecycle != "NOT_RUN" || entry.SupportClaim != "WITHHELD" || entry.DegradedBehavior == "" || entry.Rollback == "" {
-			return fmt.Errorf("compatibility entry %s makes an incomplete or promoted claim", entry.Host)
-		}
-		if entry.OperatingSystems[0].GOOS != "darwin" || entry.OperatingSystems[0].GOARCH != "arm64" ||
-			entry.OperatingSystems[1].GOOS != "darwin" || entry.OperatingSystems[1].GOARCH != "amd64" {
-			return fmt.Errorf("compatibility entry %s has an unexpected platform matrix", entry.Host)
-		}
-		for _, operatingSystem := range entry.OperatingSystems {
-			if operatingSystem.PackageBuild != "TESTED" || operatingSystem.HostRuntime != "NOT_RUN" {
-				return fmt.Errorf("compatibility entry %s has an invalid evidence state", entry.Host)
-			}
+	for index := range expected {
+		if !equalCompatibilityEntry(matrix.Entries[index], expected[index]) {
+			return fmt.Errorf("compatibility entry %d does not match the exact %s development boundary", index, expected[index].Host)
 		}
 	}
 	return nil
+}
+
+func expectedCompatibilityEntries() []compatibilityEntry {
+	platforms := []operatingSystem{
+		{GOOS: "darwin", GOARCH: "arm64", PackageBuild: "TESTED", HostRuntime: "NOT_RUN"},
+		{GOOS: "darwin", GOARCH: "amd64", PackageBuild: "TESTED", HostRuntime: "NOT_RUN"},
+	}
+	const (
+		declaredSurface = "development package layout and local marketplace metadata"
+		degraded        = "Missing, mismatched, or unobserved host behavior withholds support and permits no provider execution claim."
+		rollback        = "Preview package-manager-owned state and remove only exact Level 7-owned development package bytes."
+	)
+	return []compatibilityEntry{
+		{
+			Host: "codex", HostProduct: "Codex CLI", DeclaredSurface: declaredSurface,
+			AdapterFixtureVersion: "codex-cli 0.149.1", QualificationTarget: "codex-cli 0.150.1",
+			OperatingSystems:     append([]operatingSystem{}, platforms...),
+			RequiredCapabilities: []string{".codex-plugin/plugin.json", "skills/<name>/SKILL.md"},
+			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "NOT_RUN",
+			ActualHostLifecycle: "NOT_RUN", Rollback: rollback, SupportClaim: "WITHHELD",
+		},
+		{
+			Host: "claude", HostProduct: "Claude Code", DeclaredSurface: declaredSurface,
+			AdapterFixtureVersion: "2.1.241", QualificationTarget: "2.1.247 (Claude Code)",
+			OperatingSystems:     append([]operatingSystem{}, platforms...),
+			RequiredCapabilities: []string{".claude-plugin/plugin.json", "skills/<name>/SKILL.md"},
+			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "NOT_RUN",
+			ActualHostLifecycle: "NOT_RUN", Rollback: rollback, SupportClaim: "WITHHELD",
+		},
+	}
+}
+
+func equalCompatibilityEntry(first, second compatibilityEntry) bool {
+	return first.Host == second.Host &&
+		first.HostProduct == second.HostProduct &&
+		first.DeclaredSurface == second.DeclaredSurface &&
+		first.AdapterFixtureVersion == second.AdapterFixtureVersion &&
+		first.QualificationTarget == second.QualificationTarget &&
+		slices.Equal(first.OperatingSystems, second.OperatingSystems) &&
+		slices.Equal(first.RequiredCapabilities, second.RequiredCapabilities) &&
+		(first.OptionalCapabilities == nil) == (second.OptionalCapabilities == nil) &&
+		slices.Equal(first.OptionalCapabilities, second.OptionalCapabilities) &&
+		first.DegradedBehavior == second.DegradedBehavior &&
+		first.ProviderExecution == second.ProviderExecution &&
+		first.ActualHostLifecycle == second.ActualHostLifecycle &&
+		first.Rollback == second.Rollback &&
+		first.SupportClaim == second.SupportClaim
 }
 
 func renderRootFiles(descriptor packageDescriptor) (map[string][]byte, error) {

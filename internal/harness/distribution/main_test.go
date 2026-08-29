@@ -45,6 +45,85 @@ func TestCurrentRepositoryDistributionCheck(t *testing.T) {
 	}
 }
 
+func TestDistributionMetadataRemainsBound(t *testing.T) {
+	inputs, err := loadInputs(distributionRepositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	packages, err := buildPackages(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedDigests := map[string]string{
+		"codex":  "9e54fff83a4ef3812bcfeb8737ec095305c828c7fd33e35926ae54588df39fd0",
+		"claude": "718ea9366ac6d286a954e655275f994de9d6e9fd2679123efda903c8f6881acb",
+	}
+	for _, built := range packages {
+		t.Run(built.Host, func(t *testing.T) {
+			if err := validateBuiltPackage(built); err != nil {
+				t.Fatal(err)
+			}
+			if built.ArchiveDigest != expectedDigests[built.Host] {
+				t.Fatalf("archive digest changed: %s", built.ArchiveDigest)
+			}
+
+			distributionData := requirePackageEntry(t, built, "DISTRIBUTION.json")
+			var metadata distributionMetadata
+			if err := decodeStrict(distributionData, &metadata); err != nil {
+				t.Fatal(err)
+			}
+			_, host, err := hostInputs(inputs, built.Host)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := distributionMetadata{
+				Schema: 1, Name: inputs.Descriptor.Name, Version: inputs.Descriptor.Version,
+				Channel: inputs.Descriptor.Channel, Host: built.Host, ManifestPath: host.ManifestPath,
+				CatalogPath: host.CatalogPath, SourceDigest: metadata.SourceDigest, Builder: builderVersion,
+				SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
+			}
+			if metadata != want || !sha256Pattern.MatchString(metadata.SourceDigest) {
+				t.Fatalf("distribution metadata is not exactly bound: got=%+v want=%+v", metadata, want)
+			}
+
+			var provenance provenanceInput
+			if err := decodeStrict(requirePackageEntry(t, built, "PROVENANCE.input.json"), &provenance); err != nil {
+				t.Fatal(err)
+			}
+			if provenance.Package != metadata.Name || provenance.Version != metadata.Version || provenance.Host != metadata.Host ||
+				provenance.SourceDigest != metadata.SourceDigest || provenance.Builder != metadata.Builder {
+				t.Fatalf("provenance identity diverged from distribution metadata: %+v", provenance)
+			}
+
+			var sbom sbomDocument
+			if err := decodeStrict(requirePackageEntry(t, built, "SBOM.spdx.json"), &sbom); err != nil {
+				t.Fatal(err)
+			}
+			if len(sbom.Packages) != 1 || sbom.Packages[0].VersionInfo != metadata.Version || len(sbom.Packages[0].Checksums) != 1 ||
+				sbom.Packages[0].Checksums[0].Algorithm != "SHA256" || sbom.Packages[0].Checksums[0].ChecksumValue != metadata.SourceDigest {
+				t.Fatalf("SBOM identity diverged from distribution metadata: %+v", sbom.Packages)
+			}
+
+			var manifest inventory
+			if err := decodeStrict(requirePackageEntry(t, built, "INVENTORY.json"), &manifest); err != nil {
+				t.Fatal(err)
+			}
+			matches := 0
+			for _, file := range manifest.Files {
+				if file.Path == "DISTRIBUTION.json" {
+					matches++
+					if file.Mode != "0644" || file.Size != len(distributionData) || file.SHA256 != sha256Hex(distributionData) {
+						t.Fatalf("distribution inventory binding is invalid: %+v", file)
+					}
+				}
+			}
+			if matches != 1 {
+				t.Fatalf("inventory contains %d DISTRIBUTION.json entries", matches)
+			}
+		})
+	}
+}
+
 func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
@@ -104,18 +183,47 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 		})
 	}
 
-	matrix := inputs.Compatibility
-	matrix.Entries = append([]compatibilityEntry{}, matrix.Entries...)
-	matrix.Entries[0].ProviderExecution = "PASS"
-	if err := validateCompatibility(matrix); err == nil {
-		t.Fatal("provider execution promotion passed")
+	if err := validateCompatibility(inputs.Compatibility); err != nil {
+		t.Fatalf("repository compatibility matrix failed: %v", err)
 	}
-	matrix = inputs.Compatibility
-	matrix.Entries = append([]compatibilityEntry{}, matrix.Entries...)
-	matrix.Entries[1].OperatingSystems = append([]operatingSystem{}, matrix.Entries[1].OperatingSystems...)
-	matrix.Entries[1].OperatingSystems[1].HostRuntime = "PASS"
-	if err := validateCompatibility(matrix); err == nil {
-		t.Fatal("actual-host promotion passed")
+	compatibilityTests := []struct {
+		name   string
+		mutate func(*compatibilityMatrix)
+	}{
+		{name: "schema", mutate: func(value *compatibilityMatrix) { value.Schema = 2 }},
+		{name: "host order", mutate: func(value *compatibilityMatrix) {
+			value.Entries[0], value.Entries[1] = value.Entries[1], value.Entries[0]
+		}},
+		{name: "host product", mutate: func(value *compatibilityMatrix) { value.Entries[0].HostProduct = "Another Codex" }},
+		{name: "declared surface", mutate: func(value *compatibilityMatrix) { value.Entries[1].DeclaredSurface = "another surface" }},
+		{name: "codex fixture version", mutate: func(value *compatibilityMatrix) { value.Entries[0].AdapterFixtureVersion = "codex-cli 9.9.9" }},
+		{name: "claude fixture version", mutate: func(value *compatibilityMatrix) { value.Entries[1].AdapterFixtureVersion = "9.9.9" }},
+		{name: "codex qualification target", mutate: func(value *compatibilityMatrix) { value.Entries[0].QualificationTarget = "codex-cli 9.9.9" }},
+		{name: "claude qualification target", mutate: func(value *compatibilityMatrix) { value.Entries[1].QualificationTarget = "9.9.9 (Claude Code)" }},
+		{name: "platform order", mutate: func(value *compatibilityMatrix) {
+			value.Entries[0].OperatingSystems[0], value.Entries[0].OperatingSystems[1] = value.Entries[0].OperatingSystems[1], value.Entries[0].OperatingSystems[0]
+		}},
+		{name: "host runtime promotion", mutate: func(value *compatibilityMatrix) { value.Entries[1].OperatingSystems[1].HostRuntime = "PASS" }},
+		{name: "required capability", mutate: func(value *compatibilityMatrix) { value.Entries[0].RequiredCapabilities[0] = "plugin.json" }},
+		{name: "required capability order", mutate: func(value *compatibilityMatrix) {
+			value.Entries[1].RequiredCapabilities[0], value.Entries[1].RequiredCapabilities[1] = value.Entries[1].RequiredCapabilities[1], value.Entries[1].RequiredCapabilities[0]
+		}},
+		{name: "optional capability", mutate: func(value *compatibilityMatrix) { value.Entries[0].OptionalCapabilities = []string{"network"} }},
+		{name: "null optional capabilities", mutate: func(value *compatibilityMatrix) { value.Entries[1].OptionalCapabilities = nil }},
+		{name: "degraded behavior", mutate: func(value *compatibilityMatrix) { value.Entries[0].DegradedBehavior = "continue anyway" }},
+		{name: "provider execution promotion", mutate: func(value *compatibilityMatrix) { value.Entries[0].ProviderExecution = "PASS" }},
+		{name: "actual lifecycle promotion", mutate: func(value *compatibilityMatrix) { value.Entries[1].ActualHostLifecycle = "PASS" }},
+		{name: "rollback", mutate: func(value *compatibilityMatrix) { value.Entries[1].Rollback = "delete everything" }},
+		{name: "support promotion", mutate: func(value *compatibilityMatrix) { value.Entries[0].SupportClaim = "SUPPORTED" }},
+	}
+	for _, test := range compatibilityTests {
+		t.Run("compatibility "+test.name, func(t *testing.T) {
+			matrix := cloneCompatibilityMatrix(inputs.Compatibility)
+			test.mutate(&matrix)
+			if err := validateCompatibility(matrix); err == nil {
+				t.Fatalf("mutated compatibility matrix passed: %+v", matrix)
+			}
+		})
 	}
 
 	unknown := append([]byte{}, inputs.DescriptorBytes...)
@@ -239,4 +347,31 @@ func distributionRepositoryRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return root
+}
+
+func requirePackageEntry(t *testing.T, built builtPackage, name string) []byte {
+	t.Helper()
+	var data []byte
+	matches := 0
+	for _, entry := range built.Entries {
+		if entry.Name == name {
+			matches++
+			data = entry.Data
+		}
+	}
+	if matches != 1 {
+		t.Fatalf("%s package contains %d %s entries", built.Host, matches, name)
+	}
+	return data
+}
+
+func cloneCompatibilityMatrix(matrix compatibilityMatrix) compatibilityMatrix {
+	clone := matrix
+	clone.Entries = append([]compatibilityEntry{}, matrix.Entries...)
+	for index := range clone.Entries {
+		clone.Entries[index].OperatingSystems = append([]operatingSystem{}, matrix.Entries[index].OperatingSystems...)
+		clone.Entries[index].RequiredCapabilities = append([]string{}, matrix.Entries[index].RequiredCapabilities...)
+		clone.Entries[index].OptionalCapabilities = append([]string{}, matrix.Entries[index].OptionalCapabilities...)
+	}
+	return clone
 }
