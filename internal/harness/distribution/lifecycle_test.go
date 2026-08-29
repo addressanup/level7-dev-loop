@@ -936,6 +936,586 @@ func TestFixtureLifecycleRejectsSymlinkedPackageRoot(t *testing.T) {
 	}
 }
 
+func TestFixtureLifecycleDirectorySyncPreflightFailsClosed(t *testing.T) {
+	testError := errors.New("test directory sync unsupported")
+
+	t.Run("install", func(t *testing.T) {
+		root := t.TempDir()
+		built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+		realSync := lifecycleSyncDirectory
+		calls := 0
+		restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+			calls++
+			if err := realSync(directory); err != nil {
+				return err
+			}
+			return testError
+		})
+
+		err := installFixture(root, built, "")
+		restore()
+		if !errors.Is(err, testError) {
+			t.Fatalf("install preflight error=%v", err)
+		}
+		if calls != 1 {
+			t.Fatalf("install attempted %d directory syncs after its failed preflight", calls)
+		}
+		for _, name := range []string{
+			pendingPath(root, built.Host),
+			pendingStageDirectory(root, built.Host, built.ArchiveDigest),
+			packageDirectory(root, built.Host, built.ArchiveDigest),
+			receiptPath(root, built.Host),
+		} {
+			if lifecycleTestPathExists(t, name) {
+				t.Fatalf("failed install preflight created lifecycle state at %s", name)
+			}
+		}
+	})
+
+	t.Run("removal", func(t *testing.T) {
+		root := t.TempDir()
+		built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+		if err := installFixture(root, built, ""); err != nil {
+			t.Fatal(err)
+		}
+		receiptBefore, err := os.ReadFile(receiptPath(root, built.Host))
+		if err != nil {
+			t.Fatal(err)
+		}
+		realSync := lifecycleSyncDirectory
+		calls := 0
+		restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+			calls++
+			if err := realSync(directory); err != nil {
+				return err
+			}
+			return testError
+		})
+
+		err = removeFixture(root, built.Host)
+		restore()
+		if !errors.Is(err, testError) {
+			t.Fatalf("removal preflight error=%v", err)
+		}
+		if calls != 1 {
+			t.Fatalf("removal attempted %d directory syncs after its failed preflight", calls)
+		}
+		if lifecycleTestPathExists(t, pendingRemovalPath(root, built.Host)) ||
+			lifecycleTestPathExists(t, filepath.Join(root, "removing", built.Host)) {
+			t.Fatal("failed removal preflight created transaction state")
+		}
+		if err := verifyInstalledDirectory(root, packageDirectory(root, built.Host, built.ArchiveDigest), receiptPackageFromBuilt(built)); err != nil {
+			t.Fatalf("failed removal preflight changed the package: %v", err)
+		}
+		receiptAfter, err := os.ReadFile(receiptPath(root, built.Host))
+		if err != nil || string(receiptAfter) != string(receiptBefore) {
+			t.Fatalf("failed removal preflight changed the receipt: error=%v", err)
+		}
+	})
+}
+
+func TestEnsureDurableRootPublishesEachCreatedComponent(t *testing.T) {
+	parent := t.TempDir()
+	outer := filepath.Join(parent, "outer")
+	root := filepath.Join(outer, "host")
+	type observation struct {
+		directory    string
+		outerPresent bool
+		rootPresent  bool
+	}
+	realSync := lifecycleSyncDirectory
+	observations := []observation{}
+	restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+		if err := realSync(directory); err != nil {
+			return err
+		}
+		observations = append(observations, observation{
+			directory:    filepath.Clean(directory),
+			outerPresent: lifecycleTestPathExists(t, outer),
+			rootPresent:  lifecycleTestPathExists(t, root),
+		})
+		return nil
+	})
+	if err := ensureDurableRoot(root); err != nil {
+		restore()
+		t.Fatal(err)
+	}
+	restore()
+
+	find := func(start int, match func(observation) bool) int {
+		for index := start; index < len(observations); index++ {
+			if match(observations[index]) {
+				return index
+			}
+		}
+		return -1
+	}
+	outerSync := find(0, func(value observation) bool {
+		return value.directory == outer && value.outerPresent && !value.rootPresent
+	})
+	outerParentSync := find(outerSync+1, func(value observation) bool {
+		return value.directory == parent && value.outerPresent && !value.rootPresent
+	})
+	rootSync := find(outerParentSync+1, func(value observation) bool {
+		return value.directory == root && value.rootPresent
+	})
+	rootParentSync := find(rootSync+1, func(value observation) bool {
+		return value.directory == outer && value.rootPresent
+	})
+	if outerSync < 0 || outerParentSync < 0 || rootSync < 0 || rootParentSync < 0 {
+		t.Fatalf("missing root-publication barrier sequence: outer=%d outer-parent=%d root=%d root-parent=%d observations=%+v",
+			outerSync, outerParentSync, rootSync, rootParentSync, observations)
+	}
+}
+
+func TestFixtureLifecycleInstallDurabilityBarrierOrder(t *testing.T) {
+	root := t.TempDir()
+	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	if err := installFixture(root, base, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	realSync := lifecycleSyncDirectory
+	observations := []lifecycleSyncObservation{}
+	restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+		if err := realSync(directory); err != nil {
+			return err
+		}
+		observations = append(observations, observeLifecycleSync(t, root, upgrade, directory))
+		return nil
+	})
+	if err := installFixture(root, upgrade, ""); err != nil {
+		restore()
+		t.Fatal(err)
+	}
+	restore()
+
+	pendingDirectory := "pending"
+	stageDirectory := lifecycleTestRelative(t, root, pendingStageDirectory(root, upgrade.Host, upgrade.ArchiveDigest))
+	packageHostDirectory := filepath.ToSlash(filepath.Join("packages", upgrade.Host))
+	journal := firstLifecycleSync(observations, 0, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == pendingDirectory && observation.PendingInstall &&
+			!observation.FinalPackage && observation.ActiveDigest == base.ArchiveDigest
+	})
+	stage := firstLifecycleSync(observations, journal+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == stageDirectory && observation.PendingInstall && observation.Stage &&
+			observation.OwnedFiles == len(upgrade.Entries) && !observation.FinalPackage && observation.ActiveDigest == base.ArchiveDigest
+	})
+	published := firstLifecycleSync(observations, stage+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == packageHostDirectory && observation.PendingInstall &&
+			!observation.Stage && observation.FinalPackage && observation.ActiveDigest == base.ArchiveDigest
+	})
+	receipt := firstLifecycleSync(observations, published+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "receipts" && observation.PendingInstall &&
+			observation.FinalPackage && observation.ActiveDigest == upgrade.ArchiveDigest
+	})
+	cleared := firstLifecycleSync(observations, receipt+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == pendingDirectory && !observation.PendingInstall &&
+			observation.FinalPackage && observation.ActiveDigest == upgrade.ArchiveDigest
+	})
+	if journal < 0 || stage < 0 || published < 0 || receipt < 0 || cleared < 0 {
+		t.Fatalf("missing ordered install durability barrier: journal=%d stage=%d publish=%d receipt=%d clear=%d observations=%+v",
+			journal, stage, published, receipt, cleared, observations)
+	}
+
+	expectedStageDirectories := ownedDirectorySet(receiptPackageFromBuilt(upgrade).Files)
+	expectedStageDirectories["."] = true
+	observedStageDirectories := make(map[string]bool)
+	stageRoot := pendingStageDirectory(root, upgrade.Host, upgrade.ArchiveDigest)
+	for index := journal + 1; index < published; index++ {
+		relative, err := filepath.Rel(stageRoot, filepath.Join(root, filepath.FromSlash(observations[index].Directory)))
+		if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			observedStageDirectories[filepath.ToSlash(relative)] = true
+		}
+	}
+	for directory := range expectedStageDirectories {
+		if !observedStageDirectories[directory] {
+			t.Errorf("staged directory %q had no durability barrier before package publication", directory)
+		}
+	}
+}
+
+func TestFixtureLifecycleInstallDirectorySyncFailuresRecover(t *testing.T) {
+	testError := errors.New("test install directory sync failure")
+	for _, phase := range []struct {
+		name          string
+		match         func(lifecycleSyncObservation, builtPackage, builtPackage) bool
+		wantUpgrade   bool
+		wantPending   bool
+		wantPublished bool
+	}{
+		{
+			name: "journal-publication",
+			match: func(observation lifecycleSyncObservation, base, _ builtPackage) bool {
+				return observation.Directory == "pending" && observation.PendingInstall &&
+					!observation.Stage && !observation.FinalPackage && observation.ActiveDigest == base.ArchiveDigest
+			},
+			wantPending: true,
+		},
+		{
+			name: "stage-tree",
+			match: func(observation lifecycleSyncObservation, base, upgrade builtPackage) bool {
+				return observation.Directory == pendingStageRelative(upgrade.Host, upgrade.ArchiveDigest) &&
+					observation.PendingInstall && observation.Stage && observation.OwnedFiles == len(upgrade.Entries) &&
+					!observation.FinalPackage && observation.ActiveDigest == base.ArchiveDigest
+			},
+			wantPending: true,
+		},
+		{
+			name: "package-publication",
+			match: func(observation lifecycleSyncObservation, base, upgrade builtPackage) bool {
+				return observation.Directory == filepath.ToSlash(filepath.Join("packages", upgrade.Host)) &&
+					observation.PendingInstall && observation.FinalPackage && !observation.Stage && observation.ActiveDigest == base.ArchiveDigest
+			},
+			wantUpgrade: true, wantPending: true, wantPublished: true,
+		},
+		{
+			name: "receipt-publication",
+			match: func(observation lifecycleSyncObservation, _, upgrade builtPackage) bool {
+				return observation.Directory == "receipts" && observation.PendingInstall &&
+					observation.FinalPackage && observation.ActiveDigest == upgrade.ArchiveDigest
+			},
+			wantUpgrade: true, wantPending: true, wantPublished: true,
+		},
+		{
+			name: "journal-removal",
+			match: func(observation lifecycleSyncObservation, _, upgrade builtPackage) bool {
+				return observation.Directory == "pending" && !observation.PendingInstall &&
+					observation.FinalPackage && observation.ActiveDigest == upgrade.ArchiveDigest
+			},
+			wantUpgrade: true, wantPublished: true,
+		},
+	} {
+		t.Run(phase.name, func(t *testing.T) {
+			root := t.TempDir()
+			base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
+			upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+			if err := installFixture(root, base, ""); err != nil {
+				t.Fatal(err)
+			}
+			realSync := lifecycleSyncDirectory
+			injected := false
+			restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+				if err := realSync(directory); err != nil {
+					return err
+				}
+				observation := observeLifecycleSync(t, root, upgrade, directory)
+				if !injected && phase.match(observation, base, upgrade) {
+					injected = true
+					return testError
+				}
+				return nil
+			})
+			err := installFixture(root, upgrade, "")
+			restore()
+			if !injected || !errors.Is(err, testError) {
+				t.Fatalf("injected=%v error=%v", injected, err)
+			}
+			if lifecycleTestPathExists(t, pendingPath(root, upgrade.Host)) != phase.wantPending {
+				t.Fatalf("pending install presence does not match failed phase %q", phase.name)
+			}
+			if lifecycleTestPathExists(t, packageDirectory(root, upgrade.Host, upgrade.ArchiveDigest)) != phase.wantPublished {
+				t.Fatalf("published package presence does not match failed phase %q", phase.name)
+			}
+			if err := recoverFixture(root, upgrade.Host); err != nil {
+				t.Fatalf("recover after %s: %v", phase.name, err)
+			}
+			receipt, err := loadLifecycleReceipt(root, upgrade.Host, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantDigest := base.ArchiveDigest
+			if phase.wantUpgrade {
+				wantDigest = upgrade.ArchiveDigest
+			}
+			if receipt.ActiveDigest != wantDigest {
+				t.Fatalf("recovery active digest=%q want=%q", receipt.ActiveDigest, wantDigest)
+			}
+			if lifecycleTestPathExists(t, pendingPath(root, upgrade.Host)) ||
+				lifecycleTestPathExists(t, pendingStageDirectory(root, upgrade.Host, upgrade.ArchiveDigest)) {
+				t.Fatal("install recovery left transaction state")
+			}
+		})
+	}
+}
+
+func TestFixtureLifecycleRemovalDurabilityBarrierOrder(t *testing.T) {
+	root := t.TempDir()
+	built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+	if err := installFixture(root, built, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	realSync := lifecycleSyncDirectory
+	observations := []lifecycleSyncObservation{}
+	restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+		if err := realSync(directory); err != nil {
+			return err
+		}
+		observations = append(observations, observeLifecycleSync(t, root, built, directory))
+		return nil
+	})
+	if err := removeFixture(root, built.Host); err != nil {
+		restore()
+		t.Fatal(err)
+	}
+	restore()
+
+	journal := firstLifecycleSync(observations, 0, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "pending-removals" && observation.PendingRemoval &&
+			observation.SourceTree && !observation.QuarantineTree && observation.Receipt
+	})
+	sourceRename := firstLifecycleSync(observations, journal+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "packages" && observation.PendingRemoval &&
+			!observation.SourceTree && observation.QuarantineTree && observation.Receipt
+	})
+	targetRename := firstLifecycleSync(observations, journal+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "removing" && observation.PendingRemoval &&
+			!observation.SourceTree && observation.QuarantineTree && observation.Receipt &&
+			observation.OwnedFiles == len(built.Entries)
+	})
+	firstDelete := firstLifecycleSync(observations, maxLifecycleTestIndex(sourceRename, targetRename)+1, func(observation lifecycleSyncObservation) bool {
+		return observation.PendingRemoval && observation.QuarantineTree && observation.Receipt &&
+			observation.OwnedFiles < len(built.Entries)
+	})
+	treeRemoval := firstLifecycleSync(observations, firstDelete+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "removing" && observation.PendingRemoval &&
+			!observation.SourceTree && !observation.QuarantineTree && observation.Receipt
+	})
+	receiptRemoval := firstLifecycleSync(observations, treeRemoval+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "receipts" && observation.PendingRemoval &&
+			!observation.SourceTree && !observation.QuarantineTree && !observation.Receipt
+	})
+	journalRemoval := firstLifecycleSync(observations, receiptRemoval+1, func(observation lifecycleSyncObservation) bool {
+		return observation.Directory == "pending-removals" && !observation.PendingRemoval &&
+			!observation.SourceTree && !observation.QuarantineTree && !observation.Receipt
+	})
+	if journal < 0 || sourceRename < 0 || targetRename < 0 || firstDelete < 0 || treeRemoval < 0 || receiptRemoval < 0 || journalRemoval < 0 {
+		t.Fatalf("missing ordered removal durability barrier: journal=%d source-rename=%d target-rename=%d first-delete=%d tree=%d receipt=%d clear=%d observations=%+v",
+			journal, sourceRename, targetRename, firstDelete, treeRemoval, receiptRemoval, journalRemoval, observations)
+	}
+	if targetRename >= sourceRename {
+		t.Fatalf("cross-directory rename barriers were not destination-before-source: destination=%d source=%d", targetRename, sourceRename)
+	}
+	seenRemaining := make(map[int]bool)
+	for index := maxLifecycleTestIndex(sourceRename, targetRename) + 1; index < treeRemoval; index++ {
+		observation := observations[index]
+		if observation.PendingRemoval && observation.Receipt && observation.QuarantineTree {
+			seenRemaining[observation.OwnedFiles] = true
+		}
+	}
+	for remaining := len(built.Entries) - 1; remaining >= 0; remaining-- {
+		if !seenRemaining[remaining] {
+			t.Errorf("owned-file deletion leaving %d files had no directory durability barrier", remaining)
+		}
+	}
+}
+
+func TestFixtureLifecycleRemovalDirectorySyncFailuresRecover(t *testing.T) {
+	testError := errors.New("test removal directory sync failure")
+	for _, phase := range []struct {
+		name  string
+		match func(lifecycleSyncObservation, builtPackage) bool
+	}{
+		{
+			name: "journal-publication",
+			match: func(observation lifecycleSyncObservation, _ builtPackage) bool {
+				return observation.Directory == "pending-removals" && observation.PendingRemoval &&
+					observation.SourceTree && !observation.QuarantineTree && observation.Receipt
+			},
+		},
+		{
+			name: "source-rename",
+			match: func(observation lifecycleSyncObservation, _ builtPackage) bool {
+				return observation.Directory == "packages" && observation.PendingRemoval &&
+					!observation.SourceTree && observation.QuarantineTree && observation.Receipt
+			},
+		},
+		{
+			name: "target-rename",
+			match: func(observation lifecycleSyncObservation, built builtPackage) bool {
+				return observation.Directory == "removing" && observation.PendingRemoval &&
+					!observation.SourceTree && observation.QuarantineTree && observation.Receipt && observation.OwnedFiles == len(built.Entries)
+			},
+		},
+		{
+			name: "owned-file-deletion",
+			match: func(observation lifecycleSyncObservation, built builtPackage) bool {
+				return observation.PendingRemoval && observation.QuarantineTree && observation.Receipt &&
+					observation.OwnedFiles < len(built.Entries)
+			},
+		},
+		{
+			name: "package-tree-deletion",
+			match: func(observation lifecycleSyncObservation, _ builtPackage) bool {
+				return observation.Directory == "removing" && observation.PendingRemoval &&
+					!observation.SourceTree && !observation.QuarantineTree && observation.Receipt
+			},
+		},
+		{
+			name: "receipt-deletion",
+			match: func(observation lifecycleSyncObservation, _ builtPackage) bool {
+				return observation.Directory == "receipts" && observation.PendingRemoval &&
+					!observation.SourceTree && !observation.QuarantineTree && !observation.Receipt
+			},
+		},
+		{
+			name: "journal-deletion",
+			match: func(observation lifecycleSyncObservation, _ builtPackage) bool {
+				return observation.Directory == "pending-removals" && !observation.PendingRemoval &&
+					!observation.SourceTree && !observation.QuarantineTree && !observation.Receipt
+			},
+		},
+	} {
+		t.Run(phase.name, func(t *testing.T) {
+			root := t.TempDir()
+			built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+			if err := installFixture(root, built, ""); err != nil {
+				t.Fatal(err)
+			}
+			realSync := lifecycleSyncDirectory
+			injected := false
+			restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
+				if err := realSync(directory); err != nil {
+					return err
+				}
+				observation := observeLifecycleSync(t, root, built, directory)
+				if !injected && phase.match(observation, built) {
+					injected = true
+					return testError
+				}
+				return nil
+			})
+			err := removeFixture(root, built.Host)
+			restore()
+			if !injected || !errors.Is(err, testError) {
+				t.Fatalf("injected=%v error=%v", injected, err)
+			}
+			if phase.name != "journal-deletion" && !lifecycleTestPathExists(t, pendingRemovalPath(root, built.Host)) {
+				t.Fatalf("failed phase %q lost its visible recovery journal", phase.name)
+			}
+			if err := recoverFixture(root, built.Host); err != nil {
+				t.Fatalf("recover after %s: %v", phase.name, err)
+			}
+			for _, name := range []string{
+				pendingRemovalPath(root, built.Host),
+				receiptPath(root, built.Host),
+				filepath.Join(root, "packages", built.Host),
+				filepath.Join(root, "removing", built.Host),
+			} {
+				if lifecycleTestPathExists(t, name) {
+					t.Fatalf("removal recovery left state at %s", name)
+				}
+			}
+		})
+	}
+}
+
+// These observations prove the order in which the lifecycle asks the filesystem
+// for namespace durability and how it handles reported failures. They do not
+// simulate a reboot or establish physical persistence across power loss.
+type lifecycleSyncObservation struct {
+	Directory      string
+	PendingInstall bool
+	PendingRemoval bool
+	Stage          bool
+	FinalPackage   bool
+	SourceTree     bool
+	QuarantineTree bool
+	Receipt        bool
+	ActiveDigest   string
+	OwnedFiles     int
+}
+
+func observeLifecycleSync(t *testing.T, root string, built builtPackage, directory string) lifecycleSyncObservation {
+	t.Helper()
+	observation := lifecycleSyncObservation{
+		Directory:      lifecycleTestRelative(t, root, directory),
+		PendingInstall: lifecycleTestPathExists(t, pendingPath(root, built.Host)),
+		PendingRemoval: lifecycleTestPathExists(t, pendingRemovalPath(root, built.Host)),
+		Stage:          lifecycleTestPathExists(t, pendingStageDirectory(root, built.Host, built.ArchiveDigest)),
+		FinalPackage:   lifecycleTestPathExists(t, packageDirectory(root, built.Host, built.ArchiveDigest)),
+		SourceTree:     lifecycleTestPathExists(t, filepath.Join(root, "packages", built.Host)),
+		QuarantineTree: lifecycleTestPathExists(t, filepath.Join(root, "removing", built.Host)),
+		Receipt:        lifecycleTestPathExists(t, receiptPath(root, built.Host)),
+	}
+	if observation.Receipt {
+		receipt, err := loadLifecycleReceipt(root, built.Host, true)
+		if err != nil {
+			t.Fatalf("observe lifecycle receipt: %v", err)
+		}
+		observation.ActiveDigest = receipt.ActiveDigest
+	}
+	packageRoot := pendingStageDirectory(root, built.Host, built.ArchiveDigest)
+	if observation.QuarantineTree {
+		packageRoot = filepath.Join(root, "removing", built.Host, built.ArchiveDigest)
+	}
+	for _, entry := range built.Entries {
+		if lifecycleTestPathExists(t, filepath.Join(packageRoot, filepath.FromSlash(entry.Name))) {
+			observation.OwnedFiles++
+		}
+	}
+	return observation
+}
+
+func replaceLifecycleSyncDirectory(t *testing.T, replacement func(string) error) func() {
+	t.Helper()
+	previous := lifecycleSyncDirectory
+	restored := false
+	restore := func() {
+		if restored {
+			return
+		}
+		lifecycleSyncDirectory = previous
+		restored = true
+	}
+	lifecycleSyncDirectory = replacement
+	t.Cleanup(restore)
+	return restore
+}
+
+func firstLifecycleSync(observations []lifecycleSyncObservation, start int, match func(lifecycleSyncObservation) bool) int {
+	if start < 0 {
+		return -1
+	}
+	for index := start; index < len(observations); index++ {
+		if match(observations[index]) {
+			return index
+		}
+	}
+	return -1
+}
+
+func lifecycleTestRelative(t *testing.T, root, name string) string {
+	t.Helper()
+	relative, err := filepath.Rel(root, name)
+	if err != nil {
+		t.Fatalf("make lifecycle test path %q relative to %q: %v", name, root, err)
+	}
+	return filepath.ToSlash(relative)
+}
+
+func lifecycleTestPathExists(t *testing.T, name string) bool {
+	t.Helper()
+	_, err := os.Lstat(name)
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	t.Fatalf("inspect lifecycle test path %s: %v", name, err)
+	return false
+}
+
+func maxLifecycleTestIndex(first, second int) int {
+	if first > second {
+		return first
+	}
+	return second
+}
+
 func testBuiltPackage(t *testing.T, host, version, content string) builtPackage {
 	t.Helper()
 	manifestPath, catalogPath, _, err := packageIdentityPaths(host)
