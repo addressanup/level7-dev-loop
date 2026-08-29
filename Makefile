@@ -79,7 +79,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build cli-benchmark-check cli-actual-host-compile build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build cli-benchmark-check cli-actual-host-compile build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check exact-fast-forward-integration-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -194,7 +194,10 @@ format-check: toolchain-check
 	@unformatted="$$(find . -type f -name '*.go' -not -path './.cache/*' -not -path './build/*' -print0 | xargs -0 "$(GOFMT)" -l)"; \
 	 test -z "$$unformatted" || { printf 'unformatted Go files:\n%s\n' "$$unformatted" >&2; exit 1; }
 
-technical-lint: install import-check format-check
+exact-fast-forward-integration-check:
+	@./scripts/harness/check-exact-fast-forward-integration.sh
+
+technical-lint: install import-check format-check exact-fast-forward-integration-check
 	@for script in scripts/harness/*.sh; do sh -n "$$script"; done
 	@"$(GO)" vet -mod=readonly ./...
 

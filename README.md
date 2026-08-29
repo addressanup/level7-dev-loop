@@ -134,6 +134,44 @@ a remote. If receipt persistence is interrupted after the ref update, status
 consults Git and the next interactive merge invocation can record recovery; it
 never auto-resets the ref.
 
+### Exact remote candidate integration
+
+The repository also contains an operator-only path for the exceptional case
+where GitHub's enabled pull-request merge methods would replace an already
+verified and audited commit identity. It is not part of the product CLI and must
+not be used until its own Tier 3 verification, independent audit, and a separate
+live-effect authorization are current.
+
+`scripts/harness/exact-fast-forward-integration.sh` accepts only a full
+repository name, pull-request number, base commit, candidate commit, candidate
+tree, accountable owner, and auditor. It verifies the live pull request,
+distinct exact-head approvals, latest required GitHub Actions checks, strict
+branch protection, sole-administrator identity, source ref, tree, and
+fast-forward ancestry. It then requires an active terminal and the complete
+candidate SHA. The only effect path temporarily disables administrator
+enforcement, performs one expected-old lease-bound fast-forward to
+`refs/heads/main`, and restores enforcement before postflight. It has no squash,
+rebase, merge, pull-request edit, branch deletion, generic force, or local-ref
+path.
+
+The full protection response is snapshotted and compared before and after the
+effect. Restoration also runs on command failure and handled interruption. A
+restoration failure stops in a recovery state whose sole next action is to
+re-enable administrator enforcement; the tool never resets or force-pushes
+`main`.
+
+The offline contract harness uses fake `gh` and `git` executables and cannot
+reach GitHub:
+
+```sh
+make exact-fast-forward-integration-check
+```
+
+Any real invocation must supply every binding explicitly; there are no defaults,
+abbreviated SHAs, nonterminal confirmations, retries, or fallback merge methods.
+Passing this harness is technical evidence only and grants no authority to run
+the operator.
+
 The adapters currently recognize only the provisional fixture baselines Codex
 `codex-cli 0.149.1` and Claude Code `2.1.241`. Real provider launches and
 actual-host trials are `NOT_RUN` and separately gated, so Wave 4 makes no current
