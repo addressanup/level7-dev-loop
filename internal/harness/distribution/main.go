@@ -26,6 +26,7 @@ const (
 var (
 	packageNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 	versionPattern     = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$`)
+	sha256Pattern      = regexp.MustCompile(`^[0-9a-f]{64}$`)
 )
 
 type author struct {
@@ -765,7 +766,7 @@ func writeOutputs(root, requested, name string, packages []builtPackage) error {
 		return fmt.Errorf("output must be exact %s", expected)
 	}
 	buildRoot := filepath.Dir(expected)
-	if err := os.MkdirAll(buildRoot, 0o755); err != nil {
+	if err := ensurePhysicalDirectory(root, "build", true); err != nil {
 		return err
 	}
 	temporary, err := os.MkdirTemp(buildRoot, ".distributions-")
@@ -810,16 +811,16 @@ func writeOutputs(root, requested, name string, packages []builtPackage) error {
 }
 
 func writeRegular(root, relative string, data []byte) error {
-	clean := filepath.Clean(filepath.FromSlash(relative))
-	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || strings.ContainsRune(clean, 0) {
-		return fmt.Errorf("unsafe output path %q", relative)
+	clean, err := cleanRelativePath(relative)
+	if err != nil {
+		return fmt.Errorf("unsafe output path %q: %w", relative, err)
 	}
 	target := filepath.Join(root, clean)
 	within, err := filepath.Rel(root, target)
 	if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("output path escapes root: %q", relative)
 	}
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+	if err := ensurePhysicalDirectory(root, filepath.Dir(clean), true); err != nil {
 		return err
 	}
 	temporary, err := os.CreateTemp(filepath.Dir(target), ".write-")
@@ -850,9 +851,12 @@ func writeRegular(root, relative string, data []byte) error {
 }
 
 func readRegularBounded(root, relative string) ([]byte, error) {
-	clean := filepath.Clean(filepath.FromSlash(relative))
-	if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return nil, fmt.Errorf("unsafe source path %q", relative)
+	clean, err := cleanRelativePath(relative)
+	if err != nil {
+		return nil, fmt.Errorf("unsafe source path %q: %w", relative, err)
+	}
+	if err := ensurePhysicalDirectory(root, filepath.Dir(clean), false); err != nil {
+		return nil, fmt.Errorf("read %s: %w", relative, err)
 	}
 	name := filepath.Join(root, clean)
 	info, err := os.Lstat(name)
@@ -870,6 +874,54 @@ func readRegularBounded(root, relative string) ([]byte, error) {
 		return nil, fmt.Errorf("source %s has invalid content", relative)
 	}
 	return data, nil
+}
+
+func cleanRelativePath(relative string) (string, error) {
+	clean := filepath.Clean(filepath.FromSlash(relative))
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || strings.ContainsRune(clean, 0) {
+		return "", errors.New("path is not a bounded relative name")
+	}
+	return clean, nil
+}
+
+func ensurePhysicalDirectory(root, relative string, create bool) error {
+	if create {
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			return err
+		}
+	}
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		return err
+	}
+	if !rootInfo.IsDir() || rootInfo.Mode()&fs.ModeSymlink != 0 {
+		return errors.New("path root is not a physical directory")
+	}
+	if relative == "" || relative == "." {
+		return nil
+	}
+	clean, err := cleanRelativePath(relative)
+	if err != nil {
+		return err
+	}
+	current := root
+	for _, element := range strings.Split(clean, string(filepath.Separator)) {
+		current = filepath.Join(current, element)
+		info, statErr := os.Lstat(current)
+		if errors.Is(statErr, os.ErrNotExist) && create {
+			if mkdirErr := os.Mkdir(current, 0o755); mkdirErr != nil {
+				return mkdirErr
+			}
+			info, statErr = os.Lstat(current)
+		}
+		if statErr != nil {
+			return statErr
+		}
+		if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("path component is not a physical directory: %s", current)
+		}
+	}
+	return nil
 }
 
 func decodeStrict(data []byte, value any) error {

@@ -216,7 +216,7 @@ func installFixture(root string, built builtPackage, fault string) error {
 	if err := validateBuiltPackage(built); err != nil {
 		return err
 	}
-	if _, err := os.Lstat(pendingPath(root, built.Host)); err == nil {
+	if _, err := loadPending(root, built.Host); err == nil {
 		return errors.New("pending lifecycle transaction requires recovery")
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -226,13 +226,21 @@ func installFixture(root string, built builtPackage, fault string) error {
 		return err
 	}
 	if receipt.Schema != 0 && receipt.ActiveDigest == built.ArchiveDigest {
-		return verifyInstalledDirectory(packageDirectory(root, built.Host, built.ArchiveDigest), receiptPackageFromBuilt(built))
+		installed, ok := findReceiptPackage(receipt, built.ArchiveDigest)
+		wanted := receiptPackageFromBuilt(built)
+		if !ok || !equalReceiptPackage(installed, wanted) {
+			return errors.New("same-digest reinstall does not match its ownership receipt")
+		}
+		return verifyInstalledDirectory(root, packageDirectory(root, built.Host, built.ArchiveDigest), wanted)
 	}
 
 	packageReceipt := receiptPackageFromBuilt(built)
 	finalDirectory := packageDirectory(root, built.Host, built.ArchiveDigest)
+	if err := ensurePhysicalDirectory(root, filepath.Join("packages", built.Host), true); err != nil {
+		return err
+	}
 	if _, statErr := os.Lstat(finalDirectory); statErr == nil {
-		if err := verifyInstalledDirectory(finalDirectory, packageReceipt); err != nil {
+		if err := verifyInstalledDirectory(root, finalDirectory, packageReceipt); err != nil {
 			return err
 		}
 	} else if !errors.Is(statErr, os.ErrNotExist) {
@@ -252,7 +260,7 @@ func installFixture(root string, built builtPackage, fault string) error {
 				return err
 			}
 		}
-		if err := verifyInstalledDirectory(stage, packageReceipt); err != nil {
+		if err := verifyInstalledDirectory(root, stage, packageReceipt); err != nil {
 			return err
 		}
 		pending := pendingInstall{Schema: 1, Host: built.Host, PreviousDigest: receipt.ActiveDigest, Package: packageReceipt}
@@ -290,13 +298,19 @@ func recoverFixture(root, host string) error {
 	if err != nil {
 		return err
 	}
+	if err := ensurePhysicalDirectory(root, filepath.Join("packages", host), false); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return os.Remove(pendingPath(root, host))
+		}
+		return err
+	}
 	directory := packageDirectory(root, host, pending.Package.Digest)
 	if _, err := os.Lstat(directory); errors.Is(err, os.ErrNotExist) {
 		return os.Remove(pendingPath(root, host))
 	} else if err != nil {
 		return err
 	}
-	if err := verifyInstalledDirectory(directory, pending.Package); err != nil {
+	if err := verifyInstalledDirectory(root, directory, pending.Package); err != nil {
 		return err
 	}
 	return completePending(root, host)
@@ -337,7 +351,7 @@ func completePending(root, host string) error {
 }
 
 func rollbackFixture(root, host string) error {
-	if _, err := os.Lstat(pendingPath(root, host)); err == nil {
+	if _, err := loadPending(root, host); err == nil {
 		return errors.New("cannot roll back with a pending transaction")
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -353,7 +367,7 @@ func rollbackFixture(root, host string) error {
 	if !ok {
 		return errors.New("prior package receipt is missing")
 	}
-	if err := verifyInstalledDirectory(packageDirectory(root, host, previous.Digest), previous); err != nil {
+	if err := verifyInstalledDirectory(root, packageDirectory(root, host, previous.Digest), previous); err != nil {
 		return err
 	}
 	receipt.ActiveDigest, receipt.PreviousDigest = receipt.PreviousDigest, receipt.ActiveDigest
@@ -362,7 +376,7 @@ func rollbackFixture(root, host string) error {
 
 func prepareRemoval(root, host string) (removalPreview, error) {
 	preview := removalPreview{Host: host}
-	if _, err := os.Lstat(pendingPath(root, host)); err == nil {
+	if _, err := loadPending(root, host); err == nil {
 		preview.Conflicts = append(preview.Conflicts, "pending lifecycle transaction")
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return preview, err
@@ -375,12 +389,15 @@ func prepareRemoval(root, host string) (removalPreview, error) {
 	for _, installed := range receipt.Packages {
 		known[installed.Digest] = true
 		preview.OwnedPackages = append(preview.OwnedPackages, installed.Digest)
-		if err := verifyInstalledDirectory(packageDirectory(root, host, installed.Digest), installed); err != nil {
+		if err := verifyInstalledDirectory(root, packageDirectory(root, host, installed.Digest), installed); err != nil {
 			preview.Conflicts = append(preview.Conflicts, installed.Digest+": "+err.Error())
 		}
 	}
 	sort.Strings(preview.OwnedPackages)
 	packagesRoot := filepath.Join(root, "packages", host)
+	if err := ensurePhysicalDirectory(root, filepath.Join("packages", host), false); err != nil {
+		return preview, err
+	}
 	entries, readErr := os.ReadDir(packagesRoot)
 	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 		return preview, readErr
@@ -444,7 +461,7 @@ func validateBuiltPackage(built builtPackage) error {
 	if !versionPattern.MatchString(built.Version) && !strings.HasSuffix(built.Version, ".fixture") {
 		return errors.New("fixture package version is invalid")
 	}
-	if sha256Hex(built.Archive) != built.ArchiveDigest {
+	if !sha256Pattern.MatchString(built.ArchiveDigest) || sha256Hex(built.Archive) != built.ArchiveDigest {
 		return errors.New("fixture package digest mismatch")
 	}
 	return validateArchive(built.Archive, built.Entries)
@@ -459,27 +476,31 @@ func receiptPackageFromBuilt(built builtPackage) receiptPackage {
 	return receiptPackage{Version: built.Version, Digest: built.ArchiveDigest, Files: files}
 }
 
-func verifyInstalledDirectory(root string, receipt receiptPackage) error {
-	info, err := os.Lstat(root)
-	if err != nil || !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+func verifyInstalledDirectory(lifecycleRoot, directory string, receipt receiptPackage) error {
+	if err := validateReceiptPackage(receipt); err != nil {
+		return err
+	}
+	relativeDirectory, err := filepath.Rel(lifecycleRoot, directory)
+	if err != nil || relativeDirectory == ".." || strings.HasPrefix(relativeDirectory, ".."+string(filepath.Separator)) {
+		return errors.New("installed package directory escapes its lifecycle root")
+	}
+	if err := ensurePhysicalDirectory(lifecycleRoot, relativeDirectory, false); err != nil {
 		return errors.New("installed package directory is missing or unsafe")
 	}
 	expected := make(map[string]receiptFile, len(receipt.Files))
 	for _, file := range receipt.Files {
-		if err := validateArchiveName(file.Path); err != nil || file.Size < 1 || file.Size > maximumFileSize || len(file.SHA256) != 64 {
-			return errors.New("installed package receipt contains an invalid file")
-		}
 		expected[file.Path] = file
 	}
 	seen := make(map[string]bool, len(expected))
-	err = filepath.WalkDir(root, func(name string, entry fs.DirEntry, walkErr error) error {
+	archiveEntries := make([]archiveEntry, 0, len(expected))
+	err = filepath.WalkDir(directory, func(name string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if name == root {
+		if name == directory {
 			return nil
 		}
-		relative, err := filepath.Rel(root, name)
+		relative, err := filepath.Rel(directory, name)
 		if err != nil {
 			return err
 		}
@@ -503,6 +524,7 @@ func verifyInstalledDirectory(root string, receipt receiptPackage) error {
 			return fmt.Errorf("installed file content changed: %q", relative)
 		}
 		seen[relative] = true
+		archiveEntries = append(archiveEntries, archiveEntry{Name: relative, Data: data, Mode: 0o644})
 		return nil
 	})
 	if err != nil {
@@ -511,6 +533,10 @@ func verifyInstalledDirectory(root string, receipt receiptPackage) error {
 	if len(seen) != len(expected) {
 		return errors.New("installed package is missing an owned file")
 	}
+	reconstructed, err := createArchive(archiveEntries)
+	if err != nil || sha256Hex(reconstructed) != receipt.Digest {
+		return errors.New("installed package bytes do not match the receipt digest")
+	}
 	return nil
 }
 
@@ -518,7 +544,7 @@ func loadLifecycleReceipt(root, host string, required bool) (lifecycleReceipt, e
 	if host != "codex" && host != "claude" {
 		return lifecycleReceipt{}, errors.New("invalid lifecycle host")
 	}
-	data, err := os.ReadFile(receiptPath(root, host))
+	data, err := readRegularBounded(root, receiptRelative(host))
 	if errors.Is(err, os.ErrNotExist) && !required {
 		return lifecycleReceipt{}, nil
 	}
@@ -532,17 +558,17 @@ func loadLifecycleReceipt(root, host string, required bool) (lifecycleReceipt, e
 	if err := decodeStrict(data, &receipt); err != nil {
 		return lifecycleReceipt{}, err
 	}
-	if receipt.Schema != 1 || receipt.Host != host || len(receipt.ActiveDigest) != 64 || len(receipt.Packages) == 0 {
-		return lifecycleReceipt{}, errors.New("lifecycle receipt identity is invalid")
-	}
-	if _, ok := findReceiptPackage(receipt, receipt.ActiveDigest); !ok {
-		return lifecycleReceipt{}, errors.New("active package is absent from lifecycle receipt")
+	if err := validateLifecycleReceipt(receipt, host); err != nil {
+		return lifecycleReceipt{}, err
 	}
 	return receipt, nil
 }
 
 func loadPending(root, host string) (pendingInstall, error) {
-	data, err := os.ReadFile(pendingPath(root, host))
+	if host != "codex" && host != "claude" {
+		return pendingInstall{}, errors.New("invalid pending lifecycle host")
+	}
+	data, err := readRegularBounded(root, pendingRelative(host))
 	if err != nil {
 		return pendingInstall{}, err
 	}
@@ -553,10 +579,71 @@ func loadPending(root, host string) (pendingInstall, error) {
 	if err := decodeStrict(data, &pending); err != nil {
 		return pendingInstall{}, err
 	}
-	if pending.Schema != 1 || pending.Host != host || len(pending.Package.Digest) != 64 || len(pending.Package.Files) == 0 {
+	if pending.Schema != 1 || pending.Host != host ||
+		(pending.PreviousDigest != "" && !sha256Pattern.MatchString(pending.PreviousDigest)) ||
+		pending.PreviousDigest == pending.Package.Digest {
 		return pendingInstall{}, errors.New("pending lifecycle record identity is invalid")
 	}
+	if err := validateReceiptPackage(pending.Package); err != nil {
+		return pendingInstall{}, err
+	}
 	return pending, nil
+}
+
+func validateLifecycleReceipt(receipt lifecycleReceipt, host string) error {
+	if receipt.Schema != 1 || receipt.Host != host || !sha256Pattern.MatchString(receipt.ActiveDigest) ||
+		len(receipt.Packages) == 0 || len(receipt.Packages) > maximumArchiveFiles ||
+		(receipt.PreviousDigest != "" && (!sha256Pattern.MatchString(receipt.PreviousDigest) || receipt.PreviousDigest == receipt.ActiveDigest)) {
+		return errors.New("lifecycle receipt identity is invalid")
+	}
+	previous := ""
+	for _, installed := range receipt.Packages {
+		if err := validateReceiptPackage(installed); err != nil {
+			return err
+		}
+		if previous != "" && installed.Digest <= previous {
+			return errors.New("lifecycle receipt packages are duplicate or unsorted")
+		}
+		previous = installed.Digest
+	}
+	if _, ok := findReceiptPackage(receipt, receipt.ActiveDigest); !ok {
+		return errors.New("active package is absent from lifecycle receipt")
+	}
+	if receipt.PreviousDigest != "" {
+		if _, ok := findReceiptPackage(receipt, receipt.PreviousDigest); !ok {
+			return errors.New("previous package is absent from lifecycle receipt")
+		}
+	}
+	return nil
+}
+
+func validateReceiptPackage(receipt receiptPackage) error {
+	if !versionPattern.MatchString(receipt.Version) || !sha256Pattern.MatchString(receipt.Digest) || len(receipt.Files) == 0 || len(receipt.Files) > maximumArchiveFiles {
+		return errors.New("lifecycle package receipt identity is invalid")
+	}
+	previous := ""
+	for _, file := range receipt.Files {
+		if err := validateArchiveName(file.Path); err != nil || file.Size < 1 || file.Size > maximumFileSize || !sha256Pattern.MatchString(file.SHA256) {
+			return errors.New("installed package receipt contains an invalid file")
+		}
+		if previous != "" && file.Path <= previous {
+			return errors.New("installed package receipt paths are duplicate or unsorted")
+		}
+		previous = file.Path
+	}
+	return nil
+}
+
+func equalReceiptPackage(first, second receiptPackage) bool {
+	if first.Version != second.Version || first.Digest != second.Digest || len(first.Files) != len(second.Files) {
+		return false
+	}
+	for index := range first.Files {
+		if first.Files[index] != second.Files[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func writeLifecycleJSON(root, relative string, value any) error {

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +45,7 @@ func TestCurrentRepositoryDistributionCheck(t *testing.T) {
 	}
 }
 
-func TestGeneratedManifestsUseOnePrerelaseIdentity(t *testing.T) {
+func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
 		t.Fatal(err)
@@ -162,6 +164,29 @@ func TestWriteOutputsCreatesOnlyBoundedDevelopmentLayout(t *testing.T) {
 	if err := writeOutputs(root, filepath.Join(root, "outside"), inputs.Descriptor.Name, packages); err == nil {
 		t.Fatal("output outside exact build/distributions passed")
 	}
+
+	symlinkRoot := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(symlinkRoot, "build")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeOutputs(symlinkRoot, filepath.Join(symlinkRoot, "build", "distributions"), inputs.Descriptor.Name, packages); err == nil {
+		t.Fatal("symlinked build root passed")
+	}
+}
+
+func TestReadRegularBoundedRejectsSymlinkedParent(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "package.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "distribution")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readRegularBounded(root, "distribution/package.json"); err == nil {
+		t.Fatal("source path with a symlinked parent passed")
+	}
 }
 
 func TestRunRejectsAmbiguousModes(t *testing.T) {
@@ -197,7 +222,7 @@ func TestPackageMetadataJSONRemainsStrict(t *testing.T) {
 			if err := decoder.Decode(&value); err != nil {
 				t.Fatalf("%s %s: %v", built.Host, entry.Name, err)
 			}
-			if decoder.More() {
+			if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 				t.Fatalf("%s %s contains trailing JSON", built.Host, entry.Name)
 			}
 		}

@@ -15,6 +15,11 @@ func TestFixtureLifecycleInstallUpgradeRecoverRollbackRemove(t *testing.T) {
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
+	sameArchiveDifferentVersion := base
+	sameArchiveDifferentVersion.Version = "0.1.0-dev.999"
+	if err := installFixture(root, sameArchiveDifferentVersion, ""); err == nil {
+		t.Fatal("same archive with a different version passed reinstall receipt binding")
+	}
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatalf("idempotent reinstall: %v", err)
 	}
@@ -142,6 +147,63 @@ func TestFixtureLifecycleRejectsPackageSubstitution(t *testing.T) {
 	built.ArchiveDigest = "00" + built.ArchiveDigest[2:]
 	if err := installFixture(t.TempDir(), built, ""); err == nil {
 		t.Fatal("substituted package digest passed")
+	}
+}
+
+func TestFixtureLifecycleRejectsReceiptReclassification(t *testing.T) {
+	root := t.TempDir()
+	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	if err := installFixture(root, built, ""); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := loadLifecycleReceipt(root, built.Host, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := []byte("changed and falsely receipted\n")
+	changedPath := filepath.Join(packageDirectory(root, built.Host, built.ArchiveDigest), filepath.FromSlash(receipt.Packages[0].Files[0].Path))
+	if err := os.WriteFile(changedPath, changed, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt.Packages[0].Files[0].Size = len(changed)
+	receipt.Packages[0].Files[0].SHA256 = sha256Hex(changed)
+	if err := writeLifecycleJSON(root, receiptRelative(built.Host), receipt); err != nil {
+		t.Fatal(err)
+	}
+	preview, err := prepareRemoval(root, built.Host)
+	if err != nil || len(preview.Conflicts) == 0 {
+		t.Fatalf("tampered receipt preview=%+v error=%v", preview, err)
+	}
+	if err := removeFixture(root, built.Host); err == nil {
+		t.Fatal("receipt-reclassified package bytes passed removal")
+	}
+	if data, err := os.ReadFile(changedPath); err != nil || string(data) != string(changed) {
+		t.Fatalf("blocked removal changed reclassified bytes: data=%q error=%v", data, err)
+	}
+}
+
+func TestFixtureLifecycleRejectsSymlinkedPackageRoot(t *testing.T) {
+	root := t.TempDir()
+	built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+	if err := installFixture(root, built, ""); err != nil {
+		t.Fatal(err)
+	}
+	hostRoot := filepath.Join(root, "packages", built.Host)
+	relocated := filepath.Join(t.TempDir(), built.Host)
+	if err := os.Rename(hostRoot, relocated); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(relocated, hostRoot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := prepareRemoval(root, built.Host); err == nil {
+		t.Fatal("symlinked package root passed removal preview")
+	}
+	if err := removeFixture(root, built.Host); err == nil {
+		t.Fatal("symlinked package root passed removal")
+	}
+	if _, err := os.Stat(filepath.Join(relocated, built.ArchiveDigest)); err != nil {
+		t.Fatalf("blocked removal changed relocated package: %v", err)
 	}
 }
 
