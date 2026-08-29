@@ -24,9 +24,10 @@ const (
 )
 
 var (
-	packageNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	versionPattern     = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$`)
-	sha256Pattern      = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	packageNamePattern     = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	versionPattern         = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$`)
+	sha256Pattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	lifecycleSyncDirectory = syncPhysicalDirectory
 )
 
 type author struct {
@@ -885,6 +886,326 @@ func writeRegular(root, relative string, data []byte) error {
 		return err
 	}
 	return os.Rename(temporaryName, target)
+}
+
+func writeDurableRegular(root, relative string, data []byte) (result error) {
+	clean, err := cleanRelativePath(relative)
+	if err != nil {
+		return fmt.Errorf("unsafe output path %q: %w", relative, err)
+	}
+	target := filepath.Join(root, clean)
+	within, err := filepath.Rel(root, target)
+	if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("output path escapes root: %q", relative)
+	}
+	if err := ensureDurableDirectory(root, filepath.Dir(clean)); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(target), ".write-")
+	if err != nil {
+		return err
+	}
+	temporaryName := temporary.Name()
+	temporaryOpen := true
+	temporaryLinked := true
+	defer func() {
+		if temporaryOpen {
+			result = errors.Join(result, temporary.Close())
+		}
+		if temporaryLinked {
+			temporaryRelative, relErr := filepath.Rel(root, temporaryName)
+			if relErr == nil {
+				relErr = removeDurably(root, temporaryRelative, true)
+			}
+			result = errors.Join(result, relErr)
+		}
+	}()
+	if _, err := temporary.Write(data); err != nil {
+		return err
+	}
+	if err := temporary.Chmod(0o644); err != nil {
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		temporaryOpen = false
+		return err
+	}
+	temporaryOpen = false
+	if err := os.Rename(temporaryName, target); err != nil {
+		return err
+	}
+	temporaryLinked = false
+	return lifecycleSyncDirectory(filepath.Dir(target))
+}
+
+func syncPhysicalDirectory(name string) error {
+	before, err := os.Lstat(name)
+	if err != nil {
+		return fmt.Errorf("inspect directory for sync: %w", err)
+	}
+	if !before.IsDir() || before.Mode()&fs.ModeSymlink != 0 {
+		return errors.New("sync target is not a physical directory")
+	}
+	root, err := os.OpenRoot(name)
+	if err != nil {
+		return fmt.Errorf("anchor directory for sync: %w", err)
+	}
+	opened, err := root.Stat(".")
+	if err != nil || !opened.IsDir() || !os.SameFile(before, opened) {
+		_ = root.Close()
+		return errors.New("directory identity changed while anchoring sync")
+	}
+	directory, err := root.Open(".")
+	if err != nil {
+		_ = root.Close()
+		return fmt.Errorf("open directory for sync: %w", err)
+	}
+	syncErr := directory.Sync()
+	closeErr := directory.Close()
+	linked, linkedErr := os.Lstat(name)
+	current, currentErr := root.Stat(".")
+	rootCloseErr := root.Close()
+	if linkedErr != nil || currentErr != nil || linked.Mode()&fs.ModeSymlink != 0 || !linked.IsDir() ||
+		!current.IsDir() || !os.SameFile(opened, linked) || !os.SameFile(opened, current) {
+		err = errors.New("directory identity changed during sync")
+	}
+	if joined := errors.Join(syncErr, closeErr, err, rootCloseErr); joined != nil {
+		return fmt.Errorf("sync physical directory %s: %w", name, joined)
+	}
+	return nil
+}
+
+func syncDirectoryTree(root, relative string) error {
+	root = filepath.Clean(root)
+	current := root
+	if relative != "" && relative != "." {
+		clean, err := cleanRelativePath(filepath.ToSlash(relative))
+		if err != nil {
+			return err
+		}
+		current = filepath.Join(root, clean)
+	}
+	within, err := filepath.Rel(root, current)
+	if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
+		return errors.New("directory sync tree escapes its root")
+	}
+	if err := ensurePhysicalDirectory(root, within, false); err != nil {
+		return err
+	}
+	for {
+		if err := lifecycleSyncDirectory(current); err != nil {
+			return err
+		}
+		if current == root {
+			return nil
+		}
+		current = filepath.Dir(current)
+	}
+}
+
+func ensureDurableRoot(root string) error {
+	root = filepath.Clean(root)
+	current := root
+	missing := make([]string, 0)
+	for {
+		info, err := os.Lstat(current)
+		if err == nil {
+			if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+				return errors.New("path root ancestor is not a physical directory")
+			}
+			break
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return errors.New("no physical ancestor exists for path root")
+		}
+		missing = append(missing, current)
+		current = parent
+	}
+	if err := lifecycleSyncDirectory(current); err != nil {
+		return err
+	}
+	anchorParent := filepath.Dir(current)
+	if anchorParent != current {
+		if err := lifecycleSyncDirectory(anchorParent); err != nil {
+			return err
+		}
+	}
+	for index := len(missing) - 1; index >= 0; index-- {
+		created := missing[index]
+		parent := filepath.Dir(created)
+		if err := os.Mkdir(created, 0o755); err != nil {
+			return err
+		}
+		info, err := os.Lstat(created)
+		if err != nil || !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+			return errors.Join(errors.New("created path root is not a physical directory"), err)
+		}
+		if err := lifecycleSyncDirectory(created); err != nil {
+			return err
+		}
+		if err := lifecycleSyncDirectory(parent); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ensureDurableDirectory(root, relative string) error {
+	root = filepath.Clean(root)
+	if err := ensureDurableRoot(root); err != nil {
+		return err
+	}
+	if relative == "" || relative == "." {
+		return nil
+	}
+	clean, err := cleanRelativePath(filepath.ToSlash(relative))
+	if err != nil {
+		return err
+	}
+	current := root
+	for _, element := range strings.Split(clean, string(filepath.Separator)) {
+		current = filepath.Join(current, element)
+		info, statErr := os.Lstat(current)
+		if errors.Is(statErr, os.ErrNotExist) {
+			if err := os.Mkdir(current, 0o755); err != nil {
+				return err
+			}
+			info, statErr = os.Lstat(current)
+		}
+		if statErr != nil {
+			return statErr
+		}
+		if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("path component is not a physical directory: %s", current)
+		}
+	}
+	return syncDirectoryTree(root, clean)
+}
+
+func makeDurableDirectory(root, relative string) error {
+	clean, err := cleanRelativePath(filepath.ToSlash(relative))
+	if err != nil {
+		return err
+	}
+	parent := filepath.Dir(clean)
+	if err := ensureDurableDirectory(root, parent); err != nil {
+		return err
+	}
+	name := filepath.Join(root, clean)
+	if err := os.Mkdir(name, 0o755); err != nil {
+		return err
+	}
+	return syncDirectoryTree(root, clean)
+}
+
+func syncRenameDirectories(root, sourceRelative, destinationRelative string) error {
+	source, err := cleanRelativePath(filepath.ToSlash(sourceRelative))
+	if err != nil {
+		return err
+	}
+	destination, err := cleanRelativePath(filepath.ToSlash(destinationRelative))
+	if err != nil {
+		return err
+	}
+	destinationParent := filepath.Dir(destination)
+	if err := syncDirectoryTree(root, destinationParent); err != nil {
+		return err
+	}
+	sourceParent := filepath.Dir(source)
+	if sourceParent != destinationParent {
+		return syncDirectoryTree(root, sourceParent)
+	}
+	return nil
+}
+
+func renameDurably(root, sourceRelative, destinationRelative string) error {
+	source, err := cleanRelativePath(filepath.ToSlash(sourceRelative))
+	if err != nil {
+		return err
+	}
+	destination, err := cleanRelativePath(filepath.ToSlash(destinationRelative))
+	if err != nil {
+		return err
+	}
+	if err := os.Rename(filepath.Join(root, source), filepath.Join(root, destination)); err != nil {
+		return err
+	}
+	return syncRenameDirectories(root, source, destination)
+}
+
+func removeDurably(root, relative string, allowMissing bool) error {
+	clean, err := cleanRelativePath(filepath.ToSlash(relative))
+	if err != nil {
+		return err
+	}
+	root = filepath.Clean(root)
+	target := filepath.Join(root, clean)
+	parent := filepath.Dir(target)
+	info, err := os.Lstat(target)
+	if errors.Is(err, os.ErrNotExist) {
+		if !allowMissing {
+			return err
+		}
+		return syncNearestExistingDirectory(root, parent)
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&fs.ModeSymlink != 0 || (!info.Mode().IsRegular() && !info.IsDir()) {
+		return errors.New("durable removal target is not a physical file or directory")
+	}
+	parentRelative, err := filepath.Rel(root, parent)
+	if err != nil {
+		return err
+	}
+	if err := ensurePhysicalDirectory(root, parentRelative, false); err != nil {
+		return err
+	}
+	if info.IsDir() {
+		if err := lifecycleSyncDirectory(target); err != nil {
+			return err
+		}
+	}
+	if err := os.Remove(target); err != nil {
+		return err
+	}
+	return lifecycleSyncDirectory(parent)
+}
+
+func syncNearestExistingDirectory(root, directory string) error {
+	root = filepath.Clean(root)
+	current := filepath.Clean(directory)
+	within, err := filepath.Rel(root, current)
+	if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
+		return errors.New("directory absence sync escapes its root")
+	}
+	for {
+		info, statErr := os.Lstat(current)
+		if statErr == nil {
+			if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+				return errors.New("directory absence sync reached a non-physical path")
+			}
+			relative, relErr := filepath.Rel(root, current)
+			if relErr != nil {
+				return relErr
+			}
+			return syncDirectoryTree(root, relative)
+		}
+		if !errors.Is(statErr, os.ErrNotExist) {
+			return statErr
+		}
+		if current == root {
+			return statErr
+		}
+		current = filepath.Dir(current)
+	}
 }
 
 func readRegularBounded(root, relative string) ([]byte, error) {
