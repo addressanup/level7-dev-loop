@@ -55,8 +55,8 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedDigests := map[string]string{
-		"codex":  "9e54fff83a4ef3812bcfeb8737ec095305c828c7fd33e35926ae54588df39fd0",
-		"claude": "718ea9366ac6d286a954e655275f994de9d6e9fd2679123efda903c8f6881acb",
+		"codex":  "02b9baddf6dbe43207aea7d85142ec16afa1ef1db771306f5b63ee4a6ffdf5d5",
+		"claude": "da5f2f706b6793103069fbdaddef79b1e8b1dac404b60c88ba2f3a9ea5f64471",
 	}
 	for _, built := range packages {
 		t.Run(built.Host, func(t *testing.T) {
