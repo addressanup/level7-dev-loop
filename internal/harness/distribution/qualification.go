@@ -154,5 +154,8 @@ func validateQualificationPackageOrder(packages []builtPackage) error {
 			return fmt.Errorf("%s package structure: %w", host, err)
 		}
 	}
+	if packages[0].Version != packages[1].Version {
+		return errors.New("offline qualification package versions diverge")
+	}
 	return nil
 }

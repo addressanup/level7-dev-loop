@@ -483,8 +483,14 @@ func loadInputs(root string) (loadedInputs, error) {
 }
 
 func validatePackageDocuments(license, changelog []byte, version string) error {
-	heading := []byte("## " + version + " — Unreleased\n")
-	if !versionPattern.MatchString(version) || !bytes.Contains(license, []byte("MIT License")) || bytes.Count(changelog, heading) != 1 {
+	heading := []byte("## " + version + " — Unreleased")
+	headingCount := 0
+	for _, line := range bytes.Split(changelog, []byte{'\n'}) {
+		if bytes.Equal(line, heading) {
+			headingCount++
+		}
+	}
+	if !versionPattern.MatchString(version) || !bytes.Contains(license, []byte("MIT License")) || headingCount != 1 {
 		return errors.New("package documents do not bind one canonical development identity")
 	}
 	return nil

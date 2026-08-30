@@ -28,6 +28,24 @@ func TestQualifyLifecycleSetPreflightsBothHostsBeforeMutation(t *testing.T) {
 	}
 }
 
+func TestQualifyLifecycleSetRejectsMixedVersionsBeforeMutation(t *testing.T) {
+	packages := []builtPackage{
+		testBuiltPackage(t, "codex", "0.1.0-dev.5", "codex\n"),
+		testBuiltPackage(t, "claude", "0.1.0-dev.6", "claude\n"),
+	}
+	syncs := 0
+	replaceLifecycleSyncDirectory(t, func(string) error {
+		syncs++
+		return nil
+	})
+	if qualification, err := qualifyLifecycleSet(packages); err == nil || len(qualification.Packages) != 0 {
+		t.Fatalf("mixed-version package set passed preflight: qualification=%+v error=%v", qualification, err)
+	}
+	if syncs != 0 {
+		t.Fatalf("mixed-version preflight failure attempted %d lifecycle durability writes", syncs)
+	}
+}
+
 func TestFixtureLifecycleInstallUpgradeRecoverRollbackRemove(t *testing.T) {
 	root := t.TempDir()
 	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
