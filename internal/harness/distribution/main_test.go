@@ -219,6 +219,7 @@ func TestDevelopmentVersionAndChangelogIdentityAreCanonical(t *testing.T) {
 	for _, changelog := range [][]byte{
 		[]byte("# 0.1.0-dev.6\nUnreleased\n"),
 		[]byte("## 0.1.0-dev.5 — Unreleased\n"),
+		[]byte("# Changelog\n\nprefix ## 0.1.0-dev.6 — Unreleased\n"),
 		append(append([]byte{}, canonical...), []byte("## 0.1.0-dev.6 — Unreleased\n")...),
 	} {
 		if err := validatePackageDocuments(license, changelog, "0.1.0-dev.6"); err == nil {
