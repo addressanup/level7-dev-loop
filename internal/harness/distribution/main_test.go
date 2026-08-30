@@ -55,8 +55,8 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedDigests := map[string]string{
-		"codex":  "02b9baddf6dbe43207aea7d85142ec16afa1ef1db771306f5b63ee4a6ffdf5d5",
-		"claude": "da5f2f706b6793103069fbdaddef79b1e8b1dac404b60c88ba2f3a9ea5f64471",
+		"codex":  "e30994b2a599f75f1bdba1248b1bc5f090de2b3dddb73674f1b9816f146cfc7c",
+		"claude": "c9529d888de784435fb7315a27ef7cbc828ee512a0cd6e924e7d492d2aef0c7e",
 	}
 	for _, built := range packages {
 		t.Run(built.Host, func(t *testing.T) {
@@ -77,12 +77,14 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 				t.Fatal(err)
 			}
 			want := distributionMetadata{
-				Schema: 1, Name: inputs.Descriptor.Name, Version: inputs.Descriptor.Version,
+				Schema: 2, Name: inputs.Descriptor.Name, Version: inputs.Descriptor.Version,
 				Channel: inputs.Descriptor.Channel, Host: built.Host, ManifestPath: host.ManifestPath,
-				CatalogPath: host.CatalogPath, SourceDigest: metadata.SourceDigest, Builder: builderVersion,
+				CatalogPath: host.CatalogPath, CatalogSHA256: built.CatalogDigest,
+				SourceDigest: metadata.SourceDigest, Builder: builderVersion,
 				SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
 			}
-			if metadata != want || !sha256Pattern.MatchString(metadata.SourceDigest) {
+			if metadata != want || metadata.SourceDigest != built.SourceDigest ||
+				!sha256Pattern.MatchString(metadata.SourceDigest) || sha256Hex(built.Catalog) != built.CatalogDigest {
 				t.Fatalf("distribution metadata is not exactly bound: got=%+v want=%+v", metadata, want)
 			}
 
@@ -124,6 +126,31 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 	}
 }
 
+func TestCatalogBytesParticipateInHostSourceIdentity(t *testing.T) {
+	inputs, err := loadInputs(distributionRepositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, host := range []string{"codex", "claude"} {
+		_, descriptor, err := hostInputs(inputs, host)
+		if err != nil {
+			t.Fatal(err)
+		}
+		catalog, err := renderCatalog(inputs.Descriptor, host)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutated := append([]byte{}, catalog...)
+		mutated[len(mutated)-2] ^= 1
+		files := map[string][]byte{"fixture": []byte("same package inputs\n")}
+		first := digestSource(inputs, host, descriptor.CatalogPath, catalog, files)
+		second := digestSource(inputs, host, descriptor.CatalogPath, mutated, files)
+		if first == second || !sha256Pattern.MatchString(first) || !sha256Pattern.MatchString(second) {
+			t.Fatalf("%s catalog bytes did not change source identity: %s %s", host, first, second)
+		}
+	}
+}
+
 func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
@@ -162,6 +189,44 @@ func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 	}
 }
 
+func TestDevelopmentVersionAndChangelogIdentityAreCanonical(t *testing.T) {
+	for _, version := range []string{"0.0.0-dev.1", "0.1.0-dev.6", "12.34.56-dev.789"} {
+		if !versionPattern.MatchString(version) {
+			t.Fatalf("canonical development version rejected: %s", version)
+		}
+	}
+	for _, version := range []string{
+		"1.0.0", "1.0.0-rc.1", "1.0.0-preview.1", "1.0.0-dev", "1.0.0-dev.0",
+		"1.0.0-dev.01", "01.0.0-dev.1", "1.00.0-dev.1", "1.0.00-dev.1",
+	} {
+		if versionPattern.MatchString(version) {
+			t.Fatalf("noncanonical development version passed: %s", version)
+		}
+	}
+	if next, err := nextDevelopmentVersion("0.1.0-dev.6"); err != nil || next != "0.1.0-dev.7" {
+		t.Fatalf("next development version=%q error=%v", next, err)
+	}
+	large := "0.1.0-dev." + strings.Repeat("9", 128)
+	if next, err := nextDevelopmentVersion(large); err != nil || !versionPattern.MatchString(next) || next == large {
+		t.Fatalf("large development version did not advance canonically: next=%q error=%v", next, err)
+	}
+
+	license := []byte("MIT License\n")
+	canonical := []byte("# Changelog\n\n## 0.1.0-dev.6 — Unreleased\n")
+	if err := validatePackageDocuments(license, canonical, "0.1.0-dev.6"); err != nil {
+		t.Fatal(err)
+	}
+	for _, changelog := range [][]byte{
+		[]byte("# 0.1.0-dev.6\nUnreleased\n"),
+		[]byte("## 0.1.0-dev.5 — Unreleased\n"),
+		append(append([]byte{}, canonical...), []byte("## 0.1.0-dev.6 — Unreleased\n")...),
+	} {
+		if err := validatePackageDocuments(license, changelog, "0.1.0-dev.6"); err == nil {
+			t.Fatalf("noncanonical changelog identity passed: %q", changelog)
+		}
+	}
+}
+
 func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
@@ -172,6 +237,10 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 		mutate func(*packageDescriptor)
 	}{
 		{name: "stable version", mutate: func(value *packageDescriptor) { value.Version = "1.0.0" }},
+		{name: "release candidate", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-rc.1" }},
+		{name: "zero development ordinal", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-dev.0" }},
+		{name: "leading-zero development ordinal", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-dev.06" }},
+		{name: "channel promotion", mutate: func(value *packageDescriptor) { value.Channel = "release" }},
 		{name: "network", mutate: func(value *packageDescriptor) { value.Permissions.Level7Network = true }},
 		{name: "hook", mutate: func(value *packageDescriptor) { value.Permissions.Hook = true }},
 		{name: "catalog path", mutate: func(value *packageDescriptor) { value.Hosts.Codex.CatalogPath = "marketplace.json" }},
@@ -254,7 +323,7 @@ func TestWriteOutputsCreatesOnlyBoundedDevelopmentLayout(t *testing.T) {
 	}
 	root := t.TempDir()
 	output := filepath.Join(root, "build", "distributions")
-	if err := writeOutputs(root, output, inputs.Descriptor.Name, packages); err != nil {
+	if err := writeOutputs(root, output, packages); err != nil {
 		t.Fatal(err)
 	}
 	for _, built := range packages {
@@ -270,11 +339,49 @@ func TestWriteOutputsCreatesOnlyBoundedDevelopmentLayout(t *testing.T) {
 		if _, err := os.Stat(manifest); err != nil {
 			t.Fatalf("%s marketplace package missing: %v", built.Host, err)
 		}
-		if _, err := os.Stat(filepath.Join(output, built.Host+"-marketplace", filepath.FromSlash(built.CatalogPath))); err != nil {
-			t.Fatalf("%s marketplace catalog missing: %v", built.Host, err)
+		catalog, err := os.ReadFile(filepath.Join(output, built.Host+"-marketplace", filepath.FromSlash(built.CatalogPath)))
+		if err != nil || !bytes.Equal(catalog, built.Catalog) || sha256Hex(catalog) != built.CatalogDigest {
+			t.Fatalf("%s marketplace catalog is not bound: digest=%s error=%v", built.Host, sha256Hex(catalog), err)
 		}
 	}
-	if err := writeOutputs(root, filepath.Join(root, "outside"), inputs.Descriptor.Name, packages); err == nil {
+	unsafe := cloneOfflineQualificationPackages(packages)
+	unsafe[0].Catalog = append(unsafe[0].Catalog, '\n')
+	unsafe[0].CatalogDigest = sha256Hex(unsafe[0].Catalog)
+	if err := writeOutputs(root, output, unsafe); err == nil {
+		t.Fatal("catalog-substituted output passed")
+	}
+	for _, mutation := range []struct {
+		name   string
+		mutate func([]builtPackage)
+	}{
+		{name: "archive relabel", mutate: func(values []builtPackage) { values[0].ArchiveName = "renamed.zip" }},
+		{name: "archive escape", mutate: func(values []builtPackage) { values[0].ArchiveName = "../renamed.zip" }},
+		{name: "archive collision", mutate: func(values []builtPackage) { values[1].ArchiveName = values[0].ArchiveName }},
+	} {
+		t.Run(mutation.name, func(t *testing.T) {
+			values := cloneOfflineQualificationPackages(packages)
+			mutation.mutate(values)
+			if _, err := validateOutputPackageSet(values); err == nil {
+				t.Fatal("unsafe output identity passed")
+			}
+		})
+	}
+	mixed := cloneOfflineQualificationPackages(packages)
+	mixed[1], err = syntheticLifecycleVariant(mixed[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	mixed[1].ArchiveName = "level7-dev-loop-claude-" + mixed[1].Version + ".zip"
+	if _, err := validateOutputPackageSet(mixed); err == nil {
+		t.Fatal("mixed-version output passed")
+	}
+	for _, built := range packages {
+		archive, err := os.ReadFile(filepath.Join(output, built.ArchiveName))
+		if err != nil || !bytes.Equal(archive, built.Archive) {
+			t.Fatalf("rejected output changed existing %s archive: %v", built.Host, err)
+		}
+	}
+	if err := writeOutputs(root, filepath.Join(root, "outside"), packages); err == nil {
 		t.Fatal("output outside exact build/distributions passed")
 	}
 
@@ -283,7 +390,7 @@ func TestWriteOutputsCreatesOnlyBoundedDevelopmentLayout(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(symlinkRoot, "build")); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeOutputs(symlinkRoot, filepath.Join(symlinkRoot, "build", "distributions"), inputs.Descriptor.Name, packages); err == nil {
+	if err := writeOutputs(symlinkRoot, filepath.Join(symlinkRoot, "build", "distributions"), packages); err == nil {
 		t.Fatal("symlinked build root passed")
 	}
 }
@@ -308,11 +415,33 @@ func TestRunRejectsAmbiguousModes(t *testing.T) {
 		nil,
 		{"--root", root, "--check", "--output", "build/distributions"},
 		{"--root", root, "--check", "extra"},
+		{"--root", root, "--json"},
+		{"--root", root, "--json", "--output", "build/distributions"},
 	} {
 		var stdout, stderr bytes.Buffer
 		if code := run(arguments, &stdout, &stderr); code != 2 || stdout.Len() != 0 {
 			t.Fatalf("arguments=%v code=%d stdout=%q stderr=%q", arguments, code, stdout.String(), stderr.String())
 		}
+	}
+}
+
+func TestRunEmitsCanonicalOfflineQualificationJSON(t *testing.T) {
+	root := distributionRepositoryRoot(t)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--root", root, "--check", "--json"}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("run code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	var report offlineQualificationReport
+	if err := decodeStrict(stdout.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := jsonBytes(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(stdout.Bytes(), canonical) || report.ReleaseReady || report.Authority != qualificationUnevaluated ||
+		report.Signing != qualificationNotRun || report.Publication != qualificationNotRun || len(report.Packages) != 2 {
+		t.Fatalf("unexpected offline qualification output: %s", stdout.Bytes())
 	}
 }
 

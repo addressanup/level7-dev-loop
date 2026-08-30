@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/big"
 	"os"
 	"path"
 	"path/filepath"
@@ -54,16 +56,48 @@ type removalPreview struct {
 	Conflicts     []string
 }
 
-func qualifyLifecycleSet(packages []builtPackage) error {
+type lifecycleQualificationPackage struct {
+	Host          string
+	ArchiveSHA256 string
+	CatalogSHA256 string
+}
+
+type lifecycleQualification struct {
+	Packages []lifecycleQualificationPackage
+}
+
+func qualifyLifecycleSet(packages []builtPackage) (lifecycleQualification, error) {
+	if err := validateQualificationPackageOrder(packages); err != nil {
+		return lifecycleQualification{}, fmt.Errorf("preflight package set: %w", err)
+	}
+	qualified := lifecycleQualification{Packages: make([]lifecycleQualificationPackage, 0, len(packages))}
 	for _, built := range packages {
 		parent, err := os.MkdirTemp("", "l7-distribution-lifecycle-")
 		if err != nil {
-			return err
+			return lifecycleQualification{}, err
 		}
 		qualificationErr := qualifyOneLifecycle(parent, built)
 		cleanupErr := os.RemoveAll(parent)
 		if err := errors.Join(qualificationErr, cleanupErr); err != nil {
-			return fmt.Errorf("%s: %w", built.Host, err)
+			return lifecycleQualification{}, fmt.Errorf("%s: %w", built.Host, err)
+		}
+		qualified.Packages = append(qualified.Packages, lifecycleQualificationPackage{
+			Host: built.Host, ArchiveSHA256: built.ArchiveDigest, CatalogSHA256: built.CatalogDigest,
+		})
+	}
+	return qualified, nil
+}
+
+func validateLifecycleQualification(qualification lifecycleQualification, packages []builtPackage) error {
+	if len(qualification.Packages) != len(packages) || len(packages) != 2 {
+		return errors.New("fixture lifecycle identity count is invalid")
+	}
+	for index, built := range packages {
+		observed := qualification.Packages[index]
+		if observed.Host != built.Host || observed.ArchiveSHA256 != built.ArchiveDigest ||
+			observed.CatalogSHA256 != built.CatalogDigest || !sha256Pattern.MatchString(observed.ArchiveSHA256) ||
+			!sha256Pattern.MatchString(observed.CatalogSHA256) {
+			return fmt.Errorf("fixture lifecycle identity %d does not bind the %s package", index, built.Host)
 		}
 	}
 	return nil
@@ -178,7 +212,24 @@ func qualifyOneLifecycle(parent string, base builtPackage) error {
 
 func syntheticLifecycleVariant(original builtPackage) (builtPackage, error) {
 	variant := original
-	variant.Version = original.Version + ".fixture"
+	var err error
+	variant.Version, err = nextDevelopmentVersion(original.Version)
+	if err != nil {
+		return builtPackage{}, err
+	}
+	variant.Catalog = append([]byte{}, original.Catalog...)
+	if original.Host == "claude" {
+		var catalog claudeCatalog
+		if err := decodeStrict(variant.Catalog, &catalog); err != nil || len(catalog.Plugins) != 1 || catalog.Plugins[0].Version != original.Version {
+			return builtPackage{}, errors.New("fixture variant Claude catalog identity is inconsistent")
+		}
+		catalog.Plugins[0].Version = variant.Version
+		variant.Catalog, err = jsonBytes(catalog)
+		if err != nil {
+			return builtPackage{}, err
+		}
+	}
+	variant.CatalogDigest = sha256Hex(variant.Catalog)
 	entries := cloneEntries(original.Entries)
 	manifestPath, _, _, err := packageIdentityPaths(original.Host)
 	if err != nil {
@@ -232,6 +283,7 @@ func syntheticLifecycleVariant(original builtPackage) (builtPackage, error) {
 				return builtPackage{}, errors.New("fixture variant distribution identity is inconsistent")
 			}
 			metadata.Version = variant.Version
+			metadata.CatalogSHA256 = variant.CatalogDigest
 			metadata.SourceDigest = variantSourceDigest
 			entries[index].Data, err = jsonBytes(metadata)
 			if err != nil {
@@ -317,12 +369,29 @@ func syntheticLifecycleVariant(original builtPackage) (builtPackage, error) {
 	}
 	variant.Entries = entries
 	variant.Archive = archive
+	variant.SourceDigest = variantSourceDigest
 	variant.ArchiveDigest = sha256Hex(archive)
 	variant.ArchiveName = strings.TrimSuffix(original.ArchiveName, ".zip") + "-fixture.zip"
 	if err := validateBuiltPackage(variant); err != nil {
 		return builtPackage{}, err
 	}
 	return variant, nil
+}
+
+func nextDevelopmentVersion(version string) (string, error) {
+	if !versionPattern.MatchString(version) {
+		return "", errors.New("development package version is invalid")
+	}
+	separator := strings.LastIndexByte(version, '.')
+	if separator < 0 {
+		return "", errors.New("development package ordinal is missing")
+	}
+	ordinal, ok := new(big.Int).SetString(version[separator+1:], 10)
+	if !ok || ordinal.Sign() <= 0 {
+		return "", errors.New("development package ordinal cannot be advanced")
+	}
+	ordinal.Add(ordinal, big.NewInt(1))
+	return version[:separator+1] + ordinal.String(), nil
 }
 
 func installFixture(root string, built builtPackage, fault string) error {
@@ -1116,6 +1185,10 @@ func validateBuiltPackage(built builtPackage) error {
 	if !sha256Pattern.MatchString(built.ArchiveDigest) || sha256Hex(built.Archive) != built.ArchiveDigest {
 		return errors.New("fixture package digest mismatch")
 	}
+	if !sha256Pattern.MatchString(built.SourceDigest) || !sha256Pattern.MatchString(built.CatalogDigest) ||
+		sha256Hex(built.Catalog) != built.CatalogDigest {
+		return errors.New("fixture package source or catalog digest mismatch")
+	}
 	if err := validateArchive(built.Archive, built.Entries); err != nil {
 		return err
 	}
@@ -1141,11 +1214,15 @@ func validatePackageIdentity(built builtPackage) error {
 	if err := decodeStrict(distributionData, &metadata); err != nil {
 		return fmt.Errorf("decode fixture distribution metadata: %w", err)
 	}
-	if metadata.Schema != 1 || metadata.Name != "level7-dev-loop" || metadata.Version != built.Version ||
+	if metadata.Schema != 2 || metadata.Name != "level7-dev-loop" || metadata.Version != built.Version ||
 		metadata.Channel != "development" || metadata.Host != built.Host || metadata.ManifestPath != manifestPath ||
-		metadata.CatalogPath != catalogPath || !sha256Pattern.MatchString(metadata.SourceDigest) ||
+		metadata.CatalogPath != catalogPath || metadata.CatalogSHA256 != built.CatalogDigest ||
+		metadata.SourceDigest != built.SourceDigest ||
 		metadata.Builder != builderVersion || metadata.SupportClaim != "WITHHELD" || metadata.ActualHostGate != "NOT_RUN" {
 		return errors.New("fixture distribution metadata does not bind the package identity")
+	}
+	if err := validateCatalogIdentity(built, metadata.Name); err != nil {
+		return err
 	}
 
 	if built.Host == "codex" {
@@ -1167,6 +1244,46 @@ func validatePackageIdentity(built builtPackage) error {
 		}
 	}
 	return validatePackageProjections(built, metadata)
+}
+
+func validateCatalogIdentity(built builtPackage, packageName string) error {
+	if len(built.Catalog) == 0 || len(built.Catalog) > maximumFileSize {
+		return errors.New("fixture package catalog is empty or unbounded")
+	}
+	expectedSource := "./plugins/" + packageName
+	if built.Host == "codex" {
+		var catalog codexCatalog
+		if err := decodeStrict(built.Catalog, &catalog); err != nil {
+			return fmt.Errorf("decode Codex fixture catalog: %w", err)
+		}
+		canonical, err := jsonBytes(catalog)
+		if err != nil || !bytes.Equal(canonical, built.Catalog) {
+			return errors.New("Codex fixture catalog is not canonical")
+		}
+		if catalog.Name != "level7-engineering-development" || catalog.Interface.DisplayName != "Level 7 Engineering (Development)" ||
+			len(catalog.Plugins) != 1 || catalog.Plugins[0].Name != packageName || catalog.Plugins[0].Source.Source != "local" ||
+			catalog.Plugins[0].Source.Path != expectedSource || catalog.Plugins[0].Policy.Installation != "AVAILABLE" ||
+			catalog.Plugins[0].Policy.Authentication != "ON_INSTALL" || catalog.Plugins[0].Category != "Developer Tools" {
+			return errors.New("Codex fixture catalog does not bind the package identity")
+		}
+		return nil
+	}
+	var catalog claudeCatalog
+	if err := decodeStrict(built.Catalog, &catalog); err != nil {
+		return fmt.Errorf("decode Claude fixture catalog: %w", err)
+	}
+	canonical, err := jsonBytes(catalog)
+	if err != nil || !bytes.Equal(canonical, built.Catalog) {
+		return errors.New("Claude fixture catalog is not canonical")
+	}
+	if catalog.Name != "level7-engineering-development" || catalog.Owner.Name != "Level 7 Engineering" || len(catalog.Plugins) != 1 ||
+		catalog.Plugins[0].Name != packageName || catalog.Plugins[0].Source != expectedSource ||
+		catalog.Plugins[0].Description != "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance." ||
+		catalog.Plugins[0].Version != built.Version || catalog.Plugins[0].License != "MIT" ||
+		catalog.Plugins[0].Category != "Development Tools" || !catalog.Plugins[0].Strict {
+		return errors.New("Claude fixture catalog does not bind the package identity")
+	}
+	return nil
 }
 
 func validatePackageProjections(built builtPackage, metadata distributionMetadata) error {

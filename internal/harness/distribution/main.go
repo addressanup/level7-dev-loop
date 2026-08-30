@@ -19,13 +19,13 @@ import (
 )
 
 const (
-	builderVersion  = "wave5-v1"
+	builderVersion  = "offline-qualification-v1"
 	maximumFileSize = 1 << 20
 )
 
 var (
 	packageNamePattern     = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	versionPattern         = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$`)
+	versionPattern         = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-dev\.[1-9][0-9]*$`)
 	sha256Pattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	lifecycleSyncDirectory = syncPhysicalDirectory
 )
@@ -118,10 +118,12 @@ type builtPackage struct {
 	Version       string
 	Entries       []archiveEntry
 	Archive       []byte
+	SourceDigest  string
 	ArchiveDigest string
 	ArchiveName   string
 	CatalogPath   string
 	Catalog       []byte
+	CatalogDigest string
 }
 
 type codexInterface struct {
@@ -213,10 +215,54 @@ type distributionMetadata struct {
 	Host           string `json:"host"`
 	ManifestPath   string `json:"manifest_path"`
 	CatalogPath    string `json:"catalog_path"`
+	CatalogSHA256  string `json:"catalog_sha256"`
 	SourceDigest   string `json:"source_digest"`
 	Builder        string `json:"builder"`
 	SupportClaim   string `json:"support_claim"`
 	ActualHostGate string `json:"actual_host_gate"`
+}
+
+type codexCatalogSource struct {
+	Source string `json:"source"`
+	Path   string `json:"path"`
+}
+
+type codexCatalogPolicy struct {
+	Installation   string `json:"installation"`
+	Authentication string `json:"authentication"`
+}
+
+type codexCatalogPlugin struct {
+	Name     string             `json:"name"`
+	Source   codexCatalogSource `json:"source"`
+	Policy   codexCatalogPolicy `json:"policy"`
+	Category string             `json:"category"`
+}
+
+type codexCatalogInterface struct {
+	DisplayName string `json:"displayName"`
+}
+
+type codexCatalog struct {
+	Name      string                `json:"name"`
+	Interface codexCatalogInterface `json:"interface"`
+	Plugins   []codexCatalogPlugin  `json:"plugins"`
+}
+
+type claudeCatalogPlugin struct {
+	Name        string `json:"name"`
+	Source      string `json:"source"`
+	Description string `json:"description"`
+	Version     string `json:"version"`
+	License     string `json:"license"`
+	Category    string `json:"category"`
+	Strict      bool   `json:"strict"`
+}
+
+type claudeCatalog struct {
+	Name    string                `json:"name"`
+	Owner   author                `json:"owner"`
+	Plugins []claudeCatalogPlugin `json:"plugins"`
 }
 
 type inventoryEntry struct {
@@ -287,11 +333,12 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	root := flags.String("root", ".", "repository root")
 	output := flags.String("output", "", "exact build/distributions output path")
 	check := flags.Bool("check", false, "verify source drift, archives, and fixture lifecycle without persistent output")
+	jsonOutput := flags.Bool("json", false, "emit the canonical offline qualification report; valid only with --check")
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	if flags.NArg() != 0 || (*check && *output != "") || (!*check && *output == "") {
-		fmt.Fprintln(stderr, "distribution: use exactly one of --check or --output build/distributions")
+	if flags.NArg() != 0 || (*check && *output != "") || (!*check && *output == "") || (*jsonOutput && !*check) {
+		fmt.Fprintln(stderr, "distribution: use exactly one of --check or --output build/distributions; --json requires --check")
 		return 2
 	}
 
@@ -320,16 +367,36 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "distribution: reproducibility: %v\n", err)
 			return 1
 		}
-		if err := qualifyLifecycleSet(packages); err != nil {
+		lifecycle, err := qualifyLifecycleSet(packages)
+		if err != nil {
 			fmt.Fprintf(stderr, "distribution: lifecycle qualification: %v\n", err)
 			return 1
+		}
+		report, err := qualifyOfflinePackageSet(offlineQualificationFacts{
+			Descriptor: inputs.Descriptor, Packages: packages, RebuiltPackages: second, Lifecycle: lifecycle,
+		})
+		if err != nil {
+			fmt.Fprintf(stderr, "distribution: offline qualification: %v\n", err)
+			return 1
+		}
+		if *jsonOutput {
+			data, marshalErr := jsonBytes(report)
+			if marshalErr != nil {
+				fmt.Fprintf(stderr, "distribution: encode offline qualification: %v\n", marshalErr)
+				return 1
+			}
+			if _, writeErr := stdout.Write(data); writeErr != nil {
+				fmt.Fprintf(stderr, "distribution: write offline qualification: %v\n", writeErr)
+				return 1
+			}
+			return 0
 		}
 		fmt.Fprintf(stdout, "distribution-check: PASS packages=%d version=%s codex=%s claude=%s actual_host=NOT_RUN\n",
 			len(packages), inputs.Descriptor.Version, packages[0].ArchiveDigest, packages[1].ArchiveDigest)
 		return 0
 	}
 
-	if err := writeOutputs(inputs.Root, *output, inputs.Descriptor.Name, packages); err != nil {
+	if err := writeOutputs(inputs.Root, *output, packages); err != nil {
 		fmt.Fprintf(stderr, "distribution: write output: %v\n", err)
 		return 1
 	}
@@ -391,7 +458,7 @@ func loadInputs(root string) (loadedInputs, error) {
 	if err != nil {
 		return loadedInputs{}, err
 	}
-	if !bytes.Contains(license, []byte("MIT License")) || !bytes.Contains(changelog, []byte(descriptor.Version)) || !bytes.Contains(changelog, []byte("Unreleased")) {
+	if err := validatePackageDocuments(license, changelog, descriptor.Version); err != nil {
 		return loadedInputs{}, errors.New("license or changelog does not bind the development package identity")
 	}
 
@@ -413,6 +480,14 @@ func loadInputs(root string) (loadedInputs, error) {
 		Compatibility: compatibility, CompatibilityRaw: compatibilityRaw,
 		License: license, Changelog: changelog, Skills: skillBytes,
 	}, nil
+}
+
+func validatePackageDocuments(license, changelog []byte, version string) error {
+	heading := []byte("## " + version + " — Unreleased\n")
+	if !versionPattern.MatchString(version) || !bytes.Contains(license, []byte("MIT License")) || bytes.Count(changelog, heading) != 1 {
+		return errors.New("package documents do not bind one canonical development identity")
+	}
+	return nil
 }
 
 func validateDescriptor(descriptor packageDescriptor) error {
@@ -590,6 +665,11 @@ func buildPackages(inputs loadedInputs) ([]builtPackage, error) {
 		if err != nil {
 			return nil, err
 		}
+		catalog, err := renderCatalog(inputs.Descriptor, host)
+		if err != nil {
+			return nil, err
+		}
+		catalogDigest := sha256Hex(catalog)
 		files := map[string][]byte{
 			descriptor.ManifestPath: rendered[descriptor.ManifestPath],
 			"LICENSE":               append([]byte{}, inputs.License...),
@@ -615,11 +695,12 @@ func buildPackages(inputs loadedInputs) ([]builtPackage, error) {
 		files["COMPATIBILITY.json"] = compatibility
 		files["PERMISSIONS.json"] = permissionData
 
-		sourceDigest := digestSource(inputs, host, files)
+		sourceDigest := digestSource(inputs, host, descriptor.CatalogPath, catalog, files)
 		distribution, err := jsonBytes(distributionMetadata{
-			Schema: 1, Name: inputs.Descriptor.Name, Version: inputs.Descriptor.Version,
+			Schema: 2, Name: inputs.Descriptor.Name, Version: inputs.Descriptor.Version,
 			Channel: inputs.Descriptor.Channel, Host: host, ManifestPath: descriptor.ManifestPath,
-			CatalogPath: descriptor.CatalogPath, SourceDigest: sourceDigest, Builder: builderVersion,
+			CatalogPath: descriptor.CatalogPath, CatalogSHA256: catalogDigest,
+			SourceDigest: sourceDigest, Builder: builderVersion,
 			SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
 		})
 		if err != nil {
@@ -656,16 +737,12 @@ func buildPackages(inputs loadedInputs) ([]builtPackage, error) {
 		if err := validateArchive(archive, fileEntries); err != nil {
 			return nil, fmt.Errorf("validate %s archive: %w", host, err)
 		}
-		catalog, err := renderCatalog(inputs.Descriptor, host)
-		if err != nil {
-			return nil, err
-		}
 		digest := sha256Hex(archive)
 		packages = append(packages, builtPackage{
 			Host: host, Version: inputs.Descriptor.Version, Entries: fileEntries, Archive: archive,
-			ArchiveDigest: digest,
-			ArchiveName:   fmt.Sprintf("%s-%s-%s.zip", inputs.Descriptor.Name, host, inputs.Descriptor.Version),
-			CatalogPath:   descriptor.CatalogPath, Catalog: catalog,
+			SourceDigest: sourceDigest, ArchiveDigest: digest,
+			ArchiveName: fmt.Sprintf("%s-%s-%s.zip", inputs.Descriptor.Name, host, inputs.Descriptor.Version),
+			CatalogPath: descriptor.CatalogPath, Catalog: catalog, CatalogDigest: catalogDigest,
 		})
 	}
 	return packages, nil
@@ -686,11 +763,12 @@ func hostInputs(inputs loadedInputs, host string) (compatibilityEntry, hostDescr
 	return compatibilityEntry{}, hostDescriptor{}, fmt.Errorf("missing host %s", host)
 }
 
-func digestSource(inputs loadedInputs, host string, files map[string][]byte) string {
+func digestSource(inputs loadedInputs, host, catalogPath string, catalog []byte, files map[string][]byte) string {
 	values := map[string][]byte{
 		"distribution/package.json":       inputs.DescriptorBytes,
 		"distribution/compatibility.json": inputs.CompatibilityRaw,
 		"host":                            []byte(host + "\n"),
+		"catalog/" + catalogPath:          catalog,
 	}
 	for name, data := range files {
 		values[name] = data
@@ -725,54 +803,18 @@ func makeSBOM(descriptor packageDescriptor, host, sourceDigest string) sbomDocum
 
 func renderCatalog(descriptor packageDescriptor, host string) ([]byte, error) {
 	if host == "codex" {
-		type source struct {
-			Source string `json:"source"`
-			Path   string `json:"path"`
-		}
-		type policy struct {
-			Installation   string `json:"installation"`
-			Authentication string `json:"authentication"`
-		}
-		type plugin struct {
-			Name     string `json:"name"`
-			Source   source `json:"source"`
-			Policy   policy `json:"policy"`
-			Category string `json:"category"`
-		}
-		type interfaceMetadata struct {
-			DisplayName string `json:"displayName"`
-		}
-		type catalog struct {
-			Name      string            `json:"name"`
-			Interface interfaceMetadata `json:"interface"`
-			Plugins   []plugin          `json:"plugins"`
-		}
-		return jsonBytes(catalog{
-			Name: "level7-engineering-development", Interface: interfaceMetadata{DisplayName: "Level 7 Engineering (Development)"},
-			Plugins: []plugin{{
-				Name: descriptor.Name, Source: source{Source: "local", Path: "./plugins/" + descriptor.Name},
-				Policy: policy{Installation: "AVAILABLE", Authentication: "ON_INSTALL"}, Category: descriptor.Hosts.Codex.Category,
+		return jsonBytes(codexCatalog{
+			Name: "level7-engineering-development", Interface: codexCatalogInterface{DisplayName: "Level 7 Engineering (Development)"},
+			Plugins: []codexCatalogPlugin{{
+				Name: descriptor.Name, Source: codexCatalogSource{Source: "local", Path: "./plugins/" + descriptor.Name},
+				Policy: codexCatalogPolicy{Installation: "AVAILABLE", Authentication: "ON_INSTALL"}, Category: descriptor.Hosts.Codex.Category,
 			}},
 		})
 	}
 	if host == "claude" {
-		type plugin struct {
-			Name        string `json:"name"`
-			Source      string `json:"source"`
-			Description string `json:"description"`
-			Version     string `json:"version"`
-			License     string `json:"license"`
-			Category    string `json:"category"`
-			Strict      bool   `json:"strict"`
-		}
-		type catalog struct {
-			Name    string   `json:"name"`
-			Owner   author   `json:"owner"`
-			Plugins []plugin `json:"plugins"`
-		}
-		return jsonBytes(catalog{
+		return jsonBytes(claudeCatalog{
 			Name: "level7-engineering-development", Owner: descriptor.Author,
-			Plugins: []plugin{{
+			Plugins: []claudeCatalogPlugin{{
 				Name: descriptor.Name, Source: "./plugins/" + descriptor.Name, Description: descriptor.Description,
 				Version: descriptor.Version, License: descriptor.License, Category: descriptor.Hosts.Claude.Category, Strict: true,
 			}},
@@ -787,6 +829,7 @@ func compareBuilds(first, second []builtPackage) error {
 	}
 	for index := range first {
 		if first[index].Host != second[index].Host || first[index].ArchiveDigest != second[index].ArchiveDigest ||
+			first[index].SourceDigest != second[index].SourceDigest || first[index].CatalogDigest != second[index].CatalogDigest ||
 			!bytes.Equal(first[index].Archive, second[index].Archive) || !bytes.Equal(first[index].Catalog, second[index].Catalog) {
 			return fmt.Errorf("%s package bytes changed between clean builds", first[index].Host)
 		}
@@ -794,7 +837,51 @@ func compareBuilds(first, second []builtPackage) error {
 	return nil
 }
 
-func writeOutputs(root, requested, name string, packages []builtPackage) error {
+func validateOutputPackageSet(packages []builtPackage) (string, error) {
+	if err := validateQualificationPackageOrder(packages); err != nil {
+		return "", fmt.Errorf("validate distribution package set: %w", err)
+	}
+	name := ""
+	version := ""
+	seenPaths := make(map[string]bool, len(packages)*2)
+	for _, built := range packages {
+		data, count := packageEntry(built.Entries, "DISTRIBUTION.json")
+		if count != 1 {
+			return "", fmt.Errorf("%s package lacks one distribution identity", built.Host)
+		}
+		var metadata distributionMetadata
+		if err := decodeStrict(data, &metadata); err != nil {
+			return "", fmt.Errorf("decode %s distribution identity: %w", built.Host, err)
+		}
+		if name == "" {
+			name = metadata.Name
+			version = metadata.Version
+		}
+		if metadata.Name != name || metadata.Version != version {
+			return "", errors.New("distribution package names or versions diverge")
+		}
+		expectedArchive := fmt.Sprintf("%s-%s-%s.zip", name, built.Host, built.Version)
+		if built.ArchiveName != expectedArchive {
+			return "", fmt.Errorf("%s archive name does not bind its package identity", built.Host)
+		}
+		for _, relative := range []string{built.ArchiveName, built.ArchiveName + ".sha256"} {
+			if seenPaths[relative] {
+				return "", fmt.Errorf("distribution output path %q is duplicated", relative)
+			}
+			seenPaths[relative] = true
+		}
+	}
+	if name == "" || !packageNamePattern.MatchString(name) {
+		return "", errors.New("distribution package name is invalid")
+	}
+	return name, nil
+}
+
+func writeOutputs(root, requested string, packages []builtPackage) error {
+	name, err := validateOutputPackageSet(packages)
+	if err != nil {
+		return err
+	}
 	requestedAbsolute, err := filepath.Abs(requested)
 	if err != nil {
 		return err
