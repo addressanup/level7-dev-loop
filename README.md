@@ -171,7 +171,7 @@ CLI.
 Wave 5 adds an offline distribution foundation without installing or publishing
 anything. One strict descriptor at `distribution/package.json` generates the
 Codex, Claude, root-plugin, and legacy marketplace metadata. The two host
-packages share prerelease version `0.1.0-dev.5` but have separate manifests,
+packages share prerelease version `0.1.0-dev.6` but have separate manifests,
 catalogs, compatibility entries, inventories, digests, and archives.
 
 ```sh
@@ -187,11 +187,22 @@ and removal. The fixtures preserve unowned files and canonical project artifacts
 and block on missing or stale ownership receipts. They do not invoke a host
 package manager and are not actual-host lifecycle evidence.
 
+For machine consumption, the underlying checker also accepts `--check --json`.
+Its canonical report records Level 7's internal archive/catalog binding and the
+internal structure, reproducibility, and fixture-lifecycle results. This is
+build evidence only: neither host is documented to consume `DISTRIBUTION.json`
+or enforce its digest, so it does not prove which bytes a host resolved, cached,
+installed, or enabled. Host package validation, marketplace lifecycle, plugin
+installation, plugin activation, behavioral activation, provider execution,
+signing, publication, and owner authority remain `NOT_RUN` or `NOT_EVALUATED`;
+the report always keeps support withheld and `release_ready` false.
+
 `make distribution` writes ignored development output under
 `build/distributions/`. The Codex layout uses `.codex-plugin/plugin.json` and a
 repo-marketplace catalog at `.agents/plugins/marketplace.json`; the Claude layout
-uses `.claude-plugin/plugin.json` for both its package and marketplace roots, as
-required by their distinct host contracts. Skills remain at each plugin root.
+uses `.claude-plugin/plugin.json` for its manifest and
+`.claude-plugin/marketplace.json` for its catalog. Skills remain at each plugin
+root.
 See the [official OpenAI packaging contract](https://developers.openai.com/plugins/build/plugins)
 and [official Claude plugin reference](https://code.claude.com/docs/en/plugins-reference).
 
@@ -202,6 +213,10 @@ development build evidence only: there is no trusted signature, notarization,
 channel, revocation, authenticated updater, publication, release, or stable
 v1.0 claim. All provider execution and real Codex/Claude installation cells
 remain `NOT_RUN`; a package pass for one host cannot promote the other.
+Any later host trial must separately bind the resolved package bytes and use
+disposable host state, including an isolated `CODEX_HOME` or Claude configuration,
+plugin-cache, and temporary roots; documented host isolation limits remain part
+of that later gate.
 
 ## Risk model
 

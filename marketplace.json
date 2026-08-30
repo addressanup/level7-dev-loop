@@ -8,7 +8,7 @@
       "name": "level7-dev-loop",
       "source": ".",
       "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
-      "version": "0.1.0-dev.5",
+      "version": "0.1.0-dev.6",
       "author": {
         "name": "Level 7 Engineering"
       },

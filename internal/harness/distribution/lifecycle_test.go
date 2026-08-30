@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func TestQualifyLifecycleSetPreflightsBothHostsBeforeMutation(t *testing.T) {
+	packages := []builtPackage{
+		testBuiltPackage(t, "codex", "0.1.0-dev.5", "codex\n"),
+		testBuiltPackage(t, "claude", "0.1.0-dev.5", "claude\n"),
+	}
+	packages[1].CatalogDigest = strings.Repeat("0", 64)
+	syncs := 0
+	replaceLifecycleSyncDirectory(t, func(string) error {
+		syncs++
+		return nil
+	})
+	if qualification, err := qualifyLifecycleSet(packages); err == nil || len(qualification.Packages) != 0 {
+		t.Fatalf("invalid second host passed preflight: qualification=%+v error=%v", qualification, err)
+	}
+	if syncs != 0 {
+		t.Fatalf("preflight failure attempted %d lifecycle durability writes", syncs)
+	}
+}
+
 func TestFixtureLifecycleInstallUpgradeRecoverRollbackRemove(t *testing.T) {
 	root := t.TempDir()
 	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
@@ -704,6 +723,22 @@ func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
 	}{
 		{name: "host", mutate: func(value *builtPackage) { value.Host = "claude" }},
 		{name: "version", mutate: func(value *builtPackage) { value.Version = "0.1.0-dev.999" }},
+		{name: "catalog digest", mutate: func(value *builtPackage) { value.CatalogDigest = strings.Repeat("0", 64) }},
+		{name: "source digest", mutate: func(value *builtPackage) { value.SourceDigest = strings.Repeat("0", 64) }},
+		{name: "missing catalog", mutate: func(value *builtPackage) {
+			value.Catalog = nil
+			value.CatalogDigest = sha256Hex(value.Catalog)
+			rewriteTestDistribution(t, value, func(metadata *distributionMetadata) {
+				metadata.CatalogSHA256 = value.CatalogDigest
+			})
+		}},
+		{name: "noncanonical catalog", mutate: func(value *builtPackage) {
+			value.Catalog = append(value.Catalog, '\n')
+			value.CatalogDigest = sha256Hex(value.Catalog)
+			rewriteTestDistribution(t, value, func(metadata *distributionMetadata) {
+				metadata.CatalogSHA256 = value.CatalogDigest
+			})
+		}},
 		{name: "opposite manifest", mutate: func(value *builtPackage) {
 			manifest, err := jsonBytes(claudeManifest{
 				Schema: "https://json.schemastore.org/claude-code-plugin-manifest.json",
@@ -776,6 +811,8 @@ func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
 			root := t.TempDir()
 			value := original
 			value.Entries = cloneEntries(original.Entries)
+			value.Archive = append([]byte{}, original.Archive...)
+			value.Catalog = append([]byte{}, original.Catalog...)
 			test.mutate(&value)
 			if err := installFixture(root, value, ""); err == nil {
 				t.Fatal("relabelled package passed install")
@@ -786,6 +823,32 @@ func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
 			}
 		})
 	}
+}
+
+func rewriteTestDistribution(t *testing.T, built *builtPackage, mutate func(*distributionMetadata)) {
+	t.Helper()
+	entries := cloneEntries(built.Entries)
+	found := false
+	for index := range entries {
+		if entries[index].Name != "DISTRIBUTION.json" {
+			continue
+		}
+		var metadata distributionMetadata
+		if err := decodeStrict(entries[index].Data, &metadata); err != nil {
+			t.Fatal(err)
+		}
+		mutate(&metadata)
+		data, err := jsonBytes(metadata)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries[index].Data = data
+		found = true
+	}
+	if !found {
+		t.Fatal("test package lacks distribution metadata")
+	}
+	rebuildTestPackage(t, built, entries)
 }
 
 func TestFixtureLifecycleRejectsInactiveDigestRelabeling(t *testing.T) {
@@ -1534,10 +1597,24 @@ func testBuiltPackage(t *testing.T, host, version, content string) builtPackage 
 	if err != nil {
 		t.Fatal(err)
 	}
-	sourceDigest := sha256Hex([]byte(host + "\x00" + version + "\x00" + content))
+	descriptor := packageDescriptor{
+		Name: "level7-dev-loop", Version: version,
+		Description: "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
+		Author:      author{Name: "Level 7 Engineering"}, License: "MIT",
+		Hosts: hosts{
+			Codex:  hostDescriptor{Category: "Developer Tools"},
+			Claude: hostDescriptor{Category: "Development Tools"},
+		},
+	}
+	catalog, err := renderCatalog(descriptor, host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalogDigest := sha256Hex(catalog)
+	sourceDigest := sha256Hex([]byte(host + "\x00" + version + "\x00" + catalogDigest + "\x00" + content))
 	distributionData, err := jsonBytes(distributionMetadata{
-		Schema: 1, Name: "level7-dev-loop", Version: version, Channel: "development", Host: host,
-		ManifestPath: manifestPath, CatalogPath: catalogPath, SourceDigest: sourceDigest,
+		Schema: 2, Name: "level7-dev-loop", Version: version, Channel: "development", Host: host,
+		ManifestPath: manifestPath, CatalogPath: catalogPath, CatalogSHA256: catalogDigest, SourceDigest: sourceDigest,
 		Builder: builderVersion, SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
 	})
 	if err != nil {
@@ -1596,8 +1673,9 @@ func testBuiltPackage(t *testing.T, host, version, content string) builtPackage 
 		t.Fatal(err)
 	}
 	return builtPackage{
-		Host: host, Version: version, Entries: entries, Archive: archive, ArchiveDigest: sha256Hex(archive),
-		ArchiveName: host + ".zip", CatalogPath: catalogPath,
+		Host: host, Version: version, Entries: entries, Archive: archive, SourceDigest: sourceDigest,
+		ArchiveDigest: sha256Hex(archive), ArchiveName: host + ".zip", CatalogPath: catalogPath,
+		Catalog: catalog, CatalogDigest: catalogDigest,
 	}
 }
 
