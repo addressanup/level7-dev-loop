@@ -5,15 +5,15 @@
     {
       "host": "codex",
       "host_product": "Codex CLI",
-      "declared_surface": "development package layout and local marketplace metadata",
+      "declared_surface": "stable instruction-plugin package layout, local marketplace lifecycle, and explicit skill invocation",
       "adapter_fixture_version": "codex-cli 0.149.1",
-      "qualification_target": "codex-cli 0.150.1",
+      "qualification_target": "codex-cli 0.151.0",
       "operating_systems": [
         {
           "goos": "darwin",
           "goarch": "arm64",
           "package_build": "TESTED",
-          "host_runtime": "NOT_RUN"
+          "host_runtime": "SMOKE_TESTED"
         },
         {
           "goos": "darwin",
@@ -27,16 +27,16 @@
         "skills/<name>/SKILL.md"
       ],
       "optional_capabilities": [],
-      "degraded_behavior": "Missing, mismatched, or unobserved host behavior withholds support and permits no provider execution claim.",
-      "provider_execution": "NOT_RUN",
-      "actual_host_lifecycle": "NOT_RUN",
-      "rollback": "Preview package-manager-owned state and remove only exact Level 7-owned development package bytes.",
+      "degraded_behavior": "Unobserved host versions or architectures are unqualified; remove the plugin and marketplace if installation, discovery, or invocation fails.",
+      "provider_execution": "SMOKE_TESTED",
+      "actual_host_lifecycle": "SMOKE_TESTED",
+      "rollback": "Uninstall Level 7, remove its local marketplace, and delete only isolated trial state or package-manager-owned Level 7 bytes.",
       "support_claim": "WITHHELD"
     },
     {
       "host": "claude",
       "host_product": "Claude Code",
-      "declared_surface": "development package layout and local marketplace metadata",
+      "declared_surface": "stable instruction-plugin package layout, local marketplace lifecycle, and explicit skill invocation",
       "adapter_fixture_version": "2.1.241",
       "qualification_target": "2.1.247 (Claude Code)",
       "operating_systems": [
@@ -44,7 +44,7 @@
           "goos": "darwin",
           "goarch": "arm64",
           "package_build": "TESTED",
-          "host_runtime": "NOT_RUN"
+          "host_runtime": "SMOKE_TESTED"
         },
         {
           "goos": "darwin",
@@ -58,10 +58,10 @@
         "skills/<name>/SKILL.md"
       ],
       "optional_capabilities": [],
-      "degraded_behavior": "Missing, mismatched, or unobserved host behavior withholds support and permits no provider execution claim.",
-      "provider_execution": "NOT_RUN",
-      "actual_host_lifecycle": "NOT_RUN",
-      "rollback": "Preview package-manager-owned state and remove only exact Level 7-owned development package bytes.",
+      "degraded_behavior": "Unobserved host versions or architectures are unqualified; remove the plugin and marketplace if installation, discovery, or invocation fails.",
+      "provider_execution": "SMOKE_TESTED",
+      "actual_host_lifecycle": "SMOKE_TESTED",
+      "rollback": "Uninstall Level 7, remove its local marketplace, and delete only isolated trial state or package-manager-owned Level 7 bytes.",
       "support_claim": "WITHHELD"
     }
   ]

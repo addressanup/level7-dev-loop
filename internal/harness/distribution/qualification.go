@@ -8,6 +8,7 @@ import (
 const (
 	offlineQualificationKind = "offline-package-qualification"
 	qualificationPass        = "PASS"
+	qualificationSmokeTested = "SMOKE_TESTED"
 	qualificationNotRun      = "NOT_RUN"
 	qualificationWithheld    = "WITHHELD"
 	qualificationUnevaluated = "NOT_EVALUATED"
@@ -98,7 +99,7 @@ func qualifyOfflinePackageSet(facts offlineQualificationFacts) (offlineQualifica
 			metadata.Channel != facts.Descriptor.Channel || metadata.CatalogPath != built.CatalogPath ||
 			metadata.CatalogSHA256 != built.CatalogDigest || metadata.SourceDigest != built.SourceDigest ||
 			!sha256Pattern.MatchString(metadata.SourceDigest) ||
-			metadata.ActualHostGate != qualificationNotRun || metadata.SupportClaim != qualificationWithheld {
+			metadata.ActualHostGate != qualificationSmokeTested || metadata.SupportClaim != qualificationWithheld {
 			return offlineQualificationReport{}, fmt.Errorf("%s distribution identity exceeds the offline qualification boundary", built.Host)
 		}
 
@@ -111,8 +112,8 @@ func qualifyOfflinePackageSet(facts offlineQualificationFacts) (offlineQualifica
 			return offlineQualificationReport{}, fmt.Errorf("decode %s compatibility identity: %w", built.Host, err)
 		}
 		if compatibility.PackageVersion != built.Version || compatibility.Entry.Host != built.Host ||
-			compatibility.Entry.ProviderExecution != qualificationNotRun ||
-			compatibility.Entry.ActualHostLifecycle != qualificationNotRun ||
+			compatibility.Entry.ProviderExecution != qualificationSmokeTested ||
+			compatibility.Entry.ActualHostLifecycle != qualificationSmokeTested ||
 			compatibility.Entry.SupportClaim != qualificationWithheld {
 			return offlineQualificationReport{}, fmt.Errorf("%s compatibility identity exceeds the offline qualification boundary", built.Host)
 		}

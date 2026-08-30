@@ -11,8 +11,8 @@ import (
 
 func TestQualifyLifecycleSetPreflightsBothHostsBeforeMutation(t *testing.T) {
 	packages := []builtPackage{
-		testBuiltPackage(t, "codex", "0.1.0-dev.5", "codex\n"),
-		testBuiltPackage(t, "claude", "0.1.0-dev.5", "claude\n"),
+		testBuiltPackage(t, "codex", "0.1.0", "codex\n"),
+		testBuiltPackage(t, "claude", "0.1.0", "claude\n"),
 	}
 	packages[1].CatalogDigest = strings.Repeat("0", 64)
 	syncs := 0
@@ -30,8 +30,8 @@ func TestQualifyLifecycleSetPreflightsBothHostsBeforeMutation(t *testing.T) {
 
 func TestQualifyLifecycleSetRejectsMixedVersionsBeforeMutation(t *testing.T) {
 	packages := []builtPackage{
-		testBuiltPackage(t, "codex", "0.1.0-dev.5", "codex\n"),
-		testBuiltPackage(t, "claude", "0.1.0-dev.6", "claude\n"),
+		testBuiltPackage(t, "codex", "0.1.0", "codex\n"),
+		testBuiltPackage(t, "claude", "0.1.1", "claude\n"),
 	}
 	syncs := 0
 	replaceLifecycleSyncDirectory(t, func(string) error {
@@ -48,14 +48,14 @@ func TestQualifyLifecycleSetRejectsMixedVersionsBeforeMutation(t *testing.T) {
 
 func TestFixtureLifecycleInstallUpgradeRecoverRollbackRemove(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
 	sameArchiveDifferentVersion := base
-	sameArchiveDifferentVersion.Version = "0.1.0-dev.999"
+	sameArchiveDifferentVersion.Version = "0.1.999"
 	if err := installFixture(root, sameArchiveDifferentVersion, ""); err == nil {
 		t.Fatal("same archive with a different version passed reinstall receipt binding")
 	}
@@ -97,8 +97,8 @@ func TestFixtureLifecycleInstallUpgradeRecoverRollbackRemove(t *testing.T) {
 
 func TestFixtureLifecycleBeforePublishRecoveryPreservesActive(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "claude", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "claude", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "claude", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "claude", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -149,8 +149,8 @@ func TestFixtureLifecycleBeforePublishRecoveryPreservesActive(t *testing.T) {
 
 func TestFixtureLifecycleStageRecoveryPreservesUnownedConflict(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -184,8 +184,8 @@ func TestFixtureLifecycleStageRecoveryPreservesUnownedConflict(t *testing.T) {
 
 func TestFixtureLifecycleRecoversAfterReceiptPublication(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -216,8 +216,8 @@ func TestFixtureLifecycleRecoversAfterReceiptPublication(t *testing.T) {
 
 func TestFixtureLifecycleCommittedReceiptWithMissingPackageFailsClosed(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -248,8 +248,8 @@ func TestFixtureLifecycleCommittedReceiptWithMissingPackageFailsClosed(t *testin
 
 func TestFixtureLifecycleRejectsChangedCommittedReceiptBinding(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -292,8 +292,8 @@ func TestFixtureLifecycleRevalidatesProspectivePackageSet(t *testing.T) {
 	for _, mode := range []string{"changed-base-file", "missing-base-package"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
-			base := testBuiltPackage(t, "claude", "0.1.0-dev.5", "base\n")
-			upgrade := testBuiltPackage(t, "claude", "0.1.0-dev.6", "upgrade\n")
+			base := testBuiltPackage(t, "claude", "0.1.0", "base\n")
+			upgrade := testBuiltPackage(t, "claude", "0.1.1", "upgrade\n")
 			if err := installFixture(root, base, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -344,9 +344,9 @@ func TestFixtureLifecycleAbandonmentRequiresExactBaseReceipt(t *testing.T) {
 	for _, mode := range []string{"missing", "same-active-mismatch"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
-			base := testBuiltPackage(t, "claude", "0.1.0-dev.4", "base\n")
-			active := testBuiltPackage(t, "claude", "0.1.0-dev.5", "active\n")
-			pendingPackage := testBuiltPackage(t, "claude", "0.1.0-dev.6", "pending\n")
+			base := testBuiltPackage(t, "claude", "0.0.9", "base\n")
+			active := testBuiltPackage(t, "claude", "0.1.0", "active\n")
+			pendingPackage := testBuiltPackage(t, "claude", "0.1.1", "pending\n")
 			if err := installFixture(root, base, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -387,7 +387,7 @@ func TestFixtureLifecycleAbandonmentRequiresExactBaseReceipt(t *testing.T) {
 
 func TestFixtureLifecycleConflictsFailClosed(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +424,7 @@ func TestFixtureLifecycleConflictsFailClosed(t *testing.T) {
 
 func TestFixtureLifecycleUnownedEmptyDirectoryBlocksBeforeMutation(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -473,8 +473,8 @@ func TestFixtureLifecycleInterruptedRemovalResumes(t *testing.T) {
 	} {
 		t.Run(fault, func(t *testing.T) {
 			root := t.TempDir()
-			base := testBuiltPackage(t, "claude", "0.1.0-dev.5", "base\n")
-			upgrade := testBuiltPackage(t, "claude", "0.1.0-dev.6", "upgrade\n")
+			base := testBuiltPackage(t, "claude", "0.1.0", "base\n")
+			upgrade := testBuiltPackage(t, "claude", "0.1.1", "upgrade\n")
 			if err := os.WriteFile(filepath.Join(root, "unowned.txt"), []byte("preserve\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -515,7 +515,7 @@ func TestFixtureLifecycleInterruptedRemovalResumes(t *testing.T) {
 
 func TestFixtureLifecycleRemovalRecoveryRejectsQuarantineConflict(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -548,7 +548,7 @@ func TestFixtureLifecycleRemovalRecoveryRejectsQuarantineConflict(t *testing.T) 
 
 func TestFixtureLifecycleRemovalRecoveryRejectsMissingLeafUnderSymlink(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "claude", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -592,7 +592,7 @@ func TestFixtureLifecycleRemovalRecoveryRejectsMissingLeafUnderSymlink(t *testin
 
 func TestFixtureLifecycleRemovalRecoveryRejectsConflictingTrees(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -622,8 +622,8 @@ func TestFixtureLifecycleRemovalRecoveryRejectsConflictingTrees(t *testing.T) {
 
 func TestFixtureLifecycleRemovalRecoveryRejectsReceiptMismatch(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "claude", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "claude", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "claude", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "claude", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -660,7 +660,7 @@ func TestFixtureLifecycleMissingOrMalformedReceiptPreservesBytes(t *testing.T) {
 	for _, mode := range []string{"missing", "unknown-field"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
-			built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+			built := testBuiltPackage(t, "claude", "0.1.0", "owned\n")
 			if err := installFixture(root, built, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -684,7 +684,7 @@ func TestFixtureLifecycleMissingOrMalformedReceiptPreservesBytes(t *testing.T) {
 }
 
 func TestFixtureLifecycleRejectsPackageSubstitution(t *testing.T) {
-	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	built.ArchiveDigest = "00" + built.ArchiveDigest[2:]
 	if err := installFixture(t.TempDir(), built, ""); err == nil {
 		t.Fatal("substituted package digest passed")
@@ -734,13 +734,13 @@ func TestRemoveEmptyParentsResumesPastMissingChild(t *testing.T) {
 }
 
 func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
-	original := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	original := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	tests := []struct {
 		name   string
 		mutate func(*builtPackage)
 	}{
 		{name: "host", mutate: func(value *builtPackage) { value.Host = "claude" }},
-		{name: "version", mutate: func(value *builtPackage) { value.Version = "0.1.0-dev.999" }},
+		{name: "version", mutate: func(value *builtPackage) { value.Version = "0.1.999" }},
 		{name: "catalog digest", mutate: func(value *builtPackage) { value.CatalogDigest = strings.Repeat("0", 64) }},
 		{name: "source digest", mutate: func(value *builtPackage) { value.SourceDigest = strings.Repeat("0", 64) }},
 		{name: "missing catalog", mutate: func(value *builtPackage) {
@@ -777,7 +777,7 @@ func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
 					if err := decodeStrict(entries[index].Data, &metadata); err != nil {
 						t.Fatal(err)
 					}
-					metadata.Version = "0.1.0-dev.999"
+					metadata.Version = "0.1.999"
 					data, err := jsonBytes(metadata)
 					if err != nil {
 						t.Fatal(err)
@@ -795,7 +795,7 @@ func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
 					if err := decodeStrict(entries[index].Data, &manifest); err != nil {
 						t.Fatal(err)
 					}
-					manifest.Version = "0.1.0-dev.999"
+					manifest.Version = "0.1.999"
 					data, err := jsonBytes(manifest)
 					if err != nil {
 						t.Fatal(err)
@@ -813,7 +813,7 @@ func TestFixtureLifecycleRejectsArchiveIdentityRelabeling(t *testing.T) {
 					if err := decodeStrict(entries[index].Data, &compatibility); err != nil {
 						t.Fatal(err)
 					}
-					compatibility.PackageVersion = "0.1.0-dev.999"
+					compatibility.PackageVersion = "0.1.999"
 					data, err := jsonBytes(compatibility)
 					if err != nil {
 						t.Fatal(err)
@@ -871,8 +871,8 @@ func rewriteTestDistribution(t *testing.T, built *builtPackage, mutate func(*dis
 
 func TestFixtureLifecycleRejectsInactiveDigestRelabeling(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "claude", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "claude", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "claude", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "claude", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -887,7 +887,7 @@ func TestFixtureLifecycleRejectsInactiveDigestRelabeling(t *testing.T) {
 	if !ok {
 		t.Fatal("inactive package is absent from receipt")
 	}
-	inactive.Version = "0.1.0-dev.999"
+	inactive.Version = "0.1.999"
 	baseReceiptDigest, err := lifecycleReceiptStateDigest(before)
 	if err != nil {
 		t.Fatal(err)
@@ -919,7 +919,7 @@ func TestFixtureLifecycleMalformedRemovalJournalPreservesBytes(t *testing.T) {
 	for _, mode := range []string{"unknown-field", "cross-host", "escaping-receipt"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
-			built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+			built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 			if err := installFixture(root, built, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -962,7 +962,7 @@ func TestFixtureLifecycleMalformedRemovalJournalPreservesBytes(t *testing.T) {
 
 func TestFixtureLifecycleRejectsReceiptReclassification(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -994,7 +994,7 @@ func TestFixtureLifecycleRejectsReceiptReclassification(t *testing.T) {
 
 func TestFixtureLifecycleRejectsSymlinkedPackageRoot(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "claude", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -1022,7 +1022,7 @@ func TestFixtureLifecycleDirectorySyncPreflightFailsClosed(t *testing.T) {
 
 	t.Run("install", func(t *testing.T) {
 		root := t.TempDir()
-		built := testBuiltPackage(t, "codex", "0.1.0-dev.5", "owned\n")
+		built := testBuiltPackage(t, "codex", "0.1.0", "owned\n")
 		realSync := lifecycleSyncDirectory
 		calls := 0
 		restore := replaceLifecycleSyncDirectory(t, func(directory string) error {
@@ -1055,7 +1055,7 @@ func TestFixtureLifecycleDirectorySyncPreflightFailsClosed(t *testing.T) {
 
 	t.Run("removal", func(t *testing.T) {
 		root := t.TempDir()
-		built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+		built := testBuiltPackage(t, "claude", "0.1.0", "owned\n")
 		if err := installFixture(root, built, ""); err != nil {
 			t.Fatal(err)
 		}
@@ -1151,8 +1151,8 @@ func TestEnsureDurableRootPublishesEachCreatedComponent(t *testing.T) {
 
 func TestFixtureLifecycleInstallDurabilityBarrierOrder(t *testing.T) {
 	root := t.TempDir()
-	base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-	upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+	base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+	upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 	if err := installFixture(root, base, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -1270,8 +1270,8 @@ func TestFixtureLifecycleInstallDirectorySyncFailuresRecover(t *testing.T) {
 	} {
 		t.Run(phase.name, func(t *testing.T) {
 			root := t.TempDir()
-			base := testBuiltPackage(t, "codex", "0.1.0-dev.5", "base\n")
-			upgrade := testBuiltPackage(t, "codex", "0.1.0-dev.6", "upgrade\n")
+			base := testBuiltPackage(t, "codex", "0.1.0", "base\n")
+			upgrade := testBuiltPackage(t, "codex", "0.1.1", "upgrade\n")
 			if err := installFixture(root, base, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -1323,7 +1323,7 @@ func TestFixtureLifecycleInstallDirectorySyncFailuresRecover(t *testing.T) {
 
 func TestFixtureLifecycleRemovalDurabilityBarrierOrder(t *testing.T) {
 	root := t.TempDir()
-	built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+	built := testBuiltPackage(t, "claude", "0.1.0", "owned\n")
 	if err := installFixture(root, built, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -1451,7 +1451,7 @@ func TestFixtureLifecycleRemovalDirectorySyncFailuresRecover(t *testing.T) {
 	} {
 		t.Run(phase.name, func(t *testing.T) {
 			root := t.TempDir()
-			built := testBuiltPackage(t, "claude", "0.1.0-dev.5", "owned\n")
+			built := testBuiltPackage(t, "claude", "0.1.0", "owned\n")
 			if err := installFixture(root, built, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -1631,9 +1631,9 @@ func testBuiltPackage(t *testing.T, host, version, content string) builtPackage 
 	catalogDigest := sha256Hex(catalog)
 	sourceDigest := sha256Hex([]byte(host + "\x00" + version + "\x00" + catalogDigest + "\x00" + content))
 	distributionData, err := jsonBytes(distributionMetadata{
-		Schema: 2, Name: "level7-dev-loop", Version: version, Channel: "development", Host: host,
+		Schema: 2, Name: "level7-dev-loop", Version: version, Channel: "stable", Host: host,
 		ManifestPath: manifestPath, CatalogPath: catalogPath, CatalogSHA256: catalogDigest, SourceDigest: sourceDigest,
-		Builder: builderVersion, SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
+		Builder: builderVersion, SupportClaim: "WITHHELD", ActualHostGate: "SMOKE_TESTED",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1661,7 +1661,7 @@ func testBuiltPackage(t *testing.T, host, version, content string) builtPackage 
 		Schema: 1, Unsigned: true, Package: "level7-dev-loop", Version: version, Host: host,
 		SourceDigest: sourceDigest, Builder: builderVersion,
 		Recipe: "offline deterministic standard-library package assembly", ExternalInputs: []string{},
-		Claim: "development input only; authenticity and release promotion are not established",
+		Claim: "unsigned package input; authenticity is not established",
 	})
 	if err != nil {
 		t.Fatal(err)
