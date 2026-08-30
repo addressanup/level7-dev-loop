@@ -10,7 +10,7 @@
 | Assurance | `solo`; stronger automated verification and truthful self-review |
 | Runtime feature flag | Not applicable — offline build validation only |
 
-## Problem and scope
+## Problem
 
 The deterministic Codex and Claude development archives do not currently bind
 their marketplace catalog bytes into package metadata or source identity. A
@@ -19,6 +19,8 @@ package validator detecting that mismatch. The distribution check also reports
 digests only as text and does not expose a deterministic machine-readable
 decision that distinguishes offline package qualification from release
 readiness.
+
+## Scope
 
 This change will:
 
@@ -44,7 +46,7 @@ or authorize a release. Codex and Claude remain separately unqualified at the
 actual-host boundary. Support remains withheld and `release_ready` is always
 false in this offline evaluator.
 
-## Implementation boundary
+## Exact implementation file set
 
 Add:
 
@@ -52,12 +54,23 @@ Add:
 - `internal/harness/distribution/qualification.go`
 - `internal/harness/distribution/qualification_test.go`
 
-Modify only the development descriptor/generated metadata, changelog/README,
-and distribution harness files needed for version, catalog binding, synthetic
-lifecycle consistency, qualification output, and focused tests. Do not modify
-compatibility claims, support matrices, provider adapters, workflows, policy
-controls, skills, dependencies, remotes, or historical records. Do not add a
-verification or audit artifact.
+Modify:
+
+- `.claude-plugin/plugin.json`
+- `.codex-plugin/plugin.json`
+- `CHANGELOG.md`
+- `README.md`
+- `distribution/package.json`
+- `internal/harness/distribution/lifecycle.go`
+- `internal/harness/distribution/lifecycle_test.go`
+- `internal/harness/distribution/main.go`
+- `internal/harness/distribution/main_test.go`
+- `marketplace.json`
+- `plugin.json`
+
+Do not modify compatibility claims, support matrices, provider adapters,
+workflows, policy controls, skills, dependencies, remotes, or historical
+records. Do not add a verification or audit artifact.
 
 ## Acceptance criteria
 
@@ -84,7 +97,7 @@ verification or audit artifact.
    cross-builds, diff hygiene, and final self-review pass without making an
    external-effect or release claim.
 
-## Risks and rollback
+## Risks and mitigations
 
 - **Catalog/package split:** the builder includes the catalog in source identity,
   and the validator recomputes its digest and matches schema-2 metadata before
@@ -97,6 +110,8 @@ verification or audit artifact.
   bytes actually resolved and use disposable host state (`CODEX_HOME`, or the
   Claude configuration, plugin-cache, and temporary roots) while preserving the
   documented limits of those isolation controls.
+
+## Rollback
 
 Before integration, discard this isolated branch. After later integration,
 revert this change as one reviewed unit. No host, provider, user configuration,
