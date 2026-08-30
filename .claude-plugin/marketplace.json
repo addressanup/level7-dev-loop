@@ -1,24 +1,17 @@
 {
   "name": "level7-engineering",
+  "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
   "owner": {
     "name": "Level 7 Engineering"
   },
   "plugins": [
     {
       "name": "level7-dev-loop",
-      "source": ".",
+      "source": "./plugins/level7-dev-loop",
       "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
       "version": "0.1.1",
-      "author": {
-        "name": "Level 7 Engineering"
-      },
-      "repository": "https://github.com/addressanup/level7-dev-loop",
       "license": "MIT",
       "category": "Development Tools",
-      "tags": [
-        "workflow",
-        "risk-tier"
-      ],
       "strict": true
     }
   ]

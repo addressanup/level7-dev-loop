@@ -112,7 +112,7 @@ func qualifyOfflinePackageSet(facts offlineQualificationFacts) (offlineQualifica
 			return offlineQualificationReport{}, fmt.Errorf("decode %s compatibility identity: %w", built.Host, err)
 		}
 		if compatibility.PackageVersion != built.Version || compatibility.Entry.Host != built.Host ||
-			compatibility.Entry.ProviderExecution != qualificationSmokeTested ||
+			compatibility.Entry.ProviderExecution != qualificationNotRun ||
 			compatibility.Entry.ActualHostLifecycle != qualificationSmokeTested ||
 			compatibility.Entry.SupportClaim != qualificationWithheld {
 			return offlineQualificationReport{}, fmt.Errorf("%s compatibility identity exceeds the offline qualification boundary", built.Host)

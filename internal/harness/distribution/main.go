@@ -556,8 +556,8 @@ func expectedCompatibilityEntries() []compatibilityEntry {
 		{GOOS: "darwin", GOARCH: "amd64", PackageBuild: "TESTED", HostRuntime: "NOT_RUN"},
 	}
 	const (
-		declaredSurface = "stable instruction-plugin package layout, local marketplace lifecycle, and explicit skill invocation"
-		degraded        = "Unobserved host versions or architectures are unqualified; remove the plugin and marketplace if installation, discovery, or invocation fails."
+		declaredSurface = "stable instruction-plugin package layout and local marketplace lifecycle"
+		degraded        = "Provider invocation and unobserved host versions or architectures are unqualified; remove the plugin and marketplace if installation, discovery, or invocation fails."
 		rollback        = "Uninstall Level 7, remove its local marketplace, and delete only isolated trial state or package-manager-owned Level 7 bytes."
 	)
 	return []compatibilityEntry{
@@ -566,7 +566,7 @@ func expectedCompatibilityEntries() []compatibilityEntry {
 			AdapterFixtureVersion: "codex-cli 0.149.1", QualificationTarget: "codex-cli 0.151.0",
 			OperatingSystems:     append([]operatingSystem{}, platforms...),
 			RequiredCapabilities: []string{".codex-plugin/plugin.json", "skills/<name>/SKILL.md"},
-			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "SMOKE_TESTED",
+			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "NOT_RUN",
 			ActualHostLifecycle: "SMOKE_TESTED", Rollback: rollback, SupportClaim: "WITHHELD",
 		},
 		{
@@ -574,7 +574,7 @@ func expectedCompatibilityEntries() []compatibilityEntry {
 			AdapterFixtureVersion: "2.1.241", QualificationTarget: "2.1.247 (Claude Code)",
 			OperatingSystems:     append([]operatingSystem{}, platforms...),
 			RequiredCapabilities: []string{".claude-plugin/plugin.json", "skills/<name>/SKILL.md"},
-			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "SMOKE_TESTED",
+			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "NOT_RUN",
 			ActualHostLifecycle: "SMOKE_TESTED", Rollback: rollback, SupportClaim: "WITHHELD",
 		},
 	}
@@ -650,8 +650,74 @@ func renderRootFiles(descriptor packageDescriptor) (map[string][]byte, error) {
 	return result, nil
 }
 
+func renderCommittedMarketplaceFiles(inputs loadedInputs) (map[string][]byte, error) {
+	rootFiles, err := renderRootFiles(inputs.Descriptor)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]byte, len(rootFiles)+len(inputs.Skills)+7)
+	for relative, data := range rootFiles {
+		result[relative] = append([]byte{}, data...)
+	}
+	for _, host := range []string{"codex", "claude"} {
+		_, descriptor, hostErr := hostInputs(inputs, host)
+		if hostErr != nil {
+			return nil, hostErr
+		}
+		catalog, catalogErr := renderCatalog(inputs.Descriptor, host)
+		if catalogErr != nil {
+			return nil, catalogErr
+		}
+		result[descriptor.CatalogPath] = catalog
+	}
+
+	pluginRoot := filepath.ToSlash(filepath.Join("plugins", inputs.Descriptor.Name))
+	for _, manifest := range []string{inputs.Descriptor.Hosts.Codex.ManifestPath, inputs.Descriptor.Hosts.Claude.ManifestPath} {
+		result[filepath.ToSlash(filepath.Join(pluginRoot, manifest))] = append([]byte{}, rootFiles[manifest]...)
+	}
+	for relative, data := range inputs.Skills {
+		result[filepath.ToSlash(filepath.Join(pluginRoot, relative))] = append([]byte{}, data...)
+	}
+	result[filepath.ToSlash(filepath.Join(pluginRoot, "LICENSE"))] = append([]byte{}, inputs.License...)
+	result[filepath.ToSlash(filepath.Join(pluginRoot, "CHANGELOG.md"))] = append([]byte{}, inputs.Changelog...)
+	result[filepath.ToSlash(filepath.Join(pluginRoot, "README.md"))] = renderMarketplaceReadme(inputs.Descriptor)
+	return result, nil
+}
+
+func renderMarketplaceReadme(descriptor packageDescriptor) []byte {
+	return []byte(fmt.Sprintf(`# Level 7 Dev Loop
+
+Level 7 Dev Loop %s is a dual-host instruction plugin for Codex and Claude
+Code. It turns one concrete development objective into a solo-first loop:
+
+%s
+
+## Use
+
+In a new Codex task:
+
+%s
+$l7-next Implement and verify <your objective>.
+%s
+
+In Claude Code, start a new session or run %s, then use:
+
+%s
+/level7-dev-loop:l7-next Implement and verify <your objective>.
+%s
+
+The plugin contains 12 Markdown instruction skills. It adds no executable,
+hook, MCP server, telemetry, host setting, credential flow, or network access of
+its own. The surrounding host retains its independently configured tools,
+permissions, workspace boundaries, and provider behavior.
+
+Documentation, source, releases, and issue tracking are available at
+<https://github.com/addressanup/level7-dev-loop>.
+`, "`"+descriptor.Version+"`", "`inspect → implement → test → repair → self-review → handoff`", "```text", "```", "`/reload-plugins`", "```text", "```"))
+}
+
 func checkGeneratedFiles(inputs loadedInputs) error {
-	expected, err := renderRootFiles(inputs.Descriptor)
+	expected, err := renderCommittedMarketplaceFiles(inputs)
 	if err != nil {
 		return err
 	}
@@ -663,6 +729,68 @@ func checkGeneratedFiles(inputs loadedInputs) error {
 		if !bytes.Equal(got, want) {
 			return fmt.Errorf("generated file drift: %s", relative)
 		}
+	}
+	return validateCommittedPluginPayload(inputs, expected)
+}
+
+func validateCommittedPluginPayload(inputs loadedInputs, expected map[string][]byte) error {
+	pluginRelative := filepath.ToSlash(filepath.Join("plugins", inputs.Descriptor.Name))
+	pluginRoot := filepath.Join(inputs.Root, filepath.FromSlash(pluginRelative))
+	if err := ensurePhysicalDirectory(inputs.Root, filepath.FromSlash(pluginRelative), false); err != nil {
+		return fmt.Errorf("committed plugin payload: %w", err)
+	}
+
+	prefix := pluginRelative + "/"
+	expectedFiles := make(map[string]bool)
+	expectedDirectories := map[string]bool{".": true}
+	for relative := range expected {
+		if !strings.HasPrefix(relative, prefix) {
+			continue
+		}
+		within := strings.TrimPrefix(relative, prefix)
+		expectedFiles[within] = true
+		for directory := filepath.ToSlash(filepath.Dir(filepath.FromSlash(within))); directory != "."; directory = filepath.ToSlash(filepath.Dir(filepath.FromSlash(directory))) {
+			expectedDirectories[directory] = true
+		}
+	}
+
+	seen := make(map[string]bool, len(expectedFiles))
+	err := filepath.WalkDir(pluginRoot, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, relErr := filepath.Rel(pluginRoot, name)
+		if relErr != nil {
+			return relErr
+		}
+		relative = filepath.ToSlash(relative)
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("committed plugin payload contains symlink %q", relative)
+		}
+		if entry.IsDir() {
+			if !expectedDirectories[relative] {
+				return fmt.Errorf("committed plugin payload contains extra directory %q", relative)
+			}
+			return nil
+		}
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			return infoErr
+		}
+		if !info.Mode().IsRegular() || info.Mode().Perm() != 0o644 || !expectedFiles[relative] {
+			return fmt.Errorf("committed plugin payload contains unexpected file %q", relative)
+		}
+		if seen[relative] {
+			return fmt.Errorf("committed plugin payload contains duplicate file %q", relative)
+		}
+		seen[relative] = true
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if len(seen) != len(expectedFiles) {
+		return fmt.Errorf("committed plugin payload file count=%d want=%d", len(seen), len(expectedFiles))
 	}
 	return nil
 }
