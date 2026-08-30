@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="level7-title level7-desc">
+  <title id="level7-title">Level 7 Dev Loop workflow overview</title>
+  <desc id="level7-desc">One development intent moves through inspection, implementation, testing, repair, self-review, and handoff. Tier 1 uses code and tests, Tier 2 adds one concise brief, and Tier 3 adds stronger verification, rollback, and explicit authority at the real effect boundary.</desc>
+  <defs>
+    <marker id="level7-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2DD4BF"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="520" rx="28" fill="#0B1220"/>
+  <rect x="1" y="1" width="1198" height="518" rx="27" fill="none" stroke="#233148" stroke-width="2"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="60" y="58" fill="#F8FAFC" font-size="34" font-weight="700">One intent. One development loop.</text>
+    <text x="60" y="91" fill="#A8B5C7" font-size="18">Keep routine work moving. Add process only when risk earns it.</text>
+
+    <rect x="956" y="39" width="182" height="34" rx="17" fill="#132238" stroke="#334155"/>
+    <text x="1047" y="61" fill="#C7D2FE" font-size="14" font-weight="600" text-anchor="middle">v0.1.1 · skills-only</text>
+
+    <g fill="none" stroke="#2DD4BF" stroke-width="3" marker-end="url(#level7-arrow)">
+      <path d="M190 171 H214"/>
+      <path d="M348 171 H372"/>
+      <path d="M506 171 H530"/>
+      <path d="M664 171 H688"/>
+      <path d="M822 171 H846"/>
+      <path d="M980 171 H1004"/>
+    </g>
+
+    <g font-size="17" font-weight="650" text-anchor="middle">
+      <g>
+        <rect x="60" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#2DD4BF" stroke-width="2"/>
+        <text x="125" y="177" fill="#F8FAFC">Intent</text>
+      </g>
+      <g>
+        <rect x="218" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#334155" stroke-width="2"/>
+        <text x="283" y="177" fill="#F8FAFC">Inspect</text>
+      </g>
+      <g>
+        <rect x="376" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#334155" stroke-width="2"/>
+        <text x="441" y="177" fill="#F8FAFC">Implement</text>
+      </g>
+      <g>
+        <rect x="534" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#334155" stroke-width="2"/>
+        <text x="599" y="177" fill="#F8FAFC">Test</text>
+      </g>
+      <g>
+        <rect x="692" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#334155" stroke-width="2"/>
+        <text x="757" y="177" fill="#F8FAFC">Repair</text>
+      </g>
+      <g>
+        <rect x="850" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#334155" stroke-width="2"/>
+        <text x="915" y="177" fill="#F8FAFC">Self-review</text>
+      </g>
+      <g>
+        <rect x="1008" y="138" width="130" height="66" rx="14" fill="#132238" stroke="#2DD4BF" stroke-width="2"/>
+        <text x="1073" y="177" fill="#F8FAFC">Handoff</text>
+      </g>
+    </g>
+
+    <g>
+      <rect x="60" y="252" width="340" height="136" rx="18" fill="#101B2D" stroke="#334155" stroke-width="2"/>
+      <rect x="82" y="274" width="74" height="30" rx="15" fill="#18334A"/>
+      <text x="119" y="294" fill="#67E8F9" font-size="14" font-weight="700" text-anchor="middle">TIER 1</text>
+      <text x="82" y="332" fill="#F8FAFC" font-size="20" font-weight="650">Routine change</text>
+      <text x="82" y="360" fill="#B8C4D6" font-size="15">Code + tests. No governance artifact.</text>
+
+      <rect x="430" y="252" width="340" height="136" rx="18" fill="#101B2D" stroke="#334155" stroke-width="2"/>
+      <rect x="452" y="274" width="74" height="30" rx="15" fill="#203050"/>
+      <text x="489" y="294" fill="#A5B4FC" font-size="14" font-weight="700" text-anchor="middle">TIER 2</text>
+      <text x="452" y="332" fill="#F8FAFC" font-size="20" font-weight="650">Meaningful product change</text>
+      <text x="452" y="360" fill="#B8C4D6" font-size="15">One concise brief + relevant verification.</text>
+
+      <rect x="800" y="252" width="340" height="136" rx="18" fill="#171A25" stroke="#FBBF24" stroke-width="2"/>
+      <rect x="822" y="274" width="74" height="30" rx="15" fill="#3A2B12"/>
+      <text x="859" y="294" fill="#FCD34D" font-size="14" font-weight="700" text-anchor="middle">TIER 3</text>
+      <text x="822" y="332" fill="#F8FAFC" font-size="20" font-weight="650">High-risk change or release</text>
+      <text x="822" y="358" fill="#D5C9A8" font-size="15">Stronger checks + rollback.</text>
+      <text x="822" y="379" fill="#D5C9A8" font-size="15">Authority at the real effect boundary.</text>
+    </g>
+
+    <g font-size="14" font-weight="600">
+      <rect x="60" y="432" width="90" height="34" rx="17" fill="#132238" stroke="#334155"/>
+      <text x="105" y="454" fill="#DCE7F7" text-anchor="middle">Codex</text>
+
+      <rect x="164" y="432" width="126" height="34" rx="17" fill="#132238" stroke="#334155"/>
+      <text x="227" y="454" fill="#DCE7F7" text-anchor="middle">Claude Code</text>
+
+      <rect x="304" y="432" width="154" height="34" rx="17" fill="#132238" stroke="#334155"/>
+      <text x="381" y="454" fill="#DCE7F7" text-anchor="middle">12 instruction skills</text>
+
+      <rect x="472" y="432" width="288" height="34" rx="17" fill="#132238" stroke="#334155"/>
+      <text x="616" y="454" fill="#DCE7F7" text-anchor="middle">No hooks · No MCP · No telemetry</text>
+    </g>
+
+    <text x="60" y="497" fill="#73839A" font-size="13">Level 7 guides the host coding agent; the host keeps its own tools, permissions, and safety boundaries.</text>
+  </g>
+</svg>
