@@ -213,7 +213,7 @@ func qualifyOneLifecycle(parent string, base builtPackage) error {
 func syntheticLifecycleVariant(original builtPackage) (builtPackage, error) {
 	variant := original
 	var err error
-	variant.Version, err = nextDevelopmentVersion(original.Version)
+	variant.Version, err = nextStablePatchVersion(original.Version)
 	if err != nil {
 		return builtPackage{}, err
 	}
@@ -378,20 +378,20 @@ func syntheticLifecycleVariant(original builtPackage) (builtPackage, error) {
 	return variant, nil
 }
 
-func nextDevelopmentVersion(version string) (string, error) {
+func nextStablePatchVersion(version string) (string, error) {
 	if !versionPattern.MatchString(version) {
-		return "", errors.New("development package version is invalid")
+		return "", errors.New("stable package version is invalid")
 	}
-	separator := strings.LastIndexByte(version, '.')
-	if separator < 0 {
-		return "", errors.New("development package ordinal is missing")
+	components := strings.Split(version, ".")
+	if len(components) != 3 {
+		return "", errors.New("stable package patch version is missing")
 	}
-	ordinal, ok := new(big.Int).SetString(version[separator+1:], 10)
-	if !ok || ordinal.Sign() <= 0 {
-		return "", errors.New("development package ordinal cannot be advanced")
+	patch, ok := new(big.Int).SetString(components[2], 10)
+	if !ok || patch.Sign() < 0 {
+		return "", errors.New("stable package patch version cannot be advanced")
 	}
-	ordinal.Add(ordinal, big.NewInt(1))
-	return version[:separator+1] + ordinal.String(), nil
+	patch.Add(patch, big.NewInt(1))
+	return components[0] + "." + components[1] + "." + patch.String(), nil
 }
 
 func installFixture(root string, built builtPackage, fault string) error {
@@ -1215,10 +1215,10 @@ func validatePackageIdentity(built builtPackage) error {
 		return fmt.Errorf("decode fixture distribution metadata: %w", err)
 	}
 	if metadata.Schema != 2 || metadata.Name != "level7-dev-loop" || metadata.Version != built.Version ||
-		metadata.Channel != "development" || metadata.Host != built.Host || metadata.ManifestPath != manifestPath ||
+		metadata.Channel != "stable" || metadata.Host != built.Host || metadata.ManifestPath != manifestPath ||
 		metadata.CatalogPath != catalogPath || metadata.CatalogSHA256 != built.CatalogDigest ||
 		metadata.SourceDigest != built.SourceDigest ||
-		metadata.Builder != builderVersion || metadata.SupportClaim != "WITHHELD" || metadata.ActualHostGate != "NOT_RUN" {
+		metadata.Builder != builderVersion || metadata.SupportClaim != "WITHHELD" || metadata.ActualHostGate != "SMOKE_TESTED" {
 		return errors.New("fixture distribution metadata does not bind the package identity")
 	}
 	if err := validateCatalogIdentity(built, metadata.Name); err != nil {
@@ -1260,7 +1260,7 @@ func validateCatalogIdentity(built builtPackage, packageName string) error {
 		if err != nil || !bytes.Equal(canonical, built.Catalog) {
 			return errors.New("Codex fixture catalog is not canonical")
 		}
-		if catalog.Name != "level7-engineering-development" || catalog.Interface.DisplayName != "Level 7 Engineering (Development)" ||
+		if catalog.Name != "level7-engineering" || catalog.Interface.DisplayName != "Level 7 Engineering" ||
 			len(catalog.Plugins) != 1 || catalog.Plugins[0].Name != packageName || catalog.Plugins[0].Source.Source != "local" ||
 			catalog.Plugins[0].Source.Path != expectedSource || catalog.Plugins[0].Policy.Installation != "AVAILABLE" ||
 			catalog.Plugins[0].Policy.Authentication != "ON_INSTALL" || catalog.Plugins[0].Category != "Developer Tools" {
@@ -1276,7 +1276,9 @@ func validateCatalogIdentity(built builtPackage, packageName string) error {
 	if err != nil || !bytes.Equal(canonical, built.Catalog) {
 		return errors.New("Claude fixture catalog is not canonical")
 	}
-	if catalog.Name != "level7-engineering-development" || catalog.Owner.Name != "Level 7 Engineering" || len(catalog.Plugins) != 1 ||
+	if catalog.Name != "level7-engineering" ||
+		catalog.Description != "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance." ||
+		catalog.Owner.Name != "Level 7 Engineering" || len(catalog.Plugins) != 1 ||
 		catalog.Plugins[0].Name != packageName || catalog.Plugins[0].Source != expectedSource ||
 		catalog.Plugins[0].Description != "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance." ||
 		catalog.Plugins[0].Version != built.Version || catalog.Plugins[0].License != "MIT" ||
@@ -1329,7 +1331,7 @@ func validatePackageProjections(built builtPackage, metadata distributionMetadat
 		provenance.Version != built.Version || provenance.Host != built.Host || provenance.SourceDigest != metadata.SourceDigest ||
 		provenance.Builder != metadata.Builder || provenance.Recipe != "offline deterministic standard-library package assembly" ||
 		provenance.ExternalInputs == nil || len(provenance.ExternalInputs) != 0 ||
-		provenance.Claim != "development input only; authenticity and release promotion are not established" {
+		provenance.Claim != "unsigned package input; authenticity is not established" {
 		return errors.New("fixture provenance input does not bind the package identity")
 	}
 

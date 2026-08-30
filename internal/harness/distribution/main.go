@@ -25,7 +25,7 @@ const (
 
 var (
 	packageNamePattern     = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	versionPattern         = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)-dev\.[1-9][0-9]*$`)
+	versionPattern         = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$`)
 	sha256Pattern          = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	lifecycleSyncDirectory = syncPhysicalDirectory
 )
@@ -132,6 +132,7 @@ type codexInterface struct {
 	LongDescription  string   `json:"longDescription"`
 	DeveloperName    string   `json:"developerName"`
 	Category         string   `json:"category"`
+	Capabilities     []string `json:"capabilities"`
 	DefaultPrompt    []string `json:"defaultPrompt"`
 }
 
@@ -260,9 +261,10 @@ type claudeCatalogPlugin struct {
 }
 
 type claudeCatalog struct {
-	Name    string                `json:"name"`
-	Owner   author                `json:"owner"`
-	Plugins []claudeCatalogPlugin `json:"plugins"`
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Owner       author                `json:"owner"`
+	Plugins     []claudeCatalogPlugin `json:"plugins"`
 }
 
 type inventoryEntry struct {
@@ -391,7 +393,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 			}
 			return 0
 		}
-		fmt.Fprintf(stdout, "distribution-check: PASS packages=%d version=%s codex=%s claude=%s actual_host=NOT_RUN\n",
+		fmt.Fprintf(stdout, "distribution-check: PASS packages=%d version=%s codex=%s claude=%s actual_host_this_run=NOT_RUN recorded_host_gate=SMOKE_TESTED\n",
 			len(packages), inputs.Descriptor.Version, packages[0].ArchiveDigest, packages[1].ArchiveDigest)
 		return 0
 	}
@@ -400,7 +402,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "distribution: write output: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "distribution-build: PASS output=build/distributions packages=%d version=%s actual_host=NOT_RUN\n", len(packages), inputs.Descriptor.Version)
+	fmt.Fprintf(stdout, "distribution-build: PASS output=build/distributions packages=%d version=%s actual_host_this_run=NOT_RUN recorded_host_gate=SMOKE_TESTED\n", len(packages), inputs.Descriptor.Version)
 	return 0
 }
 
@@ -459,7 +461,7 @@ func loadInputs(root string) (loadedInputs, error) {
 		return loadedInputs{}, err
 	}
 	if err := validatePackageDocuments(license, changelog, descriptor.Version); err != nil {
-		return loadedInputs{}, errors.New("license or changelog does not bind the development package identity")
+		return loadedInputs{}, errors.New("license or changelog does not bind the stable package identity")
 	}
 
 	skillBytes := make(map[string][]byte, len(descriptor.Skills))
@@ -483,22 +485,26 @@ func loadInputs(root string) (loadedInputs, error) {
 }
 
 func validatePackageDocuments(license, changelog []byte, version string) error {
-	heading := []byte("## " + version + " — Unreleased")
+	heading := []byte("## " + version)
 	headingCount := 0
+	versionHeadingCount := 0
 	for _, line := range bytes.Split(changelog, []byte{'\n'}) {
 		if bytes.Equal(line, heading) {
 			headingCount++
 		}
+		if bytes.Equal(line, heading) || bytes.HasPrefix(line, append(append([]byte{}, heading...), ' ')) {
+			versionHeadingCount++
+		}
 	}
-	if !versionPattern.MatchString(version) || !bytes.Contains(license, []byte("MIT License")) || headingCount != 1 {
-		return errors.New("package documents do not bind one canonical development identity")
+	if !versionPattern.MatchString(version) || !bytes.Contains(license, []byte("MIT License")) || headingCount != 1 || versionHeadingCount != 1 {
+		return errors.New("package documents do not bind one canonical stable identity")
 	}
 	return nil
 }
 
 func validateDescriptor(descriptor packageDescriptor) error {
-	if descriptor.Schema != 1 || !packageNamePattern.MatchString(descriptor.Name) || !versionPattern.MatchString(descriptor.Version) || descriptor.Channel != "development" {
-		return errors.New("package schema, name, prerelease version, or channel is invalid")
+	if descriptor.Schema != 1 || !packageNamePattern.MatchString(descriptor.Name) || !versionPattern.MatchString(descriptor.Version) || descriptor.Channel != "stable" {
+		return errors.New("package schema, name, stable version, or channel is invalid")
 	}
 	if descriptor.Description == "" || descriptor.Author.Name == "" || descriptor.License != "MIT" ||
 		!strings.HasPrefix(descriptor.Homepage, "https://github.com/addressanup/level7-dev-loop") || descriptor.Repository != "https://github.com/addressanup/level7-dev-loop" {
@@ -516,7 +522,7 @@ func validateDescriptor(descriptor packageDescriptor) error {
 	}
 	permission := descriptor.Permissions
 	if permission.Level7Network || permission.BundledExecutable || permission.MCPServer || permission.Hook || permission.HostSetting || permission.Telemetry || strings.TrimSpace(permission.WorkspaceBoundary) == "" {
-		return errors.New("development package permissions exceed the approved inert boundary")
+		return errors.New("stable package permissions exceed the approved inert boundary")
 	}
 	if err := validateHost("codex", descriptor.Hosts.Codex, ".codex-plugin/plugin.json", ".agents/plugins/marketplace.json"); err != nil {
 		return err
@@ -538,7 +544,7 @@ func validateCompatibility(matrix compatibilityMatrix) error {
 	}
 	for index := range expected {
 		if !equalCompatibilityEntry(matrix.Entries[index], expected[index]) {
-			return fmt.Errorf("compatibility entry %d does not match the exact %s development boundary", index, expected[index].Host)
+			return fmt.Errorf("compatibility entry %d does not match the exact %s stable boundary", index, expected[index].Host)
 		}
 	}
 	return nil
@@ -546,30 +552,30 @@ func validateCompatibility(matrix compatibilityMatrix) error {
 
 func expectedCompatibilityEntries() []compatibilityEntry {
 	platforms := []operatingSystem{
-		{GOOS: "darwin", GOARCH: "arm64", PackageBuild: "TESTED", HostRuntime: "NOT_RUN"},
+		{GOOS: "darwin", GOARCH: "arm64", PackageBuild: "TESTED", HostRuntime: "SMOKE_TESTED"},
 		{GOOS: "darwin", GOARCH: "amd64", PackageBuild: "TESTED", HostRuntime: "NOT_RUN"},
 	}
 	const (
-		declaredSurface = "development package layout and local marketplace metadata"
-		degraded        = "Missing, mismatched, or unobserved host behavior withholds support and permits no provider execution claim."
-		rollback        = "Preview package-manager-owned state and remove only exact Level 7-owned development package bytes."
+		declaredSurface = "stable instruction-plugin package layout, local marketplace lifecycle, and explicit skill invocation"
+		degraded        = "Unobserved host versions or architectures are unqualified; remove the plugin and marketplace if installation, discovery, or invocation fails."
+		rollback        = "Uninstall Level 7, remove its local marketplace, and delete only isolated trial state or package-manager-owned Level 7 bytes."
 	)
 	return []compatibilityEntry{
 		{
 			Host: "codex", HostProduct: "Codex CLI", DeclaredSurface: declaredSurface,
-			AdapterFixtureVersion: "codex-cli 0.149.1", QualificationTarget: "codex-cli 0.150.1",
+			AdapterFixtureVersion: "codex-cli 0.149.1", QualificationTarget: "codex-cli 0.151.0",
 			OperatingSystems:     append([]operatingSystem{}, platforms...),
 			RequiredCapabilities: []string{".codex-plugin/plugin.json", "skills/<name>/SKILL.md"},
-			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "NOT_RUN",
-			ActualHostLifecycle: "NOT_RUN", Rollback: rollback, SupportClaim: "WITHHELD",
+			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "SMOKE_TESTED",
+			ActualHostLifecycle: "SMOKE_TESTED", Rollback: rollback, SupportClaim: "WITHHELD",
 		},
 		{
 			Host: "claude", HostProduct: "Claude Code", DeclaredSurface: declaredSurface,
 			AdapterFixtureVersion: "2.1.241", QualificationTarget: "2.1.247 (Claude Code)",
 			OperatingSystems:     append([]operatingSystem{}, platforms...),
 			RequiredCapabilities: []string{".claude-plugin/plugin.json", "skills/<name>/SKILL.md"},
-			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "NOT_RUN",
-			ActualHostLifecycle: "NOT_RUN", Rollback: rollback, SupportClaim: "WITHHELD",
+			OptionalCapabilities: []string{}, DegradedBehavior: degraded, ProviderExecution: "SMOKE_TESTED",
+			ActualHostLifecycle: "SMOKE_TESTED", Rollback: rollback, SupportClaim: "WITHHELD",
 		},
 	}
 }
@@ -594,8 +600,9 @@ func equalCompatibilityEntry(first, second compatibilityEntry) bool {
 func renderRootFiles(descriptor packageDescriptor) (map[string][]byte, error) {
 	interfaceMetadata := codexInterface{
 		DisplayName: descriptor.Hosts.Codex.DisplayName, ShortDescription: "One intent to a tested handoff",
-		LongDescription: "Solo-first development conductor for inspect, implement, test, repair, self-review, and review-ready handoff. Team assurance is opt-in. No provider support, installation, or release claim is implied.",
+		LongDescription: "Solo-first development conductor for inspect, implement, test, repair, self-review, and review-ready handoff. Team assurance is opt-in. The instruction-only package does not add executables, hooks, MCP servers, or network access.",
 		DeveloperName:   descriptor.Author.Name, Category: descriptor.Hosts.Codex.Category,
+		Capabilities: []string{},
 		DefaultPrompt: []string{
 			"Use l7-next to implement and verify this change end to end",
 			"Use l7-next to continue the current repository work",
@@ -619,7 +626,7 @@ func renderRootFiles(descriptor packageDescriptor) (map[string][]byte, error) {
 		Keywords: append([]string{}, descriptor.Keywords...), Skills: "./skills/",
 	}
 	marketplace := legacyMarketplace{
-		Name: "level7-engineering-development", Owner: descriptor.Author,
+		Name: "level7-engineering", Owner: descriptor.Author,
 		Plugins: []legacyMarketplacePlugin{{
 			Name: descriptor.Name, Source: ".", Description: descriptor.Description, Version: descriptor.Version,
 			Author: descriptor.Author, Repository: descriptor.Repository, License: descriptor.License,
@@ -707,7 +714,7 @@ func buildPackages(inputs loadedInputs) ([]builtPackage, error) {
 			Channel: inputs.Descriptor.Channel, Host: host, ManifestPath: descriptor.ManifestPath,
 			CatalogPath: descriptor.CatalogPath, CatalogSHA256: catalogDigest,
 			SourceDigest: sourceDigest, Builder: builderVersion,
-			SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
+			SupportClaim: "WITHHELD", ActualHostGate: entry.ActualHostLifecycle,
 		})
 		if err != nil {
 			return nil, err
@@ -722,7 +729,7 @@ func buildPackages(inputs loadedInputs) ([]builtPackage, error) {
 			Schema: 1, Unsigned: true, Package: inputs.Descriptor.Name, Version: inputs.Descriptor.Version,
 			Host: host, SourceDigest: sourceDigest, Builder: builderVersion,
 			Recipe:         "offline deterministic standard-library package assembly",
-			ExternalInputs: []string{}, Claim: "development input only; authenticity and release promotion are not established",
+			ExternalInputs: []string{}, Claim: "unsigned package input; authenticity is not established",
 		})
 		if err != nil {
 			return nil, err
@@ -810,7 +817,7 @@ func makeSBOM(descriptor packageDescriptor, host, sourceDigest string) sbomDocum
 func renderCatalog(descriptor packageDescriptor, host string) ([]byte, error) {
 	if host == "codex" {
 		return jsonBytes(codexCatalog{
-			Name: "level7-engineering-development", Interface: codexCatalogInterface{DisplayName: "Level 7 Engineering (Development)"},
+			Name: "level7-engineering", Interface: codexCatalogInterface{DisplayName: "Level 7 Engineering"},
 			Plugins: []codexCatalogPlugin{{
 				Name: descriptor.Name, Source: codexCatalogSource{Source: "local", Path: "./plugins/" + descriptor.Name},
 				Policy: codexCatalogPolicy{Installation: "AVAILABLE", Authentication: "ON_INSTALL"}, Category: descriptor.Hosts.Codex.Category,
@@ -819,7 +826,7 @@ func renderCatalog(descriptor packageDescriptor, host string) ([]byte, error) {
 	}
 	if host == "claude" {
 		return jsonBytes(claudeCatalog{
-			Name: "level7-engineering-development", Owner: descriptor.Author,
+			Name: "level7-engineering", Description: descriptor.Description, Owner: descriptor.Author,
 			Plugins: []claudeCatalogPlugin{{
 				Name: descriptor.Name, Source: "./plugins/" + descriptor.Name, Description: descriptor.Description,
 				Version: descriptor.Version, License: descriptor.License, Category: descriptor.Hosts.Claude.Category, Strict: true,

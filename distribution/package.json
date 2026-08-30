@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "name": "level7-dev-loop",
-  "version": "0.1.0-dev.6",
-  "channel": "development",
+  "version": "0.1.0",
+  "channel": "stable",
   "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
   "author": {
     "name": "Level 7 Engineering"

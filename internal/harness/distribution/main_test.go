@@ -31,8 +31,8 @@ func TestCurrentRepositoryDistributionCheck(t *testing.T) {
 		if err := validateArchive(built.Archive, built.Entries); err != nil {
 			t.Fatalf("%s archive: %v", built.Host, err)
 		}
-		if !bytes.Contains(built.Catalog, []byte("level7-engineering-development")) {
-			t.Fatalf("%s catalog is not development-bound", built.Host)
+		if !bytes.Contains(built.Catalog, []byte("level7-engineering")) || bytes.Contains(built.Catalog, []byte("level7-engineering-development")) {
+			t.Fatalf("%s catalog is not stable-bound", built.Host)
 		}
 	}
 
@@ -40,7 +40,9 @@ func TestCurrentRepositoryDistributionCheck(t *testing.T) {
 	if code := run([]string{"--root", root, "--check"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("run code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "distribution-check: PASS") || !strings.Contains(stdout.String(), "actual_host=NOT_RUN") || stderr.Len() != 0 {
+	if !strings.Contains(stdout.String(), "distribution-check: PASS") ||
+		!strings.Contains(stdout.String(), "actual_host_this_run=NOT_RUN") ||
+		!strings.Contains(stdout.String(), "recorded_host_gate=SMOKE_TESTED") || stderr.Len() != 0 {
 		t.Fatalf("unexpected check output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
@@ -55,8 +57,8 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedDigests := map[string]string{
-		"codex":  "e30994b2a599f75f1bdba1248b1bc5f090de2b3dddb73674f1b9816f146cfc7c",
-		"claude": "c9529d888de784435fb7315a27ef7cbc828ee512a0cd6e924e7d492d2aef0c7e",
+		"codex":  "02660da8451c0a00e808424943ae72be264d9266ad6b4a015be74b6ed4b70657",
+		"claude": "9ad8a7156f2ba596db14c5561213ba4c45527d691f5aada885381d8f6945e064",
 	}
 	for _, built := range packages {
 		t.Run(built.Host, func(t *testing.T) {
@@ -81,7 +83,7 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 				Channel: inputs.Descriptor.Channel, Host: built.Host, ManifestPath: host.ManifestPath,
 				CatalogPath: host.CatalogPath, CatalogSHA256: built.CatalogDigest,
 				SourceDigest: metadata.SourceDigest, Builder: builderVersion,
-				SupportClaim: "WITHHELD", ActualHostGate: "NOT_RUN",
+				SupportClaim: "WITHHELD", ActualHostGate: "SMOKE_TESTED",
 			}
 			if metadata != want || metadata.SourceDigest != built.SourceDigest ||
 				!sha256Pattern.MatchString(metadata.SourceDigest) || sha256Hex(built.Catalog) != built.CatalogDigest {
@@ -151,7 +153,7 @@ func TestCatalogBytesParticipateInHostSourceIdentity(t *testing.T) {
 	}
 }
 
-func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
+func TestGeneratedManifestsUseOneStableIdentity(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
 		t.Fatal(err)
@@ -164,8 +166,9 @@ func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 		if !bytes.Contains(data, []byte(inputs.Descriptor.Version)) {
 			t.Fatalf("%s does not bind version %s", relative, inputs.Descriptor.Version)
 		}
-		if bytes.Contains(data, []byte(`"version": "1.0.0"`)) || bytes.Contains(data, []byte("mcpServers")) || bytes.Contains(data, []byte(`"hooks"`)) {
-			t.Fatalf("%s contains promoted or effectful metadata", relative)
+		if !bytes.Contains(data, []byte(`"version": "0.1.0"`)) || bytes.Contains(data, []byte("-dev.")) ||
+			bytes.Contains(data, []byte("mcpServers")) || bytes.Contains(data, []byte(`"hooks"`)) {
+			t.Fatalf("%s contains unstable or effectful metadata", relative)
 		}
 	}
 	var codex codexManifest
@@ -173,7 +176,8 @@ func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	if codex.Skills != "./skills/" ||
-		!strings.Contains(codex.Interface.LongDescription, "Solo-first development conductor") ||
+		codex.Interface.LongDescription != "Solo-first development conductor for inspect, implement, test, repair, self-review, and review-ready handoff. Team assurance is opt-in. The instruction-only package does not add executables, hooks, MCP servers, or network access." ||
+		codex.Interface.Capabilities == nil || len(codex.Interface.Capabilities) != 0 ||
 		len(codex.Interface.DefaultPrompt) != 3 ||
 		!strings.Contains(codex.Interface.DefaultPrompt[0], "l7-next") ||
 		!strings.Contains(codex.Interface.DefaultPrompt[1], "l7-next") ||
@@ -189,40 +193,42 @@ func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 	}
 }
 
-func TestDevelopmentVersionAndChangelogIdentityAreCanonical(t *testing.T) {
-	for _, version := range []string{"0.0.0-dev.1", "0.1.0-dev.6", "12.34.56-dev.789"} {
+func TestStableVersionAndChangelogIdentityAreCanonical(t *testing.T) {
+	for _, version := range []string{"0.0.0", "0.1.0", "12.34.56"} {
 		if !versionPattern.MatchString(version) {
-			t.Fatalf("canonical development version rejected: %s", version)
+			t.Fatalf("canonical stable version rejected: %s", version)
 		}
 	}
 	for _, version := range []string{
-		"1.0.0", "1.0.0-rc.1", "1.0.0-preview.1", "1.0.0-dev", "1.0.0-dev.0",
-		"1.0.0-dev.01", "01.0.0-dev.1", "1.00.0-dev.1", "1.0.00-dev.1",
+		"1.0.0-rc.1", "1.0.0-preview.1", "1.0.0-dev.1", "1.0.0+build.1",
+		"01.0.0", "1.00.0", "1.0.00", "v1.0.0", "1.0", "1.0.0.0",
 	} {
 		if versionPattern.MatchString(version) {
-			t.Fatalf("noncanonical development version passed: %s", version)
+			t.Fatalf("noncanonical stable version passed: %s", version)
 		}
 	}
-	if next, err := nextDevelopmentVersion("0.1.0-dev.6"); err != nil || next != "0.1.0-dev.7" {
-		t.Fatalf("next development version=%q error=%v", next, err)
+	if next, err := nextStablePatchVersion("0.1.0"); err != nil || next != "0.1.1" {
+		t.Fatalf("next stable patch version=%q error=%v", next, err)
 	}
-	large := "0.1.0-dev." + strings.Repeat("9", 128)
-	if next, err := nextDevelopmentVersion(large); err != nil || !versionPattern.MatchString(next) || next == large {
-		t.Fatalf("large development version did not advance canonically: next=%q error=%v", next, err)
+	large := "0.1." + strings.Repeat("9", 128)
+	if next, err := nextStablePatchVersion(large); err != nil || !versionPattern.MatchString(next) || next == large {
+		t.Fatalf("large stable patch version did not advance canonically: next=%q error=%v", next, err)
 	}
 
 	license := []byte("MIT License\n")
-	canonical := []byte("# Changelog\n\n## 0.1.0-dev.6 — Unreleased\n")
-	if err := validatePackageDocuments(license, canonical, "0.1.0-dev.6"); err != nil {
+	canonical := []byte("# Changelog\n\n## 0.1.0\n")
+	if err := validatePackageDocuments(license, canonical, "0.1.0"); err != nil {
 		t.Fatal(err)
 	}
 	for _, changelog := range [][]byte{
-		[]byte("# 0.1.0-dev.6\nUnreleased\n"),
-		[]byte("## 0.1.0-dev.5 — Unreleased\n"),
-		[]byte("# Changelog\n\nprefix ## 0.1.0-dev.6 — Unreleased\n"),
-		append(append([]byte{}, canonical...), []byte("## 0.1.0-dev.6 — Unreleased\n")...),
+		[]byte("# 0.1.0\n"),
+		[]byte("## 0.1.1\n"),
+		[]byte("# Changelog\n\nprefix ## 0.1.0\n"),
+		[]byte("# Changelog\n\n## 0.1.0 — Unreleased\n"),
+		append(append([]byte{}, canonical...), []byte("## 0.1.0\n")...),
+		append(append([]byte{}, canonical...), []byte("## 0.1.0 — Unreleased\n")...),
 	} {
-		if err := validatePackageDocuments(license, changelog, "0.1.0-dev.6"); err == nil {
+		if err := validatePackageDocuments(license, changelog, "0.1.0"); err == nil {
 			t.Fatalf("noncanonical changelog identity passed: %q", changelog)
 		}
 	}
@@ -237,11 +243,12 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 		name   string
 		mutate func(*packageDescriptor)
 	}{
-		{name: "stable version", mutate: func(value *packageDescriptor) { value.Version = "1.0.0" }},
+		{name: "development version", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-dev.6" }},
 		{name: "release candidate", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-rc.1" }},
-		{name: "zero development ordinal", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-dev.0" }},
-		{name: "leading-zero development ordinal", mutate: func(value *packageDescriptor) { value.Version = "0.1.0-dev.06" }},
-		{name: "channel promotion", mutate: func(value *packageDescriptor) { value.Channel = "release" }},
+		{name: "build suffix", mutate: func(value *packageDescriptor) { value.Version = "0.1.0+build.1" }},
+		{name: "leading-zero patch", mutate: func(value *packageDescriptor) { value.Version = "0.1.00" }},
+		{name: "development channel", mutate: func(value *packageDescriptor) { value.Channel = "development" }},
+		{name: "unknown release channel", mutate: func(value *packageDescriptor) { value.Channel = "release" }},
 		{name: "network", mutate: func(value *packageDescriptor) { value.Permissions.Level7Network = true }},
 		{name: "hook", mutate: func(value *packageDescriptor) { value.Permissions.Hook = true }},
 		{name: "catalog path", mutate: func(value *packageDescriptor) { value.Hosts.Codex.CatalogPath = "marketplace.json" }},
@@ -278,6 +285,7 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 		{name: "platform order", mutate: func(value *compatibilityMatrix) {
 			value.Entries[0].OperatingSystems[0], value.Entries[0].OperatingSystems[1] = value.Entries[0].OperatingSystems[1], value.Entries[0].OperatingSystems[0]
 		}},
+		{name: "arm host runtime downgrade", mutate: func(value *compatibilityMatrix) { value.Entries[0].OperatingSystems[0].HostRuntime = "NOT_RUN" }},
 		{name: "host runtime promotion", mutate: func(value *compatibilityMatrix) { value.Entries[1].OperatingSystems[1].HostRuntime = "PASS" }},
 		{name: "required capability", mutate: func(value *compatibilityMatrix) { value.Entries[0].RequiredCapabilities[0] = "plugin.json" }},
 		{name: "required capability order", mutate: func(value *compatibilityMatrix) {
@@ -286,7 +294,9 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 		{name: "optional capability", mutate: func(value *compatibilityMatrix) { value.Entries[0].OptionalCapabilities = []string{"network"} }},
 		{name: "null optional capabilities", mutate: func(value *compatibilityMatrix) { value.Entries[1].OptionalCapabilities = nil }},
 		{name: "degraded behavior", mutate: func(value *compatibilityMatrix) { value.Entries[0].DegradedBehavior = "continue anyway" }},
+		{name: "provider execution downgrade", mutate: func(value *compatibilityMatrix) { value.Entries[0].ProviderExecution = "NOT_RUN" }},
 		{name: "provider execution promotion", mutate: func(value *compatibilityMatrix) { value.Entries[0].ProviderExecution = "PASS" }},
+		{name: "actual lifecycle downgrade", mutate: func(value *compatibilityMatrix) { value.Entries[1].ActualHostLifecycle = "NOT_RUN" }},
 		{name: "actual lifecycle promotion", mutate: func(value *compatibilityMatrix) { value.Entries[1].ActualHostLifecycle = "PASS" }},
 		{name: "rollback", mutate: func(value *compatibilityMatrix) { value.Entries[1].Rollback = "delete everything" }},
 		{name: "support promotion", mutate: func(value *compatibilityMatrix) { value.Entries[0].SupportClaim = "SUPPORTED" }},
@@ -313,7 +323,7 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 	}
 }
 
-func TestWriteOutputsCreatesOnlyBoundedDevelopmentLayout(t *testing.T) {
+func TestWriteOutputsCreatesOnlyBoundedStableLayout(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
 		t.Fatal(err)

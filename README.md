@@ -27,6 +27,76 @@ External, destructive, irreversible, credentialed, production, publication,
 deployment, release, and protected-branch merge effects still require explicit
 authority at the actual boundary.
 
+## Install the v0.1.0 plugin
+
+The release packages the 12 Level 7 instruction skills for Codex and Claude
+Code. It does not install the experimental standalone `l7` Go binary, an MCP
+server, hooks, executables, telemetry, or network behavior of its own.
+
+Build the two deterministic local marketplace directories from a v0.1.0 source
+checkout:
+
+```sh
+git clone https://github.com/addressanup/level7-dev-loop.git
+cd level7-dev-loop
+git checkout v0.1.0
+make bootstrap
+make distribution
+```
+
+For the smoke-tested Codex CLI 0.151.0 target, register the generated marketplace
+and install the plugin:
+
+```sh
+codex plugin marketplace add "$PWD/build/distributions/codex-marketplace"
+codex plugin add level7-dev-loop@level7-engineering
+```
+
+Start a new Codex task after installation, then give one concrete objective:
+
+```text
+$l7-next Implement and verify <your objective>.
+```
+
+Remove only the Level 7 plugin and its marketplace source with:
+
+```sh
+codex plugin remove level7-dev-loop@level7-engineering
+codex plugin marketplace remove level7-engineering
+```
+
+For the smoke-tested Claude Code 2.1.247 target, validate and install the
+generated marketplace at user scope:
+
+```sh
+claude plugin validate --strict "$PWD/build/distributions/claude-marketplace"
+claude plugin marketplace add "$PWD/build/distributions/claude-marketplace" --scope user
+claude plugin install level7-dev-loop@level7-engineering --scope user
+```
+
+Start a new Claude Code session, or run `/reload-plugins`, then invoke:
+
+```text
+/level7-dev-loop:l7-next Implement and verify <your objective>.
+```
+
+Remove it with:
+
+```sh
+claude plugin uninstall level7-dev-loop@level7-engineering --scope user
+claude plugin marketplace remove level7-engineering --scope user
+```
+
+After rebuilding or changing versions, remove the old local installation and
+repeat the add/install sequence so the host loads the new package bytes. Start a
+new Codex task or reload Claude plugins before testing the new version.
+
+The v0.1.0 compatibility observation is intentionally narrow: package build is
+checked for macOS arm64 and amd64, while real install/discovery/invocation is
+smoke-tested only on macOS arm64 with Codex CLI 0.151.0 and Claude Code 2.1.247.
+Other host versions and architectures are unqualified, and formal support is
+withheld. See `distribution/compatibility.json` for the exact boundary.
+
 ## Wave 4 local readiness preview
 
 The repository includes a default-OFF local lifecycle and execution preview. It
@@ -166,15 +236,15 @@ network orchestration, provider installation, and global configuration remain
 unavailable. This binary is a development candidate, not a released or supported
 CLI.
 
-## Wave 5 dual-host development packages
+## v0.1 dual-host plugin packages
 
-Wave 5 adds an offline distribution foundation without installing or publishing
-anything. One strict descriptor at `distribution/package.json` generates the
-Codex, Claude, root-plugin, and legacy marketplace metadata. The two host
-packages share prerelease version `0.1.0-dev.6` but have separate manifests,
-catalogs, compatibility entries, inventories, digests, and archives.
+One strict descriptor at `distribution/package.json` generates the Codex,
+Claude, root-plugin, and legacy marketplace metadata. The two host packages
+share stable version `0.1.0` but have separate manifests, catalogs,
+compatibility entries, inventories, digests, and archives.
 
 ```sh
+make bootstrap
 make distribution-check
 make distribution
 ```
@@ -189,15 +259,16 @@ package manager and are not actual-host lifecycle evidence.
 
 For machine consumption, the underlying checker also accepts `--check --json`.
 Its canonical report records Level 7's internal archive/catalog binding and the
-internal structure, reproducibility, and fixture-lifecycle results. This is
-build evidence only: neither host is documented to consume `DISTRIBUTION.json`
-or enforce its digest, so it does not prove which bytes a host resolved, cached,
-installed, or enabled. Host package validation, marketplace lifecycle, plugin
-installation, plugin activation, behavioral activation, provider execution,
-signing, publication, and owner authority remain `NOT_RUN` or `NOT_EVALUATED`;
-the report always keeps support withheld and `release_ready` false.
+internal structure, reproducibility, and fixture-lifecycle results. This remains
+offline build evidence: neither host is documented to consume
+`DISTRIBUTION.json` or enforce its digest. The package compatibility projection
+separately carries the exact version-bounded macOS arm64 smoke observation. A
+fresh offline check does not
+rerun either host, evaluate release authority, sign, or publish, so its live host
+cells remain `NOT_RUN`, authority remains `NOT_EVALUATED`, support remains
+withheld, and `release_ready` remains false.
 
-`make distribution` writes ignored development output under
+`make distribution` writes ignored release output under
 `build/distributions/`. The Codex layout uses `.codex-plugin/plugin.json` and a
 repo-marketplace catalog at `.agents/plugins/marketplace.json`; the Claude layout
 uses `.claude-plugin/plugin.json` for its manifest and
@@ -208,15 +279,13 @@ and [official Claude plugin reference](https://code.claude.com/docs/en/plugins-r
 
 Each package includes matching changelog and MIT license text, an explicit inert
 permission declaration, a claim-withheld compatibility entry, a complete file
-inventory, an SPDX SBOM, and an unsigned provenance input. The latter files are
-development build evidence only: there is no trusted signature, notarization,
-channel, revocation, authenticated updater, publication, release, or stable
-v1.0 claim. All provider execution and real Codex/Claude installation cells
-remain `NOT_RUN`; a package pass for one host cannot promote the other.
-Any later host trial must separately bind the resolved package bytes and use
-disposable host state, including an isolated `CODEX_HOME` or Claude configuration,
-plugin-cache, and temporary roots; documented host isolation limits remain part
-of that later gate.
+inventory, an SPDX SBOM, and an unsigned provenance input. Version `0.1.0` is an
+initial instruction-plugin release, not a signature, notarization, updater, or
+broad provider-support claim. A package result for one host cannot promote the
+other. Any repeat host trial must bind the exact archive bytes and use disposable
+host state, including an isolated `CODEX_HOME` or Claude configuration,
+plugin-cache, and temporary roots; macOS Keychain and provider-side request logs
+remain outside those filesystem isolation controls.
 
 ## Risk model
 
