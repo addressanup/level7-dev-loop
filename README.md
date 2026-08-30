@@ -27,32 +27,21 @@ External, destructive, irreversible, credentialed, production, publication,
 deployment, release, and protected-branch merge effects still require explicit
 authority at the actual boundary.
 
-## Install the v0.1.0 plugin
+## Install the v0.1.1 plugin
 
 The release packages the 12 Level 7 instruction skills for Codex and Claude
 Code. It does not install the experimental standalone `l7` Go binary, an MCP
-server, hooks, executables, telemetry, or network behavior of its own.
+server, hooks, executables, telemetry, or network behavior of its own. The
+standalone CLI remains a separate `0.1.0-dev` preview.
 
-Build the two deterministic local marketplace directories from a v0.1.0 source
-checkout:
-
-```sh
-git clone https://github.com/addressanup/level7-dev-loop.git
-cd level7-dev-loop
-git checkout v0.1.0
-make bootstrap
-make distribution
-```
-
-For the smoke-tested Codex CLI 0.151.0 target, register the generated marketplace
-and install the plugin:
+For Codex CLI, add the tag-pinned GitHub marketplace and install Level 7:
 
 ```sh
-codex plugin marketplace add "$PWD/build/distributions/codex-marketplace"
+codex plugin marketplace add addressanup/level7-dev-loop --ref v0.1.1
 codex plugin add level7-dev-loop@level7-engineering
 ```
 
-Start a new Codex task after installation, then give one concrete objective:
+Start a new Codex task, then give one concrete objective:
 
 ```text
 $l7-next Implement and verify <your objective>.
@@ -65,12 +54,11 @@ codex plugin remove level7-dev-loop@level7-engineering
 codex plugin marketplace remove level7-engineering
 ```
 
-For the smoke-tested Claude Code 2.1.247 target, validate and install the
-generated marketplace at user scope:
+For Claude Code, add the same tag-pinned GitHub repository at user scope and
+install Level 7:
 
 ```sh
-claude plugin validate --strict "$PWD/build/distributions/claude-marketplace"
-claude plugin marketplace add "$PWD/build/distributions/claude-marketplace" --scope user
+claude plugin marketplace add addressanup/level7-dev-loop@v0.1.1 --scope user
 claude plugin install level7-dev-loop@level7-engineering --scope user
 ```
 
@@ -87,15 +75,19 @@ claude plugin uninstall level7-dev-loop@level7-engineering --scope user
 claude plugin marketplace remove level7-engineering --scope user
 ```
 
-After rebuilding or changing versions, remove the old local installation and
-repeat the add/install sequence so the host loads the new package bytes. Start a
-new Codex task or reload Claude plugins before testing the new version.
+These commands select the immutable `v0.1.1` release tag. To move to a later
+release, remove the installed plugin and pinned marketplace, add the new tag,
+and install again. Start a new Codex task or reload Claude plugins after every
+installation.
 
-The v0.1.0 compatibility observation is intentionally narrow: package build is
-checked for macOS arm64 and amd64, while real install/discovery/invocation is
+The v0.1.1 compatibility boundary is intentionally narrow: package build is
+checked for macOS arm64 and amd64, while validation, discovery, installation,
+inspection, removal, and cleanup through the committed local marketplace are
 smoke-tested only on macOS arm64 with Codex CLI 0.151.0 and Claude Code 2.1.247.
-Other host versions and architectures are unqualified, and formal support is
-withheld. See `distribution/compatibility.json` for the exact boundary.
+Remote tag fetching and provider/model invocation for the `0.1.1` packages are
+`NOT_RUN`; other host versions and architectures are unqualified, and formal
+support is withheld. See `distribution/compatibility.json` for the exact
+boundary.
 
 ## Wave 4 local readiness preview
 
@@ -240,7 +232,7 @@ CLI.
 
 One strict descriptor at `distribution/package.json` generates the Codex,
 Claude, root-plugin, and legacy marketplace metadata. The two host packages
-share stable version `0.1.0` but have separate manifests, catalogs,
+share stable version `0.1.1` but have separate manifests, catalogs,
 compatibility entries, inventories, digests, and archives.
 
 ```sh
@@ -279,13 +271,13 @@ and [official Claude plugin reference](https://code.claude.com/docs/en/plugins-r
 
 Each package includes matching changelog and MIT license text, an explicit inert
 permission declaration, a claim-withheld compatibility entry, a complete file
-inventory, an SPDX SBOM, and an unsigned provenance input. Version `0.1.0` is an
-initial instruction-plugin release, not a signature, notarization, updater, or
-broad provider-support claim. A package result for one host cannot promote the
-other. Any repeat host trial must bind the exact archive bytes and use disposable
-host state, including an isolated `CODEX_HOME` or Claude configuration,
-plugin-cache, and temporary roots; macOS Keychain and provider-side request logs
-remain outside those filesystem isolation controls.
+inventory, an SPDX SBOM, and an unsigned provenance input. Version `0.1.1` is a
+distribution-only instruction-plugin patch, not a signature, notarization,
+updater, or broad provider-support claim. A package result for one host cannot
+promote the other. Any repeat host trial must bind the exact archive bytes and
+use disposable host state, including an isolated `CODEX_HOME` or Claude
+configuration, plugin-cache, and temporary roots; macOS Keychain and
+provider-side request logs remain outside those filesystem isolation controls.
 
 ## Risk model
 

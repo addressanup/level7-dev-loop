@@ -57,8 +57,8 @@ func TestDistributionMetadataRemainsBound(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedDigests := map[string]string{
-		"codex":  "02660da8451c0a00e808424943ae72be264d9266ad6b4a015be74b6ed4b70657",
-		"claude": "9ad8a7156f2ba596db14c5561213ba4c45527d691f5aada885381d8f6945e064",
+		"codex":  "58ec422efd1b672f3c5d2aa6d1e7672077fb7741c68abcc548179c188f329dba",
+		"claude": "0a589d5566ffb6498f0501f76cd198ac0100edc3570a07f094fe1de595241c49",
 	}
 	for _, built := range packages {
 		t.Run(built.Host, func(t *testing.T) {
@@ -153,6 +153,156 @@ func TestCatalogBytesParticipateInHostSourceIdentity(t *testing.T) {
 	}
 }
 
+func TestCommittedMarketplaceProjectionRemainsExact(t *testing.T) {
+	inputs, err := loadInputs(distributionRepositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, err := renderCommittedMarketplaceFiles(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pluginRoot := filepath.ToSlash(filepath.Join("plugins", inputs.Descriptor.Name))
+	payloadFiles := 0
+	for relative := range expected {
+		if strings.HasPrefix(relative, pluginRoot+"/") {
+			payloadFiles++
+		}
+	}
+	if payloadFiles != len(inputs.Descriptor.Skills)+5 {
+		t.Fatalf("payload files=%d want=%d", payloadFiles, len(inputs.Descriptor.Skills)+5)
+	}
+
+	var codex codexCatalog
+	if err := decodeStrict(expected[inputs.Descriptor.Hosts.Codex.CatalogPath], &codex); err != nil {
+		t.Fatal(err)
+	}
+	if codex.Name != "level7-engineering" || codex.Interface.DisplayName != "Level 7 Engineering" || len(codex.Plugins) != 1 ||
+		codex.Plugins[0].Name != inputs.Descriptor.Name || codex.Plugins[0].Source.Source != "local" ||
+		codex.Plugins[0].Source.Path != "./plugins/"+inputs.Descriptor.Name ||
+		codex.Plugins[0].Policy.Installation != "AVAILABLE" || codex.Plugins[0].Policy.Authentication != "ON_INSTALL" ||
+		codex.Plugins[0].Category != inputs.Descriptor.Hosts.Codex.Category {
+		t.Fatalf("unexpected committed Codex catalog: %+v", codex)
+	}
+
+	var claude claudeCatalog
+	if err := decodeStrict(expected[inputs.Descriptor.Hosts.Claude.CatalogPath], &claude); err != nil {
+		t.Fatal(err)
+	}
+	if claude.Name != "level7-engineering" || claude.Owner != inputs.Descriptor.Author || len(claude.Plugins) != 1 ||
+		claude.Plugins[0].Name != inputs.Descriptor.Name || claude.Plugins[0].Source != "./plugins/"+inputs.Descriptor.Name ||
+		claude.Plugins[0].Version != inputs.Descriptor.Version || claude.Plugins[0].License != inputs.Descriptor.License ||
+		claude.Plugins[0].Category != inputs.Descriptor.Hosts.Claude.Category || !claude.Plugins[0].Strict {
+		t.Fatalf("unexpected committed Claude catalog: %+v", claude)
+	}
+
+	rootFiles, err := renderRootFiles(inputs.Descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, manifest := range []string{inputs.Descriptor.Hosts.Codex.ManifestPath, inputs.Descriptor.Hosts.Claude.ManifestPath} {
+		if !bytes.Equal(expected[filepath.ToSlash(filepath.Join(pluginRoot, manifest))], rootFiles[manifest]) {
+			t.Fatalf("committed payload manifest drift: %s", manifest)
+		}
+	}
+	for relative, data := range inputs.Skills {
+		if !bytes.Equal(expected[filepath.ToSlash(filepath.Join(pluginRoot, relative))], data) {
+			t.Fatalf("committed payload skill drift: %s", relative)
+		}
+	}
+	if _, present := expected[filepath.ToSlash(filepath.Join(pluginRoot, "plugin.json"))]; present {
+		t.Fatal("committed payload contains a redundant legacy manifest")
+	}
+	readme := expected[filepath.ToSlash(filepath.Join(pluginRoot, "README.md"))]
+	if !bytes.Contains(readme, []byte("`"+inputs.Descriptor.Version+"`")) ||
+		!bytes.Contains(readme, []byte("adds no executable")) {
+		t.Fatalf("committed payload README is not release-bound: %q", readme)
+	}
+}
+
+func TestCommittedMarketplaceProjectionFailsClosed(t *testing.T) {
+	inputs, err := loadInputs(distributionRepositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, err := renderCommittedMarketplaceFiles(inputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pluginRoot := filepath.Join("plugins", inputs.Descriptor.Name)
+	tests := []struct {
+		name   string
+		mutate func(*testing.T, string)
+	}{
+		{name: "stale catalog version", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			name := filepath.Join(root, filepath.FromSlash(inputs.Descriptor.Hosts.Claude.CatalogPath))
+			data, readErr := os.ReadFile(name)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			data = bytes.Replace(data, []byte(`"version": "`+inputs.Descriptor.Version+`"`), []byte(`"version": "9.9.9"`), 1)
+			if writeErr := os.WriteFile(name, data, 0o644); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+		}},
+		{name: "catalog source escape", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			name := filepath.Join(root, filepath.FromSlash(inputs.Descriptor.Hosts.Codex.CatalogPath))
+			data, readErr := os.ReadFile(name)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			data = bytes.Replace(data, []byte("./plugins/"+inputs.Descriptor.Name), []byte("../outside"), 1)
+			if writeErr := os.WriteFile(name, data, 0o644); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+		}},
+		{name: "skill substitution", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			name := filepath.Join(root, pluginRoot, "skills", inputs.Descriptor.Skills[0], "SKILL.md")
+			if writeErr := os.WriteFile(name, []byte("substituted\n"), 0o644); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+		}},
+		{name: "extra file", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			if writeErr := os.WriteFile(filepath.Join(root, pluginRoot, "extra.txt"), []byte("extra\n"), 0o644); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+		}},
+		{name: "extra directory", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			if mkdirErr := os.Mkdir(filepath.Join(root, pluginRoot, "empty"), 0o755); mkdirErr != nil {
+				t.Fatal(mkdirErr)
+			}
+		}},
+		{name: "symlink", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			if symlinkErr := os.Symlink("README.md", filepath.Join(root, pluginRoot, "README.link")); symlinkErr != nil {
+				t.Fatal(symlinkErr)
+			}
+		}},
+		{name: "executable mode", mutate: func(t *testing.T, root string) {
+			t.Helper()
+			if chmodErr := os.Chmod(filepath.Join(root, pluginRoot, "README.md"), 0o755); chmodErr != nil {
+				t.Fatal(chmodErr)
+			}
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeCommittedMarketplaceFixture(t, expected)
+			test.mutate(t, root)
+			fixture := inputs
+			fixture.Root = root
+			if err := checkGeneratedFiles(fixture); err == nil {
+				t.Fatal("mutated committed marketplace passed")
+			}
+		})
+	}
+}
+
 func TestGeneratedManifestsUseOneStableIdentity(t *testing.T) {
 	inputs, err := loadInputs(distributionRepositoryRoot(t))
 	if err != nil {
@@ -166,7 +316,7 @@ func TestGeneratedManifestsUseOneStableIdentity(t *testing.T) {
 		if !bytes.Contains(data, []byte(inputs.Descriptor.Version)) {
 			t.Fatalf("%s does not bind version %s", relative, inputs.Descriptor.Version)
 		}
-		if !bytes.Contains(data, []byte(`"version": "0.1.0"`)) || bytes.Contains(data, []byte("-dev.")) ||
+		if !bytes.Contains(data, []byte(`"version": "`+inputs.Descriptor.Version+`"`)) || bytes.Contains(data, []byte("-dev.")) ||
 			bytes.Contains(data, []byte("mcpServers")) || bytes.Contains(data, []byte(`"hooks"`)) {
 			t.Fatalf("%s contains unstable or effectful metadata", relative)
 		}
@@ -294,7 +444,7 @@ func TestDescriptorAndCompatibilityFailClosed(t *testing.T) {
 		{name: "optional capability", mutate: func(value *compatibilityMatrix) { value.Entries[0].OptionalCapabilities = []string{"network"} }},
 		{name: "null optional capabilities", mutate: func(value *compatibilityMatrix) { value.Entries[1].OptionalCapabilities = nil }},
 		{name: "degraded behavior", mutate: func(value *compatibilityMatrix) { value.Entries[0].DegradedBehavior = "continue anyway" }},
-		{name: "provider execution downgrade", mutate: func(value *compatibilityMatrix) { value.Entries[0].ProviderExecution = "NOT_RUN" }},
+		{name: "unsupported provider smoke promotion", mutate: func(value *compatibilityMatrix) { value.Entries[0].ProviderExecution = "SMOKE_TESTED" }},
 		{name: "provider execution promotion", mutate: func(value *compatibilityMatrix) { value.Entries[0].ProviderExecution = "PASS" }},
 		{name: "actual lifecycle downgrade", mutate: func(value *compatibilityMatrix) { value.Entries[1].ActualHostLifecycle = "NOT_RUN" }},
 		{name: "actual lifecycle promotion", mutate: func(value *compatibilityMatrix) { value.Entries[1].ActualHostLifecycle = "PASS" }},
@@ -519,4 +669,15 @@ func cloneCompatibilityMatrix(matrix compatibilityMatrix) compatibilityMatrix {
 		clone.Entries[index].OptionalCapabilities = append([]string{}, matrix.Entries[index].OptionalCapabilities...)
 	}
 	return clone
+}
+
+func writeCommittedMarketplaceFixture(t *testing.T, expected map[string][]byte) string {
+	t.Helper()
+	root := t.TempDir()
+	for relative, data := range expected {
+		if err := writeRegular(root, relative, data); err != nil {
+			t.Fatalf("write fixture %s: %v", relative, err)
+		}
+	}
+	return root
 }

@@ -122,7 +122,7 @@ func TestOfflineQualificationFailsClosed(t *testing.T) {
 		}},
 		{name: "descriptor development channel", mutate: func(value *offlineQualificationFacts) { value.Descriptor.Channel = "development" }},
 		{name: "descriptor prerelease version", mutate: func(value *offlineQualificationFacts) { value.Descriptor.Version = "0.1.0-dev.6" }},
-		{name: "descriptor stable version substitution", mutate: func(value *offlineQualificationFacts) { value.Descriptor.Version = "0.1.1" }},
+		{name: "descriptor stable version substitution", mutate: func(value *offlineQualificationFacts) { value.Descriptor.Version = "0.1.2" }},
 		{name: "archive substitution", mutate: func(value *offlineQualificationFacts) {
 			value.Packages[0].ArchiveDigest = strings.Repeat("0", 64)
 		}},

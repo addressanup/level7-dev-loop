@@ -1,0 +1,20 @@
+{
+  "name": "level7-engineering",
+  "interface": {
+    "displayName": "Level 7 Engineering"
+  },
+  "plugins": [
+    {
+      "name": "level7-dev-loop",
+      "source": {
+        "source": "local",
+        "path": "./plugins/level7-dev-loop"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
