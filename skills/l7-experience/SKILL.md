@@ -16,4 +16,6 @@ Purely internal or trivial polish may be Tier 1 with no governance artifact.
 Meaningful UX or journey changes are Tier 2 and use one change brief. Auth,
 payments, destructive flows, sensitive-data boundaries, or production release are
 Tier 3. Implement, test critical states and accessibility, review the rendered
-result, and merge. Use `l7-geometry` for focused alignment work.
+result, and finish the local loop. Solo Tier 3 requires stronger verification,
+not a manufactured independent auditor. Use `l7-geometry` internally for focused
+alignment work.

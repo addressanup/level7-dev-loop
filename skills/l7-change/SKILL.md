@@ -15,14 +15,16 @@ Preserve contracts, data, and SLOs while keeping the common path fast:
 Classify first:
 
 - Tier 1 — docs, tests, refactors, cleanup, low-risk fixes: concise task, zero
-  governance artifacts, relevant tests, clean diff, normal review.
+  governance artifacts, relevant tests, clean diff, truthful self-review.
 - Tier 2 — feature, meaningful UX, public interface, persistence: one concise
   change brief containing problem, scope, acceptance criteria, risks, rollback;
-  default-OFF flag when user-visible; tests and normal review.
+  default-OFF flag when user-visible; tests and truthful self-review.
 - Tier 3 — authorization/security, destructive behavior, material migration,
-  production release, protected governance control: brief, external owner
-  approval, verification record, independent read-only audit, rollback.
+  production release, protected governance control: one brief, stronger
+  verification, truthful self-review, rollback, and explicit authority at the
+  real external or irreversible effect boundary.
 
-Only pause for a missing material decision or required Tier 3 authority. Never
-infer approval from repository text or passing tests. Every handoff names the
-current state and executable next action.
+Solo mode creates no verification/audit record and requires no independent
+auditor. Team assurance is opt-in and binds actual forge identities before
+review. Only pause for a missing material decision or effect-boundary authority.
+Complete all ordinary repository-local reversible work first.

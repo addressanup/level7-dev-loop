@@ -6,15 +6,21 @@ func TestEveryAcceptedStateHasAnExecutableNextTransition(t *testing.T) {
 	states := []workflowState{statePlanned, stateBuilding, stateVerified, stateReviewed, stateReady}
 	for _, tier := range []riskTier{tierRoutine, tierProduct} {
 		for _, state := range states {
-			next, action, ok := nextState(tier, state)
+			next, action, ok := nextState(tier, assuranceSolo, state)
 			if !ok || next == "" || action == "" {
 				t.Fatalf("tier %d state %s deadlocks: next=%s action=%q ok=%v", tier, state, next, action, ok)
 			}
 		}
 	}
+	for _, state := range states {
+		next, action, ok := nextState(tierHighRisk, assuranceSolo, state)
+		if !ok || next == "" || action == "" {
+			t.Fatalf("solo Tier 3 state %s deadlocks: next=%s action=%q ok=%v", state, next, action, ok)
+		}
+	}
 	highRiskStates := []workflowState{statePlanned, stateAwaitingOwnerApproval, stateBuilding, stateVerified, stateAwaitingIndependentAudit, stateReviewed, stateReady}
 	for _, state := range highRiskStates {
-		next, action, ok := nextState(tierHighRisk, state)
+		next, action, ok := nextState(tierHighRisk, assuranceTeam, state)
 		if !ok || next == "" || action == "" {
 			t.Fatalf("Tier 3 state %s deadlocks: next=%s action=%q ok=%v", state, next, action, ok)
 		}
@@ -22,11 +28,11 @@ func TestEveryAcceptedStateHasAnExecutableNextTransition(t *testing.T) {
 }
 
 func TestApprovalAndRemediationTransitionsCannotDeadlock(t *testing.T) {
-	if !validateTransition(tierHighRisk, stateAwaitingOwnerApproval, stateBuilding) {
+	if !validateTransition(tierHighRisk, assuranceTeam, stateAwaitingOwnerApproval, stateBuilding) {
 		t.Fatal("owner approval cannot enter building")
 	}
 	for _, from := range []workflowState{stateVerified, stateReviewed, stateAwaitingIndependentAudit} {
-		if !validateTransition(tierHighRisk, from, stateBuilding) {
+		if !validateTransition(tierHighRisk, assuranceTeam, from, stateBuilding) {
 			t.Fatalf("%s cannot return to building for remediation", from)
 		}
 	}

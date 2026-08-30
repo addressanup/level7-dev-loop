@@ -16,8 +16,10 @@ Before implementation, classify the first build:
 
 - Tier 1: no governance artifact.
 - Tier 2: one `docs/artifacts/changes/<change-id>.md` brief.
-- Tier 3: the same brief plus external owner approval before building.
+- Tier 3: the same brief plus stronger verification and rollback analysis. Ask
+  for explicit authority only before a real external or irreversible effect.
 
-Do not require separate approval after every foundation section. Pause only for a
-material product, architecture, data, security, or UX decision. Keep the harness
-green and recommend `l7-build` when the first scoped change is ready.
+Do not require separate approval after every foundation section or skill
+transition. Pause only for a material product, architecture, data, security, or
+UX decision. Keep the harness green and continue into the first scoped build when
+the user's objective already authorizes it.

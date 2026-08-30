@@ -1,12 +1,31 @@
 # Level 7 Dev Loop
 
-Level 7 is a lean, risk-proportionate development workflow for Codex and Claude
-Code. Its common path is deliberately ordinary:
+Level 7 is a solo-first, risk-proportionate development workflow for Codex and
+Claude Code. Its default path is one uninterrupted conductor loop:
 
-`brief → implement → test → review → merge`
+`intent → inspect → implement → test → repair → self-review → handoff`
 
-Working software, Git identity, automated verification, and normal review carry
-the evidence. Process expands only when risk does.
+Working software, Git identity, automated verification, and truthful self-review
+carry the evidence. Process expands at real risk and effect boundaries, not
+because a solo developer lacks a second identity.
+
+## Solo fast plugin loop
+
+`l7-next` is the default conductor even when it is not named. One concrete user
+request authorizes ordinary repository-local reversible inspection,
+implementation, testing, repair, and self-review. The conductor may apply the
+other Level 7 skills internally; it does not ask the user to approve skill
+transitions.
+
+Solo assurance is the default. Tier 1 creates no governance artifact; Tier 2 and
+Tier 3 use at most one concise brief. Solo verification and review stay in Git
+and CI, so they do not create evidence-only commits or require a fabricated
+independent auditor. `L7_ASSURANCE_MODE=team` explicitly opts a repository into
+distinct owner/auditor controls when those real identities exist.
+
+External, destructive, irreversible, credentialed, production, publication,
+deployment, release, and protected-branch merge effects still require explicit
+authority at the actual boundary.
 
 ## Wave 4 local readiness preview
 
@@ -83,7 +102,9 @@ l7 ready
 l7 status --json
 ```
 
-The reverse provider order is also modeled. Tier 3 prompts in an active terminal
+The reverse provider order is also modeled. This standalone Wave 4 CLI preview
+predates the solo plugin conductor and exposes an optional team-style lifecycle.
+Its Tier 3 path prompts in an active terminal
 for approval bound to the exact committed brief and selected implementer, then
 requires the other provider for read-only review. It creates at most the one
 brief, one verification record, and one independent audit record. Tier 1 creates
@@ -186,32 +207,36 @@ remain `NOT_RUN`; a package pass for one host cannot promote the other.
 
 | Tier | Examples | Required process |
 |---|---|---|
-| 1 — routine | Docs, tests, refactors, cleanup, low-risk fixes | Concise task, implementation, relevant tests, clean diff, normal review. Zero governance artifacts. |
-| 2 — product change | Features, meaningful UX, public interfaces, persistence | One `docs/artifacts/changes/<change-id>.md` brief; default-OFF flag when appropriate; tests and normal review. |
-| 3 — high risk or release | Authorization/security, destructive behavior, material migrations, production release, governance controls | Brief, external owner approval, bound verification record, independent read-only audit, rollback. At most three artifacts. |
+| 1 — routine | Docs, tests, refactors, cleanup, low-risk fixes | Concise task, relevant tests, clean diff, truthful self-review. Zero governance artifacts. |
+| 2 — product change | Features, meaningful UX, public interfaces, persistence | One `docs/artifacts/changes/<change-id>.md` brief; default-OFF flag when appropriate; tests and self-review. |
+| 3 — high risk or release | Authorization/security, destructive behavior, material migrations, production release, governance controls | One brief, stronger relevant verification, self-review, rollback, and explicit authority at the actual effect boundary. |
 
-Only Tier 3 requires independent audit. Repository prose and passing tests never
-constitute approval.
+Solo mode never requires or claims independent audit. Team assurance is an
+explicit trusted opt-in for repositories with genuinely distinct owner and
+reviewer identities. Risk tier and collaboration topology remain separate.
 
 ## Controller
 
 The Go controller compares an exact Git base with a candidate commit/tree,
 validates declared scope, elevates protected controls to Tier 3, enforces the
-artifact budget, and validates external approval/audit bindings. It reports a
-small state and one executable next action.
+assurance-specific artifact budget, and reports the selected assurance mode with
+one executable next action. Solo is the default; team mode retains bound
+owner/auditor validation for compatibility.
 
 Local Tier 1 example:
 
 ```sh
 L7_RISK_TIER=1 \
+L7_ASSURANCE_MODE=solo \
 L7_BASE_REF=<base-commit> \
 L7_SCOPE='docs/guide.md,internal/example_test.go' \
 make policy-check
 ```
 
-Tier 2/3 base, tier, change ID, and scope come from the one change brief. Explicit
-local authority is stored outside tracked repository text under `.git/l7/`. CI
-uses trusted review/event data.
+Tier 2/3 base, tier, change ID, and scope come from the one change brief. Solo
+mode uses Git/CI evidence and no approval/audit records. Team-mode authority is
+stored outside tracked repository text under `.git/l7/`, and CI derives it from
+trusted forge events.
 
 ```sh
 make policy-check
@@ -231,16 +256,32 @@ conflicting classification fails closed, and authorization, security, migration,
 deployment, workflow, harness, controller, skill, and plugin-control paths force
 Tier 3.
 
-Repository rules are part of the installation contract. They must restrict risk
-labels to trusted maintainers; require the non-experimental `Harness` jobs
+Repository rules are part of the installation contract. Both modes must restrict
+risk labels to trusted maintainers and require the non-experimental `Harness` jobs
 `Go 1.26.7 (baseline)`, `CLI macOS 15 (arm64)`, `CLI macOS 15 (amd64)`, and
-`CLI paired benchmark gate`, plus the `Trusted policy` evaluation; dismiss stale
-reviews; require at least one non-author approval; and require CODEOWNER/owner
-review for protected paths. Workflow YAML does not make a check blocking by
-itself. Installation and upgrade must verify those required checks against the
-live repository ruleset before claiming they are blocking. Trusted policy reads
-exact-head check and review identities before it reports `ready`; it does not
-infer them from candidate text.
+`CLI paired benchmark gate`, plus the exact-head `evaluate` check published by
+Trusted policy. Solo mode sets required approving reviews to zero; team mode
+dismisses stale reviews and requires its configured non-author/CODEOWNER review.
+Workflow YAML does not make a check blocking by itself. Installation and upgrade
+must verify those required checks against the live repository ruleset before
+claiming they are blocking.
+
+Harness runs for pull requests and pushes to `main`, so publishing a feature
+branch does not start a redundant push suite. Trusted policy is triggered again
+after the pull-request Harness run completes. Its base-revision controller remains
+read-only with respect to the candidate; the workflow publishes the final
+`evaluate` result against the exact PR head.
+
+### One-time solo-policy cutover
+
+GitHub evaluates a trusted policy workflow from the base branch, so the pull
+request that first installs this solo policy is still subject to the previous
+team-only gate. A solo maintainer must not fabricate an auditor to cross that
+bootstrap boundary. After the exact cutover head passes Harness and self-review,
+the safe migration is one explicit administrator merge/bypass for that immutable
+head, if repository rules permit it. That protected-branch effect requires the
+maintainer's specific authority and is not granted by ordinary implementation
+instructions. Subsequent pull requests use the new solo default.
 
 The benchmark job takes five alternating base/candidate samples on one macOS
 host with one pinned toolchain, compares medians, reports every raw `ns/op`
@@ -257,8 +298,9 @@ benchmark check.
 
 ## Skills
 
-Start with `l7-next`. The 12 skills share the same risk tiers and artifact budget;
-`l7-release` is reserved for Tier 3 and production release validation.
+`l7-next` is the only default entry point and conducts the complete local loop.
+The other skills are internal execution lenses, not user approval checkpoints.
+`l7-release` is used only for a real release boundary or opt-in team assurance.
 
 ## Historical records
 
@@ -289,7 +331,8 @@ make cli-benchmark-check L7_BENCHMARK_BASE_ROOT=/absolute/path/to/base-checkout
 
 The baseline, paired benchmark, and both native macOS architecture jobs are
 required by the installation contract above; the configured shadow toolchain
-remains non-blocking. Each macOS job runs the same offline suite plus declared
+remains non-blocking. Feature branches run this suite once through the pull
+request event; pushes to `main` retain post-merge coverage. Each macOS job runs the same offline suite plus declared
 macOS cross-builds. The actual-host target compiles tagged probes with
 `-run '^$'`; it never launches a provider. This local repository has no remote or
 live ruleset evidence, and no hosted or Intel job was run for this candidate, so

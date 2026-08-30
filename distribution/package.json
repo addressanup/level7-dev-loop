@@ -3,7 +3,7 @@
   "name": "level7-dev-loop",
   "version": "0.1.0-dev.5",
   "channel": "development",
-  "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed.",
+  "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
   "author": {
     "name": "Level 7 Engineering"
   },
@@ -47,14 +47,14 @@
       "catalog_path": ".agents/plugins/marketplace.json",
       "display_name": "Level 7 Dev Loop",
       "category": "Developer Tools",
-      "invocation": "$<exact token returned by verified skill selection>"
+      "invocation": "$l7-next"
     },
     "claude": {
       "manifest_path": ".claude-plugin/plugin.json",
       "catalog_path": ".claude-plugin/marketplace.json",
       "display_name": "Level 7 Dev Loop",
       "category": "Development Tools",
-      "invocation": "/level7-dev-loop:<skill-name>"
+      "invocation": "/level7-dev-loop:l7-next"
     }
   }
 }

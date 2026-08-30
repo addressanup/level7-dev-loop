@@ -1,24 +1,29 @@
 ---
 name: l7-release
 description: >
-  Validate a production release or other Tier 3 candidate with bound verification,
-  an independent read-only audit, and a GO or NO-GO decision.
+  Validate a real release boundary or perform opt-in team assurance without
+  imposing an independent-audit gate on solo development.
 user-invocable: true
 ---
 
-# Tier 3 Release Validation
+# Release and Optional Team Assurance
 
-Use only for production releases or genuinely high-risk changes.
+Use this skill for an actual release decision or when trusted repository
+configuration explicitly selects team assurance. It is not a mandatory stop for
+solo Tier 3 repository work.
 
-1. Confirm the approved brief, scope, rollback, and exact Git candidate.
+1. Confirm the exact Git candidate, scope, relevant risks, rollback, and the
+   specific release or team-assurance boundary.
 2. Run integration, data, security, migration, performance, and regression checks
-   relevant to the risk. Write at most one verification record bound to Git.
-3. In a separate read-only review, map the candidate, cite evidence, classify
-   findings, and issue GO or NO-GO. Write at most one audit record bound to the
-   verified commit/tree.
-4. The auditor must be distinct from the implementer and owner and cannot
-   self-certify remediation. New implementation commits invalidate verification
-   and audit and return the change to `building`.
+   proportional to that boundary. Use Git and CI evidence; do not add a tracked
+   verification commit in solo mode.
+3. In solo mode, perform adversarial self-review and label it `self-review`; never
+   call it independent. A release/deploy/publication effect still requires the
+   user's explicit authority.
+4. In team mode, resolve the real forge reviewer login before audit work starts.
+   The reviewer must be distinct from owner and implementer, review the exact
+   head read-only, and use that same login in any bound decision record.
 
-Do not create candidate manifests or approval/remediation chains. Recommend
-`l7-deploy` only after a bound GO decision.
+Do not fabricate reviewer identities, create evidence-only candidate commits on
+the solo path, or rerun unchanged checks. A new implementation commit invalidates
+the corresponding exact-head evidence.

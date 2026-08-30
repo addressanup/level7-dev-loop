@@ -66,7 +66,12 @@ func TestGeneratedManifestsUseOnePrereleaseIdentity(t *testing.T) {
 	if err := decodeStrict(rendered[".codex-plugin/plugin.json"], &codex); err != nil {
 		t.Fatal(err)
 	}
-	if codex.Skills != "./skills/" || !strings.Contains(codex.Interface.LongDescription, "Development-only") {
+	if codex.Skills != "./skills/" ||
+		!strings.Contains(codex.Interface.LongDescription, "Solo-first development conductor") ||
+		len(codex.Interface.DefaultPrompt) != 3 ||
+		!strings.Contains(codex.Interface.DefaultPrompt[0], "l7-next") ||
+		!strings.Contains(codex.Interface.DefaultPrompt[1], "l7-next") ||
+		strings.Contains(strings.ToLower(strings.Join(codex.Interface.DefaultPrompt, "\n")), "audit") {
 		t.Fatalf("unexpected Codex manifest: %+v", codex)
 	}
 	var claude claudeManifest

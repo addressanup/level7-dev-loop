@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-const buildControlVersion = "lean-risk-v1"
+const buildControlVersion = "solo-fast-v2"
 
 func main() {
 	repository := flag.String("repo", ".", "repository to evaluate")
@@ -14,6 +14,7 @@ func main() {
 	head := flag.String("head", envOr("L7_HEAD_REF", "HEAD"), "candidate Git revision")
 	changeID := flag.String("change", os.Getenv("L7_CHANGE_ID"), "change ID")
 	tier := flag.Int("tier", envInt("L7_RISK_TIER"), "risk tier for artifact-free Tier 1 work")
+	assurance := flag.String("assurance", envOr("L7_ASSURANCE_MODE", string(assuranceSolo)), "assurance mode: solo or team")
 	scope := flag.String("scope", os.Getenv("L7_SCOPE"), "comma-separated Tier 1 scope")
 	requireReady := flag.Bool("require-ready", envBool("L7_REQUIRE_READY"), "require merge-ready state")
 	flag.Parse()
@@ -28,6 +29,7 @@ func main() {
 		HeadRef:         *head,
 		ChangeID:        *changeID,
 		Tier:            riskTier(*tier),
+		Assurance:       assuranceMode(*assurance),
 		TierOneScope:    splitScope(*scope),
 		RequireReady:    *requireReady,
 		VerifiedRef:     os.Getenv("L7_VERIFIED_REF"),

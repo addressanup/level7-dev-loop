@@ -1,7 +1,7 @@
 {
   "name": "level7-dev-loop",
   "version": "0.1.0-dev.5",
-  "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed.",
+  "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
   "author": {
     "name": "Level 7 Engineering"
   },
@@ -19,14 +19,14 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Level 7 Dev Loop",
-    "shortDescription": "Risk-tiered build, test, review, and ship loop",
-    "longDescription": "Development-only skills for a lean risk-tiered build, test, review, and merge workflow. No provider support, installation, or release claim is implied.",
+    "shortDescription": "One intent to a tested handoff",
+    "longDescription": "Solo-first development conductor for inspect, implement, test, repair, self-review, and review-ready handoff. Team assurance is opt-in. No provider support, installation, or release claim is implied.",
     "developerName": "Level 7 Engineering",
     "category": "Developer Tools",
     "defaultPrompt": [
-      "Run l7-next and tell me the current project phase",
-      "Start a post-launch feature through l7-change",
-      "Audit the current release candidate with l7-release"
+      "Use l7-next to implement and verify this change end to end",
+      "Use l7-next to continue the current repository work",
+      "Use l7-release for an actual release boundary or configured team review"
     ]
   }
 }

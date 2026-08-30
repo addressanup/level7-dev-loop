@@ -474,13 +474,13 @@ func validateCompatibility(matrix compatibilityMatrix) error {
 
 func renderRootFiles(descriptor packageDescriptor) (map[string][]byte, error) {
 	interfaceMetadata := codexInterface{
-		DisplayName: descriptor.Hosts.Codex.DisplayName, ShortDescription: "Risk-tiered build, test, review, and ship loop",
-		LongDescription: "Development-only skills for a lean risk-tiered build, test, review, and merge workflow. No provider support, installation, or release claim is implied.",
+		DisplayName: descriptor.Hosts.Codex.DisplayName, ShortDescription: "One intent to a tested handoff",
+		LongDescription: "Solo-first development conductor for inspect, implement, test, repair, self-review, and review-ready handoff. Team assurance is opt-in. No provider support, installation, or release claim is implied.",
 		DeveloperName:   descriptor.Author.Name, Category: descriptor.Hosts.Codex.Category,
 		DefaultPrompt: []string{
-			"Run l7-next and tell me the current project phase",
-			"Start a post-launch feature through l7-change",
-			"Audit the current release candidate with l7-release",
+			"Use l7-next to implement and verify this change end to end",
+			"Use l7-next to continue the current repository work",
+			"Use l7-release for an actual release boundary or configured team review",
 		},
 	}
 	codex := codexManifest{

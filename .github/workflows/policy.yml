@@ -2,58 +2,118 @@ name: Trusted policy
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [reopened, labeled, unlabeled]
   pull_request_review:
-    types: [submitted]
+    types: [submitted, dismissed]
+  workflow_run:
+    workflows: [Harness]
+    types: [completed]
 
 permissions:
-  checks: read
+  checks: write
   contents: read
   pull-requests: read
 
 concurrency:
-  group: policy-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: policy-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 
 jobs:
-  evaluate:
+  trusted-policy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
+    name: Trusted policy driver
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Resolve exact pull request context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -eu
+          event_name=$(jq -r '.action // empty' "$GITHUB_EVENT_PATH")
+          event_head=
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
+            event_head=$(jq -r '.workflow_run.head_sha' "$GITHUB_EVENT_PATH")
+            number=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
+            if [ -z "$number" ]; then
+              number=$(gh api "repos/${REPOSITORY}/commits/${event_head}/pulls" --jq '[.[] | select(.state == "open")][0].number // empty')
+            fi
+          else
+            number=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+          fi
+          if [ -z "$number" ]; then
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          pull=$(gh api "repos/${REPOSITORY}/pulls/${number}")
+          head=$(printf '%s' "$pull" | jq -r '.head.sha')
+          if [ -n "$event_head" ] && [ "$event_head" != "$head" ]; then
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(printf '%s' "$pull" | jq -r '.base.sha')
+          author=$(printf '%s' "$pull" | jq -r '.user.login')
+          check_id=$(gh api --method POST "repos/${REPOSITORY}/check-runs" \
+            -f name=evaluate -f head_sha="$head" -f status=in_progress \
+            -f 'output[title]=Level 7 trusted policy' \
+            -f 'output[summary]=Evaluating exact-head checks and configured assurance.' \
+            --jq '.id')
+          {
+            echo 'current=true'
+            echo "event_action=$event_name"
+            echo "pr_number=$number"
+            echo "base_sha=$base"
+            echo "head_sha=$head"
+            echo "author=$author"
+            echo "check_id=$check_id"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Check out trusted base controller
+        if: steps.context.outputs.current == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ steps.context.outputs.base_sha }}
           fetch-depth: 0
           path: trusted
           persist-credentials: false
 
       - name: Check out candidate without credentials
+        if: steps.context.outputs.current == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ steps.context.outputs.head_sha }}
           fetch-depth: 0
           path: candidate
           persist-credentials: false
 
       - name: Build trusted controller only
+        if: steps.context.outputs.current == 'true'
         working-directory: trusted
         run: |
           make bootstrap
           go_version=$(sed -n '1p' .go-version)
           ".cache/toolchains/go${go_version}/bin/go" build -trimpath -o ../l7-policy ./internal/harness/buildcontrol
 
-      - name: Derive trusted review envelopes
+      - name: Derive opt-in team review envelopes
+        if: steps.context.outputs.current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           L7_ACCOUNTABLE_OWNER: ${{ vars.L7_ACCOUNTABLE_OWNER }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          L7_ASSURANCE_MODE: ${{ vars.L7_ASSURANCE_MODE }}
+          PR_AUTHOR: ${{ steps.context.outputs.author }}
+          PR_BASE: ${{ steps.context.outputs.base_sha }}
+          PR_HEAD: ${{ steps.context.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -eu
-          brief=$(git -C candidate diff --diff-filter=A --name-only "${{ github.event.pull_request.base.sha }}..${PR_HEAD}" -- 'docs/artifacts/changes/*.md' | grep -Ev -- '-(verification|audit)\.md$' | head -n 1 || true)
+          assurance=${L7_ASSURANCE_MODE:-solo}
+          if [ "$assurance" != team ]; then
+            exit 0
+          fi
+          brief=$(git -C candidate diff --diff-filter=A --name-only "${PR_BASE}..${PR_HEAD}" -- 'docs/artifacts/changes/*.md' | grep -Ev -- '-(verification|audit)\.md$' | head -n 1 || true)
           if [ -z "$brief" ]; then
             exit 0
           fi
@@ -61,68 +121,107 @@ jobs:
           brief_commit=$(git -C candidate log --diff-filter=A -1 --format=%H "$PR_HEAD" -- "$brief")
           reviews=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews")
           owner=$(printf '%s' "$reviews" | jq -r --arg actor "$L7_ACCOUNTABLE_OWNER" --arg head "$PR_HEAD" '[.[] | select(.state == "APPROVED" and .user.login == $actor and .commit_id == $head)] | last | .user.login // empty')
-          auditor=$(printf '%s' "$reviews" | jq -r --arg owner "$owner" --arg author "$PR_AUTHOR" --arg head "$PR_HEAD" '[.[] | select(.state == "APPROVED" and .user.login != $owner and .user.login != $author and .commit_id == $head)] | last | .user.login // empty')
+          audit="candidate/docs/artifacts/changes/${change_id}-audit.md"
+          expected_auditor=
+          if [ -f "$audit" ]; then
+            expected_auditor=$(awk -F '|' '$2 ~ /Reviewer/ {gsub(/[ `]/, "", $3); print $3}' "$audit")
+          fi
+          auditor=$(printf '%s' "$reviews" | jq -r --arg owner "$owner" --arg author "$PR_AUTHOR" --arg expected "$expected_auditor" --arg head "$PR_HEAD" '[.[] | select(.state == "APPROVED" and .user.login != $owner and .user.login != $author and .user.login == $expected and .commit_id == $head)] | last | .user.login // empty')
           if [ -n "$owner" ]; then
             mkdir -p "candidate/.git/l7/approvals"
             jq -n --arg id "$change_id" --arg actor "$owner" --arg implementer "$PR_AUTHOR" --arg brief "$brief_commit" '{schema:1,change_id:$id,actor:$actor,implementer:$implementer,brief_commit:$brief,source:"trusted-ci"}' > "candidate/.git/l7/approvals/${change_id}.json"
           fi
           if [ -n "$auditor" ]; then
-            audit="docs/artifacts/changes/${change_id}-audit.md"
-            if [ -f "candidate/$audit" ]; then
-              # shellcheck disable=SC2016
-              candidate_commit=$(awk -F '|' '$2 ~ /Candidate commit/ {gsub(/[ `]/, "", $3); print $3}' "candidate/$audit")
-              mkdir -p "candidate/.git/l7/audits"
-              jq -n --arg id "$change_id" --arg actor "$auditor" --arg candidate "$candidate_commit" --arg audit "$PR_HEAD" '{schema:1,change_id:$id,actor:$actor,candidate_commit:$candidate,audit_commit:$audit,source:"trusted-ci"}' > "candidate/.git/l7/audits/${change_id}.json"
-            fi
+            # shellcheck disable=SC2016
+            candidate_commit=$(awk -F '|' '$2 ~ /Candidate commit/ {gsub(/[ `]/, "", $3); print $3}' "$audit")
+            mkdir -p "candidate/.git/l7/audits"
+            jq -n --arg id "$change_id" --arg actor "$auditor" --arg candidate "$candidate_commit" --arg audit "$PR_HEAD" '{schema:1,change_id:$id,actor:$actor,candidate_commit:$candidate,audit_commit:$audit,source:"trusted-ci"}' > "candidate/.git/l7/audits/${change_id}.json"
           fi
 
       - name: Evaluate candidate with trusted base controller
+        id: policy
+        if: steps.context.outputs.current == 'true'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           L7_ACCOUNTABLE_OWNER: ${{ vars.L7_ACCOUNTABLE_OWNER }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          L7_ASSURANCE_MODE: ${{ vars.L7_ASSURANCE_MODE }}
+          PR_AUTHOR: ${{ steps.context.outputs.author }}
+          PR_BASE: ${{ steps.context.outputs.base_sha }}
+          PR_HEAD: ${{ steps.context.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -eu
-          base="${{ github.event.pull_request.base.sha }}"
-          head="$PR_HEAD"
-          risk_labels=$(jq -r '[.pull_request.labels[].name | select(test("^l7-risk-tier-[123]$"))] | unique | .[]' "$GITHUB_EVENT_PATH")
+          assurance=${L7_ASSURANCE_MODE:-solo}
+          test "$assurance" = solo || test "$assurance" = team || { echo 'L7_ASSURANCE_MODE must be solo or team' >&2; exit 1; }
+          pull=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")
+          risk_labels=$(printf '%s' "$pull" | jq -r '[.labels[].name | select(test("^l7-risk-tier-[123]$"))] | unique | .[]')
           test "$(printf '%s\n' "$risk_labels" | sed '/^$/d' | wc -l | tr -d ' ')" = 1 || { echo 'exactly one trusted l7-risk-tier-1/2/3 label is required' >&2; exit 1; }
           risk=${risk_labels##*-}
+          body=$(printf '%s' "$pull" | jq -r '.body // ""')
 
-          checks=$(gh api "repos/${REPOSITORY}/commits/${head}/check-runs")
+          checks=$(gh api "repos/${REPOSITORY}/commits/${PR_HEAD}/check-runs")
           baseline=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name | test("^Go .* \\(baseline\\)$")) | select(.conclusion == "success")] | length')
           macos_arm64=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI macOS 15 (arm64)") | select(.conclusion == "success")] | length')
           macos_amd64=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI macOS 15 (amd64)") | select(.conclusion == "success")] | length')
           benchmark_success=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI paired benchmark gate") | select(.conclusion == "success")] | length')
           benchmark_failure=$(printf '%s' "$checks" | jq '[.check_runs[] | select(.name == "CLI paired benchmark gate") | select(.conclusion == "failure")] | length')
           reviews=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews")
-          reviewer=$(printf '%s' "$reviews" | jq -r --arg author "$PR_AUTHOR" --arg head "$head" '[.[] | select(.state == "APPROVED" and .user.login != $author and .commit_id == $head)] | last | .user.login // empty')
-          benchmark_marker="L7-Benchmark-Regression-Accepted: $head"
-          benchmark_acceptance=$(printf '%s' "$reviews" | jq --arg actor "$L7_ACCOUNTABLE_OWNER" --arg head "$head" --arg marker "$benchmark_marker" '[.[] | select(.state == "APPROVED" and .user.login == $actor and .commit_id == $head) | select(any(((.body // "") | split("\n"))[]; . == $marker or . == ($marker + "\r")))] | length')
+          reviewer=$(printf '%s' "$reviews" | jq -r --arg author "$PR_AUTHOR" --arg head "$PR_HEAD" '[.[] | select(.state == "APPROVED" and .user.login != $author and .commit_id == $head)] | last | .user.login // empty')
+          benchmark_marker="L7-Benchmark-Regression-Accepted: $PR_HEAD"
+          benchmark_acceptance=$(printf '%s' "$reviews" | jq --arg actor "$L7_ACCOUNTABLE_OWNER" --arg head "$PR_HEAD" --arg marker "$benchmark_marker" '[.[] | select(.state == "APPROVED" and .user.login == $actor and .commit_id == $head) | select(any(((.body // "") | split("\n"))[]; . == $marker or . == ($marker + "\r")))] | length')
           benchmark_current=false
           if [ "$benchmark_success" -gt 0 ]; then
             benchmark_current=true
           elif [ "$benchmark_failure" -gt 0 ] && [ "$benchmark_acceptance" -gt 0 ]; then
             benchmark_current=true
-            echo "accountable owner explicitly accepted the paired benchmark regression at $head"
+            echo "accountable owner explicitly accepted the paired benchmark regression at $PR_HEAD"
           fi
+
           verified_ref=
           review_ref=
           ready_ref=
-          if [ "$baseline" -gt 0 ] && [ "$macos_arm64" -gt 0 ] && [ "$macos_amd64" -gt 0 ] && [ "$benchmark_current" = true ]; then verified_ref=$head; fi
-          if [ -n "$reviewer" ]; then review_ref=$head; fi
-          if [ -n "$verified_ref" ] && [ -n "$review_ref" ]; then ready_ref=$head; fi
+          if [ "$baseline" -gt 0 ] && [ "$macos_arm64" -gt 0 ] && [ "$macos_amd64" -gt 0 ] && [ "$benchmark_current" = true ]; then
+            verified_ref=$PR_HEAD
+          fi
+          if [ "$assurance" = solo ]; then
+            review_ref=$verified_ref
+            ready_ref=$verified_ref
+            echo 'solo assurance: exact-head CI and truthful conductor self-review; no independent-review claim'
+          else
+            if [ -n "$reviewer" ]; then review_ref=$PR_HEAD; fi
+            if [ -n "$verified_ref" ] && [ -n "$review_ref" ]; then ready_ref=$PR_HEAD; fi
+          fi
 
           if [ "$risk" = 1 ]; then
-            scope=$(printf '%s\n' "$PR_BODY" | sed -n 's/^L7-Scope: //p')
+            scope=$(printf '%s\n' "$body" | sed -n 's/^L7-Scope: //p')
             test -n "$scope" || { echo 'Tier 1 requires one explicit L7-Scope line in PR metadata' >&2; exit 1; }
-            L7_VERIFIED_REF=$verified_ref L7_REVIEW_REF=$review_ref L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$base" --head "$head" --tier 1 --scope "$scope" --require-ready
-          elif [ "$risk" = 3 ]; then
-            L7_AUDIT_REQUEST_REF=$head L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$base" --head "$head" --tier 3 --require-ready
+            L7_ASSURANCE_MODE=$assurance L7_VERIFIED_REF=$verified_ref L7_REVIEW_REF=$review_ref L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$PR_BASE" --head "$PR_HEAD" --tier 1 --scope "$scope" --require-ready
+          elif [ "$risk" = 3 ] && [ "$assurance" = team ]; then
+            L7_ASSURANCE_MODE=$assurance L7_AUDIT_REQUEST_REF=$PR_HEAD L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$PR_BASE" --head "$PR_HEAD" --tier 3 --require-ready
           else
-            L7_VERIFIED_REF=$verified_ref L7_REVIEW_REF=$review_ref L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$base" --head "$head" --tier 2 --require-ready
+            L7_ASSURANCE_MODE=$assurance L7_VERIFIED_REF=$verified_ref L7_REVIEW_REF=$review_ref L7_READY_REF=$ready_ref ./l7-policy --repo candidate --base "$PR_BASE" --head "$PR_HEAD" --tier "$risk" --require-ready
           fi
+
+      - name: Publish exact-head policy result
+        if: always() && steps.context.outputs.current == 'true'
+        env:
+          CHECK_ID: ${{ steps.context.outputs.check_id }}
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.context.outputs.head_sha }}
+          POLICY_OUTCOME: ${{ steps.policy.outcome }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -eu
+          conclusion=failure
+          summary="Trusted policy failed or did not complete for exact head ${HEAD_SHA}."
+          if [ "$POLICY_OUTCOME" = success ]; then
+            conclusion=success
+            summary="Trusted policy passed for exact head ${HEAD_SHA}."
+          fi
+          gh api --method PATCH "repos/${REPOSITORY}/check-runs/${CHECK_ID}" \
+            -f status=completed -f conclusion="$conclusion" \
+            -f 'output[title]=Level 7 trusted policy' \
+            -f "output[summary]=$summary" >/dev/null
+          test "$conclusion" = success

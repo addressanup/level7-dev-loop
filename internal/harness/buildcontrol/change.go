@@ -17,6 +17,17 @@ const (
 	tierHighRisk riskTier = 3
 )
 
+type assuranceMode string
+
+const (
+	assuranceSolo assuranceMode = "solo"
+	assuranceTeam assuranceMode = "team"
+)
+
+func (mode assuranceMode) valid() bool {
+	return mode == assuranceSolo || mode == assuranceTeam
+}
+
 type workflowState string
 
 const (
@@ -215,8 +226,8 @@ func uniqueSorted(values []string) []string {
 	return result
 }
 
-func nextState(tier riskTier, state workflowState) (workflowState, string, bool) {
-	if tier == tierHighRisk {
+func nextState(tier riskTier, assurance assuranceMode, state workflowState) (workflowState, string, bool) {
+	if tier == tierHighRisk && assurance == assuranceTeam {
 		switch state {
 		case statePlanned:
 			return stateAwaitingOwnerApproval, "request explicit accountable-owner approval", true
@@ -228,6 +239,20 @@ func nextState(tier riskTier, state workflowState) (workflowState, string, bool)
 			return stateAwaitingIndependentAudit, "request an independent read-only audit", true
 		case stateAwaitingIndependentAudit:
 			return stateReviewed, "record the bound independent decision", true
+		case stateReviewed:
+			return stateReady, "confirm merge readiness", true
+		case stateReady:
+			return stateReady, "merge the reviewed Git candidate", true
+		}
+	}
+	if assurance == assuranceSolo {
+		switch state {
+		case statePlanned:
+			return stateBuilding, "implement the declared scope", true
+		case stateBuilding:
+			return stateVerified, "implement or remediate the declared scope, then run relevant tests and CI", true
+		case stateVerified:
+			return stateReviewed, "self-review the exact candidate without claiming independence", true
 		case stateReviewed:
 			return stateReady, "confirm merge readiness", true
 		case stateReady:
@@ -249,8 +274,8 @@ func nextState(tier riskTier, state workflowState) (workflowState, string, bool)
 	return "", "", false
 }
 
-func validateTransition(tier riskTier, from, to workflowState) bool {
-	next, _, ok := nextState(tier, from)
+func validateTransition(tier riskTier, assurance assuranceMode, from, to workflowState) bool {
+	next, _, ok := nextState(tier, assurance, from)
 	if ok && next == to {
 		return true
 	}

@@ -3,7 +3,7 @@
   "name": "level7-dev-loop",
   "displayName": "Level 7 Dev Loop",
   "version": "0.1.0-dev.5",
-  "description": "Lean risk-tiered development: brief, implement, test, review, and merge with high-risk controls only when needed.",
+  "description": "One-intent solo development: inspect, implement, test, repair, self-review, and hand off with optional team assurance.",
   "author": {
     "name": "Level 7 Engineering"
   },

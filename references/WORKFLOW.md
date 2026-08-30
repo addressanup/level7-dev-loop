@@ -1,42 +1,63 @@
 # Level 7 workflow
 
-The default path is:
+The default path is one uninterrupted conductor loop:
 
-`brief → implement → test → review → merge`
+`intent → inspect → implement → test → repair → self-review → handoff`
+
+The user does not need to understand or approve a skill graph. `l7-next` is the
+default conductor and applies specialized skills internally.
 
 ## Risk tiers
 
-| Tier | Planning artifact | Gates |
+| Tier | Solo planning artifact | Solo gates |
 |---|---:|---|
-| 1 — routine | 0 | Relevant tests and normal review |
-| 2 — product | 1 change brief | Tests, normal review, default-OFF feature flag when appropriate |
-| 3 — high risk/release | At most 3: brief, verification, audit | External owner approval and independent read-only audit |
+| 1 — routine | 0 | Relevant tests and truthful self-review |
+| 2 — product | 1 change brief | Tests, self-review, default-OFF feature flag when appropriate |
+| 3 — high risk/release | 1 change brief | Stronger relevant verification, self-review, rollback, and explicit authority at a real effect boundary |
 
-Tier 3 covers production releases, authorization/security boundaries, destructive
-or irreversible behavior, material migrations, and protected governance controls.
+Tier 3 covers authorization/security boundaries, destructive or irreversible
+behavior, material migrations, production releases, and protected governance
+controls. Risk does not imply that a solo developer has a second person.
+
+## Assurance modes
+
+`solo` is the default. It never requires or claims independent review and does
+not create tracked verification or audit records. Git and exact-head CI carry
+evidence.
+
+`team` is an explicit trusted opt-in via `L7_ASSURANCE_MODE=team`. It may require
+distinct owner, implementer, and auditor identities. Resolve the real forge login
+before audit work begins and bind the decision to the exact head. Historical
+three-record Tier 3 changes remain readable in team mode for compatibility.
 
 ## States
 
-Tier 1/2:
+Solo, all tiers:
 
 `planned → building → verified → reviewed → ready → merge`
 
-Tier 3:
+Team Tier 3 compatibility path:
 
 `planned → awaiting-owner-approval → building → verified → awaiting-independent-audit → reviewed → ready → merge`
 
-New implementation commits after verification/review return to `building`. Audit
-failure returns to `building`. Every state reports a concrete next action.
+New implementation commits invalidate exact-head verification and review. Every
+accepted state reports a concrete next action.
 
-In CI, risk comes from exactly one maintainer-controlled `l7-risk-tier-1/2/3`
-label. Tier 1 scope comes from an explicit `L7-Scope:` PR metadata field, never
-from the candidate diff. Exact-head Harness success and non-author review are
-required before Tier 1/2 can become `ready`; Tier 3 additionally requires owner
-approval and a distinct bound auditor.
+## Hosted policy
 
-Use `l7-next` for routing. Use `l7-change` for live work, `l7-build` for an
-approved build, `l7-release` only for Tier 3/release validation, and `l7-deploy`
-after a bound GO decision.
+Risk comes from exactly one maintainer-controlled `l7-risk-tier-1/2/3` label.
+Tier 1 scope comes from an explicit `L7-Scope:` PR field; Tier 2/3 scope comes
+from the brief. Protected paths still require Tier 3.
+
+Harness runs on pull requests and on pushes to `main`, avoiding duplicate
+feature-branch runs. Trusted policy is re-evaluated after the pull-request Harness
+run completes. In solo mode, exact-head Harness success plus conductor
+self-review can become `ready` without a non-author approval. In team mode,
+trusted forge reviews supply the configured owner/auditor bindings.
+
+External, destructive, irreversible, credentialed, production, publication,
+deployment, release, and protected-branch merge effects always require explicit
+authority at the actual boundary. Missing interaction never grants it.
 
 Historical phase manifests and approval/audit chains remain in Git as records but
-are deprecated inputs. New work does not update them.
+are deprecated inputs. New solo work does not update them.

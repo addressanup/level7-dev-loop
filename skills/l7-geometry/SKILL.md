@@ -13,6 +13,8 @@ sibling dimensions, nested radii, baselines, icons, hit targets, and all compone
 states.
 
 If behavior and public UX do not meaningfully change, treat this as Tier 1: no
-governance artifact, focused visual checks, clean diff, normal review. Elevate to
-Tier 2 only when the work changes a meaningful journey or design contract. Report
-remaining measured exceptions in the handoff, not a mandatory artifact.
+governance artifact, focused visual checks, clean diff, and truthful self-review.
+Elevate to Tier 2 only when the work changes a meaningful journey or design
+contract. Report remaining measured exceptions in the handoff, not a mandatory
+artifact. Complete the polish inside the active conductor without a separate
+skill-approval pause.

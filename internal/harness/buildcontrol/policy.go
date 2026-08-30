@@ -13,6 +13,7 @@ type controllerOptions struct {
 	HeadRef         string
 	ChangeID        string
 	Tier            riskTier
+	Assurance       assuranceMode
 	TierOneScope    []string
 	RequireReady    bool
 	VerifiedRef     string
@@ -30,6 +31,7 @@ type workflowSignals struct {
 
 type controllerReport struct {
 	Tier      riskTier
+	Assurance assuranceMode
 	ChangeID  string
 	Base      string
 	Head      string
@@ -40,8 +42,8 @@ type controllerReport struct {
 }
 
 func (report controllerReport) String() string {
-	return fmt.Sprintf("PASS rule=BCTL-000 version=%s tier=%s change=%s base=%s head=%s tree=%s state=%s changed=%d next=%q",
-		buildControlVersion, report.Tier, report.ChangeID, report.Base, report.Head, report.Tree, report.State, report.PathCount, report.Next)
+	return fmt.Sprintf("PASS rule=BCTL-000 version=%s tier=%s assurance=%s change=%s base=%s head=%s tree=%s state=%s changed=%d next=%q",
+		buildControlVersion, report.Tier, report.Assurance, report.ChangeID, report.Base, report.Head, report.Tree, report.State, report.PathCount, report.Next)
 }
 
 var protectedExact = map[string]bool{
@@ -69,6 +71,9 @@ var protectedPrefixes = []string{
 }
 
 func runController(options controllerOptions) (controllerReport, []finding) {
+	if options.Assurance == "" {
+		options.Assurance = assuranceSolo
+	}
 	repository := gitRepository{root: options.Root}
 	head, err := repository.resolve(options.HeadRef)
 	if err != nil {
@@ -105,6 +110,9 @@ func runController(options controllerOptions) (controllerReport, []finding) {
 	if tier < tierRoutine || tier > tierHighRisk {
 		findings = appendFindings(findings, newFinding("RISK-002", changeID, "risk tier is not declared", "declare Tier 1 explicitly or add one Tier 2/3 brief"))
 	}
+	if !options.Assurance.valid() {
+		findings = appendFindings(findings, newFinding("ASSURANCE-001", string(options.Assurance), "assurance mode must be solo or team", "use the solo default or explicitly configure team assurance"))
+	}
 	if tier == tierRoutine && brief.Path != "" {
 		findings = appendFindings(findings, newFinding("ART-001", brief.Path, "Tier 1 must not create a governance artifact", "remove the artifact or elevate the change"))
 	}
@@ -132,13 +140,13 @@ func runController(options controllerOptions) (controllerReport, []finding) {
 		findings = appendFindings(findings, newFinding("SCOPE-001", changeID, "Tier 1 scope is missing", "pass a concise comma-separated scope"))
 	}
 	findings = appendFindings(findings, validateScopeAndRisk(tier, scope, changes)...)
-	findings = appendFindings(findings, validateArtifactBudget(tier, brief, changes)...)
+	findings = appendFindings(findings, validateArtifactBudget(tier, options.Assurance, brief, changes)...)
 
 	signals, signalFindings := resolveSignals(repository, options)
 	findings = appendFindings(findings, signalFindings...)
-	state, stateFindings := evaluateState(repository, head, tree, brief, briefCommit, changes, signals)
+	state, stateFindings := evaluateState(repository, head, tree, tier, options.Assurance, brief, briefCommit, changes, signals)
 	findings = appendFindings(findings, stateFindings...)
-	_, next, ok := nextState(tier, state)
+	_, next, ok := nextState(tier, options.Assurance, state)
 	if !ok {
 		findings = appendFindings(findings, newFinding("STATE-001", string(state), "controller produced an invalid state", "restore an executable workflow state"))
 	}
@@ -148,7 +156,7 @@ func runController(options controllerOptions) (controllerReport, []finding) {
 	if len(findings) != 0 {
 		return controllerReport{}, findings
 	}
-	return controllerReport{Tier: tier, ChangeID: changeID, Base: base, Head: head, Tree: tree, State: state, Next: next, PathCount: len(changes)}, nil
+	return controllerReport{Tier: tier, Assurance: options.Assurance, ChangeID: changeID, Base: base, Head: head, Tree: tree, State: state, Next: next, PathCount: len(changes)}, nil
 }
 
 func resolveSignals(repository gitRepository, options controllerOptions) (workflowSignals, []finding) {
@@ -233,7 +241,7 @@ func validateScopeAndRisk(tier riskTier, scope []string, changes []changedPath) 
 			findings = appendFindings(findings, newFinding("SCOPE-002", change.Path, "changed path is outside declared scope", "remove the path or explicitly revise the change scope"))
 		}
 		if isProtected(change.Path) && tier != tierHighRisk {
-			findings = appendFindings(findings, newFinding("RISK-003", change.Path, "protected control change requires Tier 3", "elevate the change and obtain owner approval plus independent audit"))
+			findings = appendFindings(findings, newFinding("RISK-003", change.Path, "protected control change requires Tier 3", "elevate the risk tier and apply the configured assurance mode"))
 		}
 	}
 	return findings
@@ -251,7 +259,7 @@ func isProtected(relative string) bool {
 	return false
 }
 
-func validateArtifactBudget(tier riskTier, brief changeBrief, changes []changedPath) []finding {
+func validateArtifactBudget(tier riskTier, assurance assuranceMode, brief changeBrief, changes []changedPath) []finding {
 	var artifacts []string
 	for _, change := range changes {
 		if strings.HasPrefix(change.Path, "docs/artifacts/") {
@@ -261,8 +269,10 @@ func validateArtifactBudget(tier riskTier, brief changeBrief, changes []changedP
 	allowed := map[string]bool{}
 	if brief.Path != "" {
 		allowed[brief.Path] = true
-		allowed["docs/artifacts/changes/"+brief.ID+"-verification.md"] = true
-		allowed["docs/artifacts/changes/"+brief.ID+"-audit.md"] = true
+		if tier == tierHighRisk && assurance == assuranceTeam {
+			allowed["docs/artifacts/changes/"+brief.ID+"-verification.md"] = true
+			allowed["docs/artifacts/changes/"+brief.ID+"-audit.md"] = true
+		}
 	}
 	var findings []finding
 	for _, relative := range artifacts {
@@ -273,8 +283,10 @@ func validateArtifactBudget(tier riskTier, brief changeBrief, changes []changedP
 	limit := 0
 	if tier == tierProduct {
 		limit = 1
-	} else if tier == tierHighRisk {
+	} else if tier == tierHighRisk && assurance == assuranceTeam {
 		limit = 3
+	} else if tier == tierHighRisk {
+		limit = 1
 	}
 	if len(artifacts) > limit {
 		findings = appendFindings(findings, newFinding("ART-004", brief.ID, fmt.Sprintf("change has %d governance artifacts; tier limit is %d", len(artifacts), limit), "remove redundant governance files"))
@@ -282,7 +294,7 @@ func validateArtifactBudget(tier riskTier, brief changeBrief, changes []changedP
 	return findings
 }
 
-func evaluateState(repository gitRepository, head, tree string, brief changeBrief, briefCommit string, changes []changedPath, signals workflowSignals) (workflowState, []finding) {
+func evaluateState(repository gitRepository, head, tree string, tier riskTier, assurance assuranceMode, brief changeBrief, briefCommit string, changes []changedPath, signals workflowSignals) (workflowState, []finding) {
 	implementation := 0
 	verificationPath := ""
 	auditPath := ""
@@ -297,7 +309,7 @@ func evaluateState(repository gitRepository, head, tree string, brief changeBrie
 			implementation++
 		}
 	}
-	if brief.Tier != tierHighRisk {
+	if tier != tierHighRisk || assurance == assuranceSolo {
 		if implementation == 0 {
 			return statePlanned, nil
 		}

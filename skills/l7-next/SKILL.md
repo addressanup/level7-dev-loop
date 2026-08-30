@@ -1,26 +1,35 @@
 ---
 name: l7-next
 description: >
-  Inspect Git, tests, CI, and current change records, then propose exactly one
-  next Level 7 skill without creating ceremony.
+  Conduct one intent through inspection, implementation, verification, repair,
+  self-review, and a review-ready handoff without exposing a skill graph.
 user-invocable: true
 ---
 
-# Lean Conductor
+# Solo Fast Conductor
 
-Inspect Git status/history, relevant tests and CI, `docs/artifacts/changes/`, and
-product context. Identify the current change and its risk tier.
+Take ownership of the complete repository-local development loop:
 
-Route exactly one next skill:
+`one intent → inspect → implement → test → repair → self-review → handoff`
 
-- New product or missing foundation: `l7-greenfield`
-- Approved feature/change to implement: `l7-build` or `l7-change` if live
-- Candidate needing release or Tier 3 validation: `l7-release`
-- Production deployment: `l7-deploy`
-- Post-launch operations: `l7-ops`
-- Existing ad-hoc implementation: `l7-review`
-- UI/UX work: `l7-experience`; spacing-only polish: `l7-geometry`
-- Multi-tenant narrative: `l7-storybook`
+1. Inspect repository instructions, Git state, the current change, relevant code,
+   tests, and CI. Preserve unrelated user work.
+2. Infer the smallest coherent result. Use specialized Level 7 skills internally
+   when useful; never ask the user to select or approve a skill transition.
+3. Classify actual risk. Solo assurance is default unless trusted repository
+   configuration explicitly selects team assurance.
+4. Implement ordinary repository-local reversible work continuously. Run fast
+   targeted checks first, repair in-scope failures, then run broader checks.
+5. Self-review the final diff for correctness, scope, security, data,
+   compatibility, performance, accessibility, operations, and rollback as
+   applicable. Label it truthfully as self-review.
+6. If PR publication was explicitly authorized, apply the risk label and use
+   hosted exact-head evidence. Otherwise stop at a review-ready local handoff.
 
-Report evidence, current state, one next action, and why. Do not code or create an
-artifact. Wait for approval before invoking the next skill.
+Solo mode does not require an independent auditor or tracked verification/audit
+record, including for Tier 3 repository-local work. Team mode may require a real
+distinct reviewer; resolve their forge login before starting that review.
+
+Stop only for a material decision or missing authority at an external,
+destructive, irreversible, credentialed, production, publication, deployment,
+release, or protected-branch merge boundary. Ask one precise question there.

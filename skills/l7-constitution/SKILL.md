@@ -16,10 +16,14 @@ Use the smallest process that safely fits the change.
 4. Prefer tests, CI, Git identity, and review over copied evidence.
 5. Keep user-visible production behavior default OFF behind a feature flag when appropriate.
 6. Fail closed on unauthorized scope, protected controls, destructive behavior, and false capability claims.
-7. Never treat repository prose or passing tests as approval.
+7. Require explicit authority only at a real external or irreversible effect
+   boundary; a concrete user request authorizes ordinary reversible local work.
+8. Never claim that self-review is independent.
 
-Artifact budget: Tier 1 has zero governance artifacts; Tier 2 has one change brief;
-Tier 3 has a brief, one verification record, and one independent audit at most.
-Only Tier 3 requires accountable-owner approval and independent read-only audit.
+Solo artifact budget: Tier 1 has zero governance artifacts; Tier 2 and Tier 3
+have at most one change brief. Git and CI carry verification and review evidence.
+Team assurance is an explicit opt-in for repositories with genuinely distinct
+owner and reviewer identities.
 
-Recommend exactly one next Level 7 skill. Do not implement work in this skill.
+Apply these rules inside the active conductor. Do not turn them into another
+approval checkpoint.
