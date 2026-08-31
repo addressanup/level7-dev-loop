@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -84,6 +86,20 @@ func TestStrictMetadataRejectsDuplicateFieldsAndTrailingData(t *testing.T) {
 		if err := decodeStrict(data, &target); err == nil {
 			t.Fatalf("unsafe metadata accepted: %s", data)
 		}
+	}
+}
+
+func TestNativeExecutionProfileDeniesAllNetworkOperations(t *testing.T) {
+	if !strings.Contains(networkDenyProfile, "(deny network*)") || !strings.Contains(networkDenyProfile, "(allow default)") {
+		t.Fatalf("unsafe sandbox profile: %q", networkDenyProfile)
+	}
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS sandbox enforcement is exercised by the native architecture jobs")
+	}
+	probe := `import socket; client=socket.socket(); client.connect(("127.0.0.1", 1))`
+	output, err := exec.Command("/usr/bin/sandbox-exec", "-p", networkDenyProfile, "/usr/bin/python3", "-c", probe).CombinedOutput()
+	if err == nil || !bytes.Contains(output, []byte("Operation not permitted")) {
+		t.Fatalf("network denial was not enforced: err=%v output=%s", err, output)
 	}
 }
 

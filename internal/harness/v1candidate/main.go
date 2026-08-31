@@ -28,13 +28,14 @@ import (
 )
 
 const (
-	stableVersion    = "0.1.1"
-	candidateVersion = "1.0.0-dev"
-	maxArchiveBytes  = 256 << 20
-	maxArchiveFiles  = 512
-	maxFileBytes     = 128 << 20
-	maxExpandedBytes = 512 << 20
-	maxProcessOutput = 4 << 20
+	stableVersion      = "0.1.1"
+	candidateVersion   = "1.0.0-dev"
+	maxArchiveBytes    = 256 << 20
+	maxArchiveFiles    = 512
+	maxFileBytes       = 128 << 20
+	maxExpandedBytes   = 512 << 20
+	maxProcessOutput   = 4 << 20
+	networkDenyProfile = "(version 1)(allow default)(deny network*)"
 )
 
 var canonicalSkills = []string{
@@ -749,9 +750,15 @@ func executeCandidate(lifecycleRoot, executionRoot, host string) error {
 }
 
 func boundedCommand(executionRoot, executable string, arguments []string, input []byte) ([]byte, []byte, error) {
+	sandbox := "/usr/bin/sandbox-exec"
+	info, err := os.Lstat(sandbox)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode()&0o111 == 0 {
+		return nil, nil, errors.New("macOS network-denial sandbox is unavailable")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, executable, arguments...)
+	sandboxArguments := append([]string{"-p", networkDenyProfile, executable}, arguments...)
+	command := exec.CommandContext(ctx, sandbox, sandboxArguments...)
 	command.Dir = filepath.Join(executionRoot, "repo")
 	command.Env = []string{
 		"PATH=/usr/bin:/bin", "HOME=" + filepath.Join(executionRoot, "home"), "TMPDIR=" + filepath.Join(executionRoot, "tmp"),
@@ -763,7 +770,7 @@ func boundedCommand(executionRoot, executable string, arguments []string, input 
 	stderr := &limitBuffer{remaining: maxProcessOutput}
 	command.Stdout = stdout
 	command.Stderr = stderr
-	err := command.Run()
+	err = command.Run()
 	if ctx.Err() != nil {
 		return stdout.Bytes(), stderr.Bytes(), ctx.Err()
 	}
