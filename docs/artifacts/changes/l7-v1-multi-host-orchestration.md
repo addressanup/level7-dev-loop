@@ -4,13 +4,18 @@
 |---|---|
 | Change ID | `l7-v1-multi-host-orchestration` |
 | Risk tier | `3` — provider authentication, agent execution, security testing, durable autonomy, plugin permissions, and stable release |
-| Status | `proposed`; implementation requires fresh external-owner approval bound to this brief commit |
+| Status | `superseding proposal`; verification and every later transition require fresh Product Owner approval bound to this exact revision commit |
 | Base commit | `84bd69f90d366356b0ce1e1a392f906258f3de91` |
 | Base tree | `84c2a105227f98089ea001f97473af79933bd743` |
+| Prior approved brief | Commit `a9038285d612dec6d1c496c3f9a69fed9ca75f74`, tree `0512a917b7a029616e19af708fa346d9ab344002`; preserved in Git history, but its approval does not transfer to this revision |
+| Implementation commit | `dc1fdb6a88d173a78e375bb8d54691c999d12e39` |
+| Implementation tree | `a0f6355725067f89b63b621edcea4e682078be65` |
 | Target | Stable `v1.0.0` for macOS 13+ on `arm64` and `amd64` |
-| Accountable owner | Unbound; repository text and this brief do not supply authority |
+| Development packages | Codex SHA-256 `efb0dbd1d6ed75d158860675d50332c69f30ed163999f35ebcbbaca1b3ae1eed`; Claude SHA-256 `58b3d6ad462abb2e25355b58a35621434144f6d89c4c270c54aad56faa8380fe` |
+| Accountable owner | Anup Pandey, Product Owner; approval of this exact revision commit is pending |
 | Implementer | `codex-root` |
 | Assurance | Tier 3 external owner approval, exact-candidate verification, independent read-only audit, and owner GO before release |
+| Next executable transition | Stop for explicit Product Owner approval of this exact revision commit; only then run exact-head verification and create one bound verification record |
 
 ## Problem
 
@@ -25,6 +30,14 @@ Users currently have to select hosts and carry context manually. Exact client
 version pins also turn compatible host upgrades into degraded states. Copying a
 handoff through a UI is neither headless nor crash-safe, and active security
 testing without a real isolation boundary would create unacceptable host risk.
+
+The Product Owner approved the prior brief at `a9038285d612dec6d1c496c3f9a69fed9ca75f74`,
+and implementation was committed at `dc1fdb6a88d173a78e375bb8d54691c999d12e39`.
+The prior brief omitted the controller-required exact implementation file-set
+section, so `make verify` correctly failed closed with `BRIEF-005` and
+`SCOPE-002`. This revision changes governance prose only, preserves the prior
+brief and approval as historical records, and requires fresh approval before
+verification or any later transition.
 
 ## Outcome
 
@@ -145,6 +158,77 @@ uncertain authority fails closed.
   `docs/artifacts/foundation-rebaseline-admission-audit.md` in the source
   checkout remains untouched and outside this worktree.
 
+## Exact implementation file set
+
+Implementation commit `dc1fdb6a88d173a78e375bb8d54691c999d12e39`
+changes exactly these 56 paths relative to approved brief commit
+`a9038285d612dec6d1c496c3f9a69fed9ca75f74`. This superseding brief remains the
+single governance path and changes no implementation byte.
+
+Add:
+
+- `cmd/l7-embed/main.swift`
+- `cmd/l7/mcp_server.go`
+- `cmd/l7/mcp_server_test.go`
+- `cmd/l7/orchestration_cli.go`
+- `cmd/l7pack/main.go`
+- `cmd/l7pack/main_test.go`
+- `go.sum`
+- `internal/l7/adapter/claude/worker.go`
+- `internal/l7/adapter/codexapp/discovery.go`
+- `internal/l7/adapter/codexapp/discovery_test.go`
+- `internal/l7/adapter/codexapp/worker.go`
+- `internal/l7/adapter/codexapp/worker_test.go`
+- `internal/l7/adapter/cyber/cyber.go`
+- `internal/l7/adapter/cyber/cyber_test.go`
+- `internal/l7/adapter/discovery/discovery.go`
+- `internal/l7/adapter/discovery/discovery_test.go`
+- `internal/l7/adapter/gateway/client.go`
+- `internal/l7/adapter/gateway/gateway_test.go`
+- `internal/l7/adapter/gateway/worker.go`
+- `internal/l7/adapter/headless/headless.go`
+- `internal/l7/adapter/headless/headless_test.go`
+- `internal/l7/adapter/headlessworker/executor.go`
+- `internal/l7/adapter/headlessworker/executor_test.go`
+- `internal/l7/adapter/memory/apple.go`
+- `internal/l7/adapter/memory/memory.go`
+- `internal/l7/adapter/memory/memory_test.go`
+- `internal/l7/adapter/orchestrationconfig/config.go`
+- `internal/l7/adapter/orchestrationconfig/config_test.go`
+- `internal/l7/adapter/state/orchestration.go`
+- `internal/l7/adapter/state/orchestration_test.go`
+- `internal/l7/adapter/toolbroker/broker.go`
+- `internal/l7/adapter/toolbroker/broker_test.go`
+- `internal/l7/domain/orchestration.go`
+- `internal/l7/domain/routing.go`
+- `internal/l7/domain/routing_test.go`
+- `skills/l7-cyber/SKILL.md`
+- `skills/l7-headless/SKILL.md`
+- `skills/l7-onboard/SKILL.md`
+- `skills/l7-sync/SKILL.md`
+
+Modify:
+
+- `CHANGELOG.md`
+- `Makefile`
+- `README.md`
+- `cmd/l7/main.go`
+- `go.mod`
+- `harness/import-boundaries.tsv`
+- `internal/harness/distribution/main.go`
+- `internal/l7/adapter/claude/adapter.go`
+- `internal/l7/adapter/claude/adapter_test.go`
+- `internal/l7/adapter/codex/adapter.go`
+- `internal/l7/adapter/codex/adapter_test.go`
+- `internal/l7/adapter/process/process.go`
+- `internal/l7/adapter/process/process_test.go`
+- `internal/l7/app/app.go`
+- `internal/l7/domain/result.go`
+- `scripts/harness/check-import-boundaries.sh`
+- `skills/l7-next/SKILL.md`
+
+Delete: none.
+
 ## Acceptance criteria
 
 1. Both plugin packages install one canonical v1 engine and the four new skills;
@@ -218,9 +302,24 @@ uncertain authority fails closed.
 
 ## Rollback
 
-Before release, revert the v1 change commits or delete the isolated worktree;
-the v0.1.1 packages and original checkout remain unchanged. After installation,
+Before approval, revert only this superseding brief commit to restore the exact
+`dc1fdb6a88d173a78e375bb8d54691c999d12e39` tree and its historical brief
+bytes. Before release, revert the brief correction, implementation, and original
+brief commits in reverse order, or delete the isolated worktree; the v0.1.1
+packages and original checkout remain unchanged. After installation,
 disable/remove `.l7/orchestration.json`, uninstall v1, reinstall v0.1.1, and
 remove only package-manager-owned v1 binaries plus derived `.git/l7` v1 state
 after explicit confirmation. No credential, remote, production, or deployment
 cleanup is required because v1 does not own those effects.
+
+## Current transition
+
+1. Commit this governance-only revision as the direct child of
+   `dc1fdb6a88d173a78e375bb8d54691c999d12e39`.
+2. Stop for explicit approval from Anup Pandey bound to that exact revision
+   commit. The approval bound to `a9038285d612dec6d1c496c3f9a69fed9ca75f74`
+   does not transfer.
+3. After approval, run `make verify` against the exact revision head and, only
+   on `PASS`, create its single candidate-bound verification record.
+4. Independent audit, push, signing, release, publication, merge, and deployment
+   remain separate, unauthorized transitions.
