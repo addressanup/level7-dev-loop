@@ -79,7 +79,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-candidate v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -145,7 +145,10 @@ v1-candidate: v1-inputs
 	@mkdir -p "$(PROJECT_ROOT)/build/v1-candidate"
 	@"$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$(PROJECT_ROOT)/build/v1-inputs" --output "$(PROJECT_ROOT)/build/v1-candidate"
 
-v1-candidate-check: v1-candidate
+v1-conformance-check: v1-candidate
+	@./scripts/harness/check-v1-conformance.sh "$(GO)"
+
+v1-candidate-check: v1-candidate v1-conformance-check
 	@set -eu; \
 	 second="$$(mktemp -d "$(PROJECT_ROOT)/build/v1-repro.XXXXXX")"; \
 	 trap 'rm -rf "$$second"' EXIT HUP INT TERM; \
@@ -245,6 +248,12 @@ cli-actual-host-compile: install
 test: install
 	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -ldflags='$(HARNESS_IDENTITY_LDFLAGS)' -count=1 -shuffle=off -timeout=2m ./...
 
+race-check: install
+	@CGO_ENABLED=1 "$(GO)" test -mod=readonly -trimpath -buildvcs=false -race -count=1 -shuffle=off -timeout=5m ./internal/l7/... ./cmd/l7 ./cmd/l7pack ./internal/harness/v1candidate
+
+fuzz-check: install
+	@./scripts/harness/check-l7-fuzz.sh "$(GO)"
+
 reproducible: install
 	@set -eu; \
 	 repro_root="$$(mktemp -d "$(PROJECT_ROOT)/.cache/repro/go$(GO_VERSION).XXXXXX")"; \
@@ -263,7 +272,7 @@ cli-reproducible: install
 	 cmp "$$repro_root/l7-a" "$$repro_root/l7-b"; \
 	 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$$repro_root/l7-a"; else shasum -a 256 "$$repro_root/l7-a"; fi
 
-technical-verify: install technical-lint typecheck cli-actual-host-compile test reproducible cli-reproducible distribution-check
+technical-verify: install technical-lint typecheck cli-actual-host-compile test race-check fuzz-check reproducible cli-reproducible distribution-check
 
 verify: policy-check technical-verify
 

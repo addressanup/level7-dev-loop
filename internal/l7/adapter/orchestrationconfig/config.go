@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/localfile"
@@ -339,13 +340,160 @@ func ValidateModel(model Model) error {
 }
 
 func safeEndpoint(value string) bool {
-	if !safeText(value, 2048) || strings.ContainsAny(value, "?#") {
+	if !safeText(value, 2048) || strings.ContainsAny(value, "?#\\") {
 		return false
 	}
+	scheme := ""
+	remainder := ""
 	if strings.HasPrefix(value, "https://") {
-		return len(value) > len("https://")
+		scheme, remainder = "https", strings.TrimPrefix(value, "https://")
+	} else if strings.HasPrefix(value, "http://") {
+		scheme, remainder = "http", strings.TrimPrefix(value, "http://")
+	} else {
+		return false
 	}
-	return strings.HasPrefix(value, "http://127.0.0.1") || strings.HasPrefix(value, "http://localhost") || strings.HasPrefix(value, "http://[::1]")
+	authority, _, _ := strings.Cut(remainder, "/")
+	host, ok := safeURLAuthority(authority)
+	if !ok {
+		return false
+	}
+	if scheme == "https" {
+		return true
+	}
+	normalized := strings.ToLower(host)
+	return normalized == "localhost" || normalized == "127.0.0.1" || normalized == "::1"
+}
+
+func safeURLAuthority(authority string) (string, bool) {
+	if authority == "" || len(authority) > 512 || strings.ContainsAny(authority, "@%") {
+		return "", false
+	}
+	host := authority
+	port := ""
+	if strings.HasPrefix(authority, "[") {
+		closing := strings.IndexByte(authority, ']')
+		if closing < 0 || strings.Contains(authority[closing+1:], "]") {
+			return "", false
+		}
+		host = authority[1:closing]
+		rest := authority[closing+1:]
+		if rest != "" {
+			if !strings.HasPrefix(rest, ":") || len(rest) == 1 {
+				return "", false
+			}
+			port = rest[1:]
+		}
+		if !safeIPv6(host) {
+			return "", false
+		}
+	} else {
+		if strings.ContainsAny(authority, "[]") || strings.Count(authority, ":") > 1 {
+			return "", false
+		}
+		if value, found := strings.CutSuffix(authority, ":"); found {
+			_ = value
+			return "", false
+		}
+		if value, suffix, found := strings.Cut(authority, ":"); found {
+			host, port = value, suffix
+		}
+		if !safeHostnameOrIPv4(host) {
+			return "", false
+		}
+	}
+	if port != "" {
+		value, err := strconv.Atoi(port)
+		if err != nil || value < 1 || value > 65535 || strconv.Itoa(value) != port {
+			return "", false
+		}
+	}
+	return host, true
+}
+
+func safeHostnameOrIPv4(host string) bool {
+	if host == "" || len(host) > 253 || strings.HasPrefix(host, ".") || strings.HasSuffix(host, ".") {
+		return false
+	}
+	labels := strings.Split(host, ".")
+	if len(labels) == 4 {
+		ipv4 := true
+		numeric := true
+		for _, label := range labels {
+			value, err := strconv.Atoi(label)
+			if err != nil || value < 0 || value > 255 || strconv.Itoa(value) != label {
+				ipv4 = false
+			}
+			for _, character := range label {
+				if character < '0' || character > '9' {
+					numeric = false
+				}
+			}
+		}
+		if ipv4 {
+			return true
+		}
+		if numeric {
+			return false
+		}
+	} else {
+		numeric := true
+		for _, character := range host {
+			if character < '0' || character > '9' {
+				numeric = false
+				break
+			}
+		}
+		if numeric {
+			return false
+		}
+	}
+	for _, label := range labels {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, character := range label {
+			if (character < 'a' || character > 'z') && (character < 'A' || character > 'Z') &&
+				(character < '0' || character > '9') && character != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func safeIPv6(host string) bool {
+	if host == "" || strings.ContainsAny(host, ".%") || strings.Contains(host, ":::") || strings.Count(host, "::") > 1 {
+		return false
+	}
+	double := strings.Contains(host, "::")
+	parts := strings.Split(host, ":")
+	if double {
+		left, right, _ := strings.Cut(host, "::")
+		parts = nil
+		if left != "" {
+			parts = append(parts, strings.Split(left, ":")...)
+		}
+		if right != "" {
+			parts = append(parts, strings.Split(right, ":")...)
+		}
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		if len(part) > 4 {
+			return false
+		}
+		for _, character := range part {
+			if (character < '0' || character > '9') && (character < 'a' || character > 'f') && (character < 'A' || character > 'F') {
+				return false
+			}
+		}
+	}
+	if double {
+		return len(parts) < 8
+	}
+	return len(parts) == 8
 }
 
 func safeImage(value string) bool {

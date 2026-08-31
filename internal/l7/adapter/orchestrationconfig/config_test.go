@@ -98,6 +98,69 @@ func TestGatewayMayUseOnlyABoundedCatalog(t *testing.T) {
 	}
 }
 
+func TestGatewayEndpointAuthorityIsParsedAndExact(t *testing.T) {
+	valid := []string{
+		"https://gateway.example/v1/responses",
+		"https://127.0.0.1:443/v1/responses",
+		"https://[2001:db8::1]:443/v1/responses",
+		"http://localhost/v1/responses",
+		"http://LOCALHOST:8080/v1/responses",
+		"http://127.0.0.1:8080/v1/responses",
+		"http://[::1]:8080/v1/responses",
+	}
+	invalid := []string{
+		"", "https://", "HTTPS://gateway.example/v1", "//gateway.example/v1",
+		"http://gateway.example/v1", "http://localhost.example/v1", "http://localhost./v1",
+		"http://127.0.0.1.example/v1", "http://127.0.0.10/v1", "http://127.1/v1",
+		"http://[::1].example/v1", "http://[::1%25lo0]/v1", "http://[0:0:0:0:0:0:0:1]/v1",
+		"http://user@localhost/v1", "http://localhost@evil.example/v1",
+		"http://localhost:/v1", "http://localhost:0/v1", "http://localhost:080/v1",
+		"http://localhost:65536/v1", "http://localhost:notaport/v1",
+		"http://localhost\\@evil.example/v1", "http://local%68ost/v1",
+		"https://gateway.example?/v1", "https://gateway.example/#fragment",
+		"https://.example/v1", "https://example./v1", "https://bad_host/v1",
+		"https://[:::1]/v1", "https://999.999.999.999/v1", "https://2130706433/v1",
+	}
+	for _, endpoint := range valid {
+		if !safeEndpoint(endpoint) {
+			t.Errorf("valid endpoint rejected: %q", endpoint)
+		}
+	}
+	for _, endpoint := range invalid {
+		if safeEndpoint(endpoint) {
+			t.Errorf("unsafe endpoint accepted: %q", endpoint)
+		}
+	}
+}
+
+func TestGatewayAndCatalogUseTheSameURLPolicy(t *testing.T) {
+	unsafe := []string{
+		"http://localhost.example/v1",
+		"http://user@localhost/v1",
+		"http://localhost:65536/v1",
+		"https://gateway.example/v1?credential=value",
+	}
+	for _, field := range []string{"endpoint", "catalog"} {
+		for _, value := range unsafe {
+			configuration := Default()
+			provider := Provider{
+				ID: "gateway", Kind: domain.ProviderKindOpenAIResponses, Enabled: true,
+				Endpoint: "https://gateway.example/v1/responses", CatalogURL: "https://gateway.example/v1/models",
+				Credential: Credential{Source: "env", Reference: "L7_GATEWAY_KEY"},
+			}
+			if field == "endpoint" {
+				provider.Endpoint = value
+			} else {
+				provider.CatalogURL = value
+			}
+			configuration.Providers = append(configuration.Providers, provider)
+			if err := configuration.Validate(); err == nil {
+				t.Errorf("unsafe %s URL accepted: %q", field, value)
+			}
+		}
+	}
+}
+
 func TestStrictLoadRejectsUnknownAndDuplicateFields(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

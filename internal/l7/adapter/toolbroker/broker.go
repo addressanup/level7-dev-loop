@@ -11,8 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/orchestrationconfig"
 	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
@@ -254,32 +256,76 @@ func (broker Broker) applyPatch(ctx context.Context, patch string) (ToolResult, 
 	if patch == "" || len(patch) > maxToolInput || strings.ContainsRune(patch, 0) {
 		return ToolResult{}, errors.New("patch is empty or unbounded")
 	}
-	paths, err := patchPaths(patch)
-	if err != nil {
-		return ToolResult{}, err
-	}
-	for _, relative := range paths {
-		if !broker.allowed(relative) || secretPath(relative) {
-			return ToolResult{}, fmt.Errorf("patch path %q is outside the manifest", relative)
-		}
-		if _, _, err := broker.resolvePath(relative, false); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return ToolResult{}, err
-		}
-	}
 	git, err := broker.resolve("git")
 	if err != nil {
 		return ToolResult{}, errors.New("Git is unavailable")
 	}
-	for _, arguments := range [][]string{{"apply", "--check", "--whitespace=error-all", "-"}, {"apply", "--whitespace=error-all", "-"}} {
-		result, runErr := broker.run(ctx, processadapter.Request{
-			Executable: git.Path, Arguments: arguments, Input: []byte(patch), Directory: broker.root,
-			Environment: processadapter.MinimalEnvironment(), MaxOutputBytes: broker.policy.MaxOutputBytes, Timeout: time.Duration(broker.policy.MaxSeconds) * time.Second,
-		})
-		if runErr != nil || result.ExitCode != 0 {
-			return ToolResult{}, errors.New("Git rejected the bounded patch")
+	preflight, err := broker.gitApply(ctx, git, []string{"apply", "--check", "--numstat", "-z", "--whitespace=error-all", "-"}, patch)
+	if err != nil {
+		return ToolResult{}, errors.New("Git rejected the bounded patch preflight")
+	}
+	paths, err := patchPaths(preflight.Stdout)
+	if err != nil {
+		return ToolResult{}, err
+	}
+	if err := rejectPatchStructure(patch); err != nil {
+		return ToolResult{}, err
+	}
+	for _, relative := range paths {
+		if err := broker.validatePatchPath(relative); err != nil {
+			return ToolResult{}, err
 		}
 	}
+	if _, err := broker.gitApply(ctx, git, []string{"apply", "--whitespace=error-all", "-"}, patch); err != nil {
+		return ToolResult{}, errors.New("Git rejected the bounded patch")
+	}
+	postflight, postErr := broker.gitApply(ctx, git, []string{"apply", "--reverse", "--check", "--numstat", "-z", "--whitespace=error-all", "-"}, patch)
+	postPaths, parseErr := patchPaths(postflight.Stdout)
+	if postErr != nil || parseErr != nil || !equalPaths(paths, postPaths) {
+		rollbackContext, cancel := context.WithTimeout(context.Background(), time.Duration(broker.policy.MaxSeconds)*time.Second)
+		defer cancel()
+		_, rollbackErr := broker.gitApply(rollbackContext, git, []string{"apply", "--reverse", "--whitespace=error-all", "-"}, patch)
+		rollbackCheck, checkErr := broker.gitApply(rollbackContext, git, []string{"apply", "--check", "--numstat", "-z", "--whitespace=error-all", "-"}, patch)
+		rollbackPaths, rollbackParseErr := patchPaths(rollbackCheck.Stdout)
+		if rollbackErr != nil || checkErr != nil || rollbackParseErr != nil || !equalPaths(paths, rollbackPaths) {
+			return ToolResult{}, errors.New("patch postcondition failed and rollback was unsuccessful")
+		}
+		return ToolResult{}, errors.New("patch postcondition did not match the preflight file set; patch was rolled back")
+	}
 	return ToolResult{OK: true, Message: "patch applied", Paths: paths}, nil
+}
+
+func (broker Broker) gitApply(ctx context.Context, git processadapter.Executable, arguments []string, patch string) (processadapter.Result, error) {
+	result, err := broker.run(ctx, processadapter.Request{
+		Executable: git.Path, Arguments: arguments, Input: []byte(patch), Directory: broker.root,
+		Environment: processadapter.MinimalEnvironment(), MaxOutputBytes: broker.policy.MaxOutputBytes, Timeout: time.Duration(broker.policy.MaxSeconds) * time.Second,
+	})
+	if err != nil || result.ExitCode != 0 {
+		return result, errors.New("Git apply operation failed")
+	}
+	return result, nil
+}
+
+func (broker Broker) validatePatchPath(relative string) error {
+	if !broker.allowed(relative) || secretPath(relative) {
+		return fmt.Errorf("patch path %q is outside the manifest", relative)
+	}
+	if protectedPatchPath(relative) {
+		return fmt.Errorf("patch path %q is protected", relative)
+	}
+	candidate := filepath.Join(broker.root, filepath.FromSlash(relative))
+	info, statErr := os.Lstat(candidate)
+	if statErr == nil && (!info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0) {
+		return errors.New("patch target is not a regular non-symlink file")
+	}
+	if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+		return errors.New("patch target cannot be inspected safely")
+	}
+	_, _, err := broker.resolvePath(relative, false)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 func (broker Broker) git(ctx context.Context, arguments []string) (ToolResult, error) {
@@ -388,34 +434,105 @@ func (broker Broker) allowed(relative string) bool {
 	return false
 }
 
-func patchPaths(patch string) ([]string, error) {
-	seen := make(map[string]bool)
-	paths := []string{}
-	for _, line := range strings.Split(patch, "\n") {
-		if !strings.HasPrefix(line, "+++ ") && !strings.HasPrefix(line, "--- ") {
-			continue
-		}
-		value := strings.TrimSpace(line[4:])
-		if value == "/dev/null" {
-			continue
-		}
-		if strings.HasPrefix(value, "a/") || strings.HasPrefix(value, "b/") {
-			value = value[2:]
-		}
-		value = filepath.ToSlash(filepath.Clean(value))
-		if value == "." || value == ".." || filepath.IsAbs(value) || strings.HasPrefix(value, "../") || strings.Contains(value, "\\") {
-			return nil, errors.New("patch contains an unsafe path")
-		}
-		if !seen[value] {
-			seen[value] = true
-			paths = append(paths, value)
-		}
+func patchPaths(numstat []byte) ([]string, error) {
+	if len(numstat) == 0 || numstat[len(numstat)-1] != 0 {
+		return nil, errors.New("Git preflight returned an invalid file set")
 	}
-	if len(paths) == 0 || len(paths) > 256 {
+	records := bytes.Split(numstat[:len(numstat)-1], []byte{0})
+	if len(records) == 0 || len(records) > 256 {
 		return nil, errors.New("patch has no bounded file set")
+	}
+	seen := make(map[string]bool, len(records))
+	paths := make([]string, 0, len(records))
+	for _, record := range records {
+		fields := bytes.SplitN(record, []byte{'\t'}, 3)
+		if len(fields) != 3 || len(fields[2]) == 0 {
+			return nil, errors.New("patch contains a copy, rename, or ambiguous path operation")
+		}
+		for _, count := range fields[:2] {
+			if len(count) == 0 || bytes.Equal(count, []byte{'-'}) {
+				return nil, errors.New("patch contains binary or invalid content")
+			}
+			value, err := strconv.ParseUint(string(count), 10, 64)
+			if err != nil || strconv.FormatUint(value, 10) != string(count) {
+				return nil, errors.New("patch contains invalid line counts")
+			}
+		}
+		relative := string(fields[2])
+		if !safePatchPath(relative) || seen[relative] {
+			return nil, errors.New("patch contains an unsafe or duplicate path")
+		}
+		seen[relative] = true
+		paths = append(paths, relative)
 	}
 	sort.Strings(paths)
 	return paths, nil
+}
+
+func rejectPatchStructure(patch string) error {
+	for _, line := range strings.Split(patch, "\n") {
+		for _, prefix := range []string{
+			"GIT binary patch", "Binary files ", "rename from ", "rename to ", "copy from ", "copy to ",
+			"similarity index ", "dissimilarity index ", "old mode ", "new mode ",
+		} {
+			if strings.HasPrefix(line, prefix) {
+				return errors.New("patch contains an unsupported structural operation")
+			}
+		}
+		if strings.HasPrefix(line, "new file mode ") || strings.HasPrefix(line, "deleted file mode ") {
+			mode := line[strings.LastIndexByte(line, ' ')+1:]
+			if mode != "100644" && mode != "100755" {
+				return errors.New("patch contains a symlink, submodule, or special file mode")
+			}
+		}
+	}
+	return nil
+}
+
+func safePatchPath(relative string) bool {
+	if relative == "" || len(relative) > 4096 || !utf8.ValidString(relative) || filepath.IsAbs(relative) || strings.Contains(relative, "\\") ||
+		strings.IndexFunc(relative, func(character rune) bool { return character < 0x20 || character == 0x7f }) >= 0 {
+		return false
+	}
+	clean := filepath.ToSlash(filepath.Clean(relative))
+	if clean != relative || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return false
+	}
+	for _, part := range strings.Split(clean, "/") {
+		if strings.EqualFold(part, ".git") {
+			return false
+		}
+	}
+	return true
+}
+
+func protectedPatchPath(relative string) bool {
+	for _, exact := range []string{"AGENTS.md", "CLAUDE.md", "Makefile", "go.mod", "go.sum", ".gitmodules"} {
+		if strings.EqualFold(relative, exact) {
+			return true
+		}
+	}
+	for _, prefix := range []string{
+		".github/", ".l7/", "harness/", "internal/harness/", "scripts/harness/", "skills/",
+		"docs/artifacts/", "deploy/", "deployment/", "migrations/",
+	} {
+		if strings.HasPrefix(strings.ToLower(relative), strings.ToLower(prefix)) {
+			return true
+		}
+	}
+	return false
+}
+
+func equalPaths(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func secretPath(relative string) bool {

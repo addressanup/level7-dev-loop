@@ -70,6 +70,9 @@ jobs:
       - name: Cross-build declared macOS architectures
         run: make cli-cross-build GO_VERSION=1.26.7
 
+      - name: Qualify native v1 host packages and lifecycle
+        run: make v1-candidate-check GO_VERSION=1.26.7
+
   cli-benchmark:
     name: CLI paired benchmark gate
     if: github.event_name == 'pull_request'

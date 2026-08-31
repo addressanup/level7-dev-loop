@@ -133,3 +133,7 @@ transitive	internal/harness/distribution	internal/render	BND-701
 effect	internal/harness/distribution	net	BND-702
 effect	internal/harness/distribution	os/exec	BND-702
 effect	internal/harness/distribution	syscall	BND-702
+transitive	internal/harness/v1candidate	internal/l7	BND-703
+transitive	internal/harness/v1candidate	internal/evaluator	BND-703
+transitive	internal/harness/v1candidate	internal/render	BND-703
+effect	internal/harness/v1candidate	net	BND-704
