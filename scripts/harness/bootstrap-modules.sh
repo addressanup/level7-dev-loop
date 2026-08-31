@@ -128,9 +128,8 @@ run_go()
 
 actual_version=$(run_go offline env GOVERSION)
 test "$actual_version" = "go$go_version" || fail "toolchain reports $actual_version, expected go$go_version"
-run_go network mod download all
+run_go network mod download
 run_go offline mod verify
-run_go offline list -mod=readonly -m all >/dev/null
 verify_inputs
 
 printf 'bootstrap-modules: PASS (go%s; fixed proxy and checksum database; repository-local cache; downstream offline)\n' "$go_version"

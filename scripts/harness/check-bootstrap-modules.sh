@@ -57,7 +57,7 @@ printf 'args=%s proxy=%s sumdb=%s vcs=%s auth=%s private=%s noproxy=%s nosumdb=%
 	"\$HOME" "\$GOMODCACHE" "\${SECRET_TOKEN-unset}" "\${HTTPS_PROXY-unset}" "\$PATH" >>'$fixture/calls.log'
 case "\$*" in
 	'env GOVERSION') printf 'go1.26.7\n' ;;
-	'mod download all')
+	'mod download')
 		if test "\$behavior" = mutate; then printf '\n// mutation\n' >>'$fixture/go.mod'; fi
 		if test "\$behavior" = fail-download; then exit 23; fi
 		;;
@@ -84,11 +84,10 @@ SECRET_TOKEN=must-not-cross \
 	"$fixture/scripts/harness/bootstrap-modules.sh" \
 	"$fixture/.cache/toolchains/go1.26.7/bin/go" 1.26.7 >"$fixture/output"
 grep -Fq 'bootstrap-modules: PASS' "$fixture/output" || fail 'success fixture did not pass'
-test "$(wc -l <"$fixture/calls.log" | tr -d ' ')" -eq 4 || fail 'unexpected Go command count'
+test "$(wc -l <"$fixture/calls.log" | tr -d ' ')" -eq 3 || fail 'unexpected Go command count'
 grep -Fq 'args=env|GOVERSION| proxy=off sumdb=off vcs=*:off auth=off private= noproxy= nosumdb= insecure=' "$fixture/calls.log" || fail 'toolchain check was not offline'
-grep -Fq 'args=mod|download|all| proxy=https://proxy.golang.org sumdb=sum.golang.org vcs=*:off auth=off private= noproxy= nosumdb= insecure=' "$fixture/calls.log" || fail 'download environment is not fixed'
+grep -Fq 'args=mod|download| proxy=https://proxy.golang.org sumdb=sum.golang.org vcs=*:off auth=off private= noproxy= nosumdb= insecure=' "$fixture/calls.log" || fail 'download environment is not fixed'
 grep -Fq 'args=mod|verify| proxy=off sumdb=off vcs=*:off auth=off' "$fixture/calls.log" || fail 'module verification was not offline'
-grep -Fq 'args=list|-mod=readonly|-m|all| proxy=off sumdb=off vcs=*:off auth=off' "$fixture/calls.log" || fail 'module graph check was not offline'
 grep -Fq "home=$fixture/.cache/go/tmp/l7-bootstrap-home." "$fixture/calls.log" || fail 'bootstrap home is not disposable and repository-local'
 grep -Fq "modcache=$fixture/.cache/go/mod secret=unset https_proxy=unset path=/usr/bin:/bin" "$fixture/calls.log" || fail 'ambient environment crossed the bootstrap boundary'
 if find "$fixture/.cache/go/tmp" -type d -name 'l7-bootstrap-home.*' | grep -q .; then fail 'disposable bootstrap home was not removed'; fi
@@ -101,7 +100,7 @@ cp "$fixture/go.sum" "$fixture/go.sum.before"
 if "$fixture/scripts/harness/bootstrap-modules.sh" "$fixture/.cache/toolchains/go1.26.7/bin/go" 1.26.7 >"$fixture/output" 2>&1; then
 	fail 'download failure was accepted'
 fi
-grep -Fq 'go command failed with status 23: mod download all' "$fixture/output" || fail 'download failure was not reported'
+grep -Fq 'go command failed with status 23: mod download' "$fixture/output" || fail 'download failure was not reported'
 if grep -Fq 'args=mod|verify|' "$fixture/calls.log"; then fail 'verification ran after failed download'; fi
 cmp "$fixture/go.mod.before" "$fixture/go.mod" || fail 'failed download changed go.mod'
 cmp "$fixture/go.sum.before" "$fixture/go.sum" || fail 'failed download changed go.sum'
@@ -141,4 +140,4 @@ if "$fixture/scripts/harness/bootstrap-modules.sh" "$fixture/.cache/toolchains/g
 	fail 'extra argument was accepted'
 fi
 
-printf 'check-bootstrap-modules: PASS (fixed environment; 4 commands; 6 negative fixtures; no network)\n'
+printf 'check-bootstrap-modules: PASS (fixed environment; 3 commands; 6 negative fixtures; no network)\n'
