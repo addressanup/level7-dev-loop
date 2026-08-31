@@ -36,8 +36,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Bootstrap authenticated Go archive
-        run: make bootstrap GO_VERSION=${{ matrix.go-version }}
+      - name: Bootstrap authenticated Go toolchain and module cache
+        run: make bootstrap-ci GO_VERSION=${{ matrix.go-version }}
 
       - name: Verify technical harness and distribution offline
         run: make ci GO_VERSION=${{ matrix.go-version }}
@@ -61,8 +61,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Bootstrap authenticated Go archive
-        run: make bootstrap GO_VERSION=1.26.7
+      - name: Bootstrap authenticated Go toolchain and module cache
+        run: make bootstrap-ci GO_VERSION=1.26.7
 
       - name: Verify inert CLI and distribution offline
         run: make ci GO_VERSION=1.26.7
@@ -95,9 +95,9 @@ jobs:
           path: candidate
           persist-credentials: false
 
-      - name: Bootstrap authenticated Go archive
+      - name: Bootstrap authenticated Go toolchain and module cache
         working-directory: candidate
-        run: make bootstrap GO_VERSION=1.26.7
+        run: make bootstrap-ci GO_VERSION=1.26.7
 
       - name: Compare paired same-host medians
         working-directory: candidate
