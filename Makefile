@@ -249,7 +249,7 @@ test: install
 	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -ldflags='$(HARNESS_IDENTITY_LDFLAGS)' -count=1 -shuffle=off -timeout=2m ./...
 
 race-check: install
-	@CGO_ENABLED=1 "$(GO)" test -mod=readonly -trimpath -buildvcs=false -race -count=1 -shuffle=off -timeout=5m ./internal/l7/... ./cmd/l7 ./cmd/l7pack ./internal/harness/v1candidate
+	@CGO_ENABLED=1 "$(GO)" test -mod=readonly -trimpath -buildvcs=false -race -p=1 -count=1 -shuffle=off -timeout=5m ./internal/l7/... ./cmd/l7 ./cmd/l7pack ./internal/harness/v1candidate
 
 fuzz-check: install
 	@./scripts/harness/check-l7-fuzz.sh "$(GO)"
