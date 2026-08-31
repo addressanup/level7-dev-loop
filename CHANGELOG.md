@@ -4,6 +4,24 @@ All notable changes to the Level 7 instruction plugin packages are recorded
 here. Host observations and support claims remain scoped by
 `distribution/compatibility.json`.
 
+## 1.0.0-dev
+
+- Add a default-off, bundled macOS arm64/amd64 orchestration engine and local
+  MCP bridge generated for Codex and Claude Code from one canonical source.
+- Discover authenticated Codex app-server and Claude Code capabilities, probe
+  configured OpenAI Responses/Anthropic Messages gateways, and persist
+  explainable, fail-closed route decisions with effort escalation and reviewer
+  separation.
+- Add `l7-onboard`, `l7-sync`, `l7-cyber`, and `l7-headless` skills and CLI/MCP
+  surfaces.
+- Add private Git-bound codebase memory, isolated read-only-first security
+  audits, and durable multi-wave Headless execution with crash recovery,
+  provider failover, natural quota waiting, exact-ref local merges, and a hard
+  stop before push, release, or deployment.
+- Add reproducible unsigned development packages, checksums, SPDX SBOMs, and
+  explicit release-blocked provenance. Stable `v1.0.0` is not published by
+  this change.
+
 ## 0.1.1
 
 - Add standard, tag-pinnable Git marketplace catalogs for Codex and Claude

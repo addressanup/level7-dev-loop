@@ -9,7 +9,7 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
-const developmentVersion = "0.1.0-dev"
+const developmentVersion = "1.0.0-dev"
 
 const maxCommandBytes = 160
 
@@ -44,15 +44,16 @@ func (application Application) ExecuteRequest(ctx context.Context, request domai
 
 	switch request.Command {
 	case domain.CommandHelp:
-		result := application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 CLI local lifecycle preview", "run l7 status")
+		result := application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 multi-host orchestration development candidate", "run l7 onboard --status")
 		result.Details = []string{
 			"Usage: l7 <command> [options] [--json]",
-			"Commands: help, version, adopt, brief, run, verify, review, ready, merge, status",
-			"Lifecycle behavior remains default OFF until explicitly enabled during adopt.",
+			"Orchestration: onboard, providers, route, sync, cyber, headless, mcp",
+			"Lifecycle compatibility: adopt, brief, run, verify, review, ready, merge, status",
+			"All v1 features remain default OFF until l7 onboard --apply; Headless requires a separately confirmed manifest digest.",
 		}
 		return result
 	case domain.CommandVersion:
-		return application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 CLI local lifecycle preview", "run l7 status")
+		return application.result(domain.OutcomePass, "L7-CLI-000", string(request.Command), "available", "Level 7 multi-host orchestration development candidate", "run l7 onboard --status")
 	case domain.CommandAdopt:
 		return application.adopt(ctx, request)
 	case domain.CommandBrief:

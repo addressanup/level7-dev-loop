@@ -15,6 +15,8 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
+// CompatibleVersion remains as a fixture baseline for upgrade tests. Runtime
+// admission is based on the probed command/model contract, not this version.
 const CompatibleVersion = "2.1.241"
 
 const terminalSchema = `{"type":"object","additionalProperties":false,"required":["schema","outcome","summary","findings"],"properties":{"schema":{"const":1},"outcome":{"enum":["complete","blocked"]},"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"string"}},"decision":{"enum":["GO","NO_GO"]}}}`
@@ -33,7 +35,22 @@ func NewWithRuntime(runtime provider.Runtime) Adapter {
 
 func (adapter Adapter) Probe(ctx context.Context) (domain.ProviderIdentity, error) {
 	return adapter.runtime.Probe(ctx, "claude", domain.ProviderClaude, []string{"--version"}, func(version string) bool {
-		return version == CompatibleVersion || version == CompatibleVersion+" (Claude Code)"
+		value := strings.TrimSuffix(version, " (Claude Code)")
+		parts := strings.Split(value, ".")
+		if len(parts) < 2 || len(parts) > 4 {
+			return false
+		}
+		for _, part := range parts {
+			if part == "" {
+				return false
+			}
+			for _, character := range part {
+				if character < '0' || character > '9' {
+					return false
+				}
+			}
+		}
+		return true
 	})
 }
 

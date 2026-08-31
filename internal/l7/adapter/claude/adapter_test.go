@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/provider"
@@ -46,32 +47,32 @@ func TestRunTranslatesBothRolesWithoutBypassPermissions(t *testing.T) {
 	}
 }
 
-func TestProbeDegradesUnknownVersion(t *testing.T) {
+func TestProbeAcceptsChangingSemanticVersion(t *testing.T) {
 	adapter := NewWithRuntime(provider.NewRuntime(fakeResolve("claude"), func(context.Context, processadapter.Request) (processadapter.Result, error) {
 		return processadapter.Result{ExitCode: 0, Stdout: []byte("2.2.0 (Claude Code)\n")}, nil
 	}))
 	identity, err := adapter.Probe(context.Background())
-	if err != nil || identity.Capability != domain.CapabilityDegraded {
+	if err != nil || identity.Capability != domain.CapabilityAvailable {
 		t.Fatalf("Probe()=%+v error=%v", identity, err)
 	}
 }
 
-func TestRunDoesNotSemanticallyInvokeFailedTargetVersions(t *testing.T) {
-	for _, failedTarget := range []string{"2.1.247", "2.1.247 (Claude Code)"} {
-		t.Run(failedTarget, func(t *testing.T) {
+func TestRunAttemptsSemanticInvocationForAdmittedVersions(t *testing.T) {
+	for _, changingVersion := range []string{"2.1.247", "2.1.247 (Claude Code)"} {
+		t.Run(changingVersion, func(t *testing.T) {
 			probes := 0
 			semanticInvocations := 0
 			adapter := NewWithRuntime(provider.NewRuntime(fakeResolve("claude"), func(_ context.Context, request processadapter.Request) (processadapter.Result, error) {
 				if len(request.Arguments) == 1 && request.Arguments[0] == "--version" {
 					probes++
-					return processadapter.Result{ExitCode: 0, Stdout: []byte(failedTarget + "\n")}, nil
+					return processadapter.Result{ExitCode: 0, Stdout: []byte(changingVersion + "\n")}, nil
 				}
 				semanticInvocations++
-				return processadapter.Result{}, errors.New("unexpected semantic Claude invocation")
+				return processadapter.Result{ExitCode: 0, Stdout: []byte(`{"type":"result","subtype":"success","is_error":false,"structured_output":{"schema":1,"outcome":"complete","summary":"Implemented.","findings":[]}}`)}, nil
 			}))
 
 			response, err := adapter.Run(context.Background(), providerTask(domain.RoleImplementer), 1<<20, 30)
-			if err == nil || !strings.Contains(err.Error(), "no qualified adapter contract") || response.Identity.Version != failedTarget || response.Identity.Capability != domain.CapabilityDegraded || response.Role != domain.RoleImplementer || probes != 1 || semanticInvocations != 0 {
+			if err != nil || response.Identity.Version != changingVersion || response.Identity.Capability != domain.CapabilityAvailable || response.Role != domain.RoleImplementer || probes != 1 || semanticInvocations != 1 {
 				t.Fatalf("Run()=%+v error=%v probes=%d semantic_invocations=%d", response, err, probes, semanticInvocations)
 			}
 		})
@@ -102,6 +103,29 @@ func TestRunPropagatesUnavailableExecutable(t *testing.T) {
 	response, err := adapter.Run(context.Background(), providerTask(domain.RoleImplementer), 1<<20, 30)
 	if err == nil || response.Identity.Capability != domain.CapabilityUnavailable {
 		t.Fatalf("Run()=%+v error=%v", response, err)
+	}
+}
+
+func TestSessionArgumentsPreserveHostLoginAndDenyShell(t *testing.T) {
+	assignment := SessionAssignment{Model: "sonnet", Effort: domain.EffortHigh, Prompt: "Implement.", SessionID: "session-1"}
+	arguments := sessionArguments(assignment)
+	joined := strings.Join(arguments, " ")
+	if !strings.Contains(joined, "--safe-mode") || strings.Contains(joined, "--bare") || strings.Contains(joined, "--restricted") || !strings.Contains(joined, "--resume session-1") || !strings.Contains(joined, "--tools Read,Glob,Grep,Edit,Write") || !strings.Contains(joined, "--disallowedTools Bash,") {
+		t.Fatalf("unsafe Claude session arguments: %#v", arguments)
+	}
+	reviewer := strings.Join(sessionArguments(SessionAssignment{Model: "sonnet", Effort: domain.EffortHigh, Prompt: "Review.", Reviewer: true}), " ")
+	if !strings.Contains(reviewer, "--permission-mode plan") || !strings.Contains(reviewer, "--tools Read,Glob,Grep") || strings.Contains(reviewer, "--tools Read,Glob,Grep,Edit") {
+		t.Fatalf("unsafe reviewer arguments: %s", reviewer)
+	}
+}
+
+func TestReportedQuotaResetUsesProviderBoundary(t *testing.T) {
+	now := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
+	if reset := reportedQuotaReset("Usage limit reached; resets at 2026-08-31T02:00:00Z.", now); reset != "2026-08-31T02:00:00Z" {
+		t.Fatalf("timestamp reset=%q", reset)
+	}
+	if reset := reportedQuotaReset("Rate limit; retry after 15 minutes.", now); reset != "2026-08-31T00:15:00Z" {
+		t.Fatalf("duration reset=%q", reset)
 	}
 }
 

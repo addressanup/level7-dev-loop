@@ -8,6 +8,10 @@ user-invocable: true
 
 # Solo Fast Conductor
 
+Begin by invoking the same read-only project analysis as `$l7-onboard` status
+(local MCP first, bundled CLI fallback). Preserve `l7-next` as the compatibility
+entry point; do not recreate a separate project-state router.
+
 Take ownership of the complete repository-local development loop:
 
 `one intent → inspect → implement → test → repair → self-review → handoff`

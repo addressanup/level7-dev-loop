@@ -58,18 +58,19 @@ type RepositoryDetails struct {
 }
 
 type Result struct {
-	Schema     int
-	Outcome    Outcome
-	Code       string
-	Command    string
-	State      string
-	Version    string
-	Message    string
-	Next       string
-	Details    []string
-	Repository *RepositoryDetails
-	Execution  *ExecutionDetails
-	Readiness  *ReadinessDetails
+	Schema        int
+	Outcome       Outcome
+	Code          string
+	Command       string
+	State         string
+	Version       string
+	Message       string
+	Next          string
+	Details       []string
+	Repository    *RepositoryDetails
+	Execution     *ExecutionDetails
+	Readiness     *ReadinessDetails
+	Orchestration *OrchestrationDetails
 }
 
 type ReadinessDetails struct {

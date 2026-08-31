@@ -112,6 +112,10 @@ transitive	internal/l7/adapter/provider	internal/l7/adapter/codex	BND-609
 transitive	internal/l7/adapter/provider	internal/l7/adapter/claude	BND-609
 transitive	internal/l7/adapter/verify	internal/l7/adapter/codex	BND-610
 transitive	internal/l7/adapter/verify	internal/l7/adapter/claude	BND-610
+transitive	internal/l7/adapter/gateway	internal/l7/adapter/codex	BND-614
+transitive	internal/l7/adapter/gateway	internal/l7/adapter/claude	BND-614
+transitive	internal/l7/adapter/codexapp	internal/l7/adapter/claude	BND-615
+transitive	internal/l7/adapter/codexapp	internal/l7/adapter/gateway	BND-615
 transitive	internal/l7/adapter/ci	internal/l7/app	BND-611
 transitive	internal/l7/adapter/ci	internal/l7/presentation	BND-611
 transitive	internal/l7/adapter/ci	internal/harness	BND-611

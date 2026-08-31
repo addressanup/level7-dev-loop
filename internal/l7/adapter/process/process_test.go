@@ -79,10 +79,16 @@ func TestRunnerBoundsSessionEscapedInheritedPipes(t *testing.T) {
 
 func TestMinimalEnvironmentStripsAmbientSecrets(t *testing.T) {
 	t.Setenv("L7_TEST_SECRET_TOKEN", "do-not-pass")
+	t.Setenv("USER", "level-seven-user")
+	foundUser := false
 	for _, entry := range MinimalEnvironment() {
 		if strings.Contains(entry, "SECRET") || strings.Contains(entry, "do-not-pass") {
 			t.Fatalf("secret inherited in %q", entry)
 		}
+		foundUser = foundUser || entry == "USER=level-seven-user"
+	}
+	if !foundUser {
+		t.Fatal("non-secret host identity required by authenticated CLIs was dropped")
 	}
 }
 
