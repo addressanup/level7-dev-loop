@@ -46,15 +46,24 @@ export GOCACHE=$benchmark_root/cache GOTMPDIR=$benchmark_root/tmp TMPDIR=$benchm
 export GOTELEMETRY=off LC_ALL=C TZ=UTC
 unset GOPRIVATE GONOPROXY GONOSUMDB GOINSECURE GOEXPERIMENT GOFIPS140
 
-benchmark_pattern='Benchmark(ParseStatus10000Paths|Snapshot10000Paths)$'
-run_sample()
+run_benchmark()
 {
 	root=$1
 	output=$2
+	benchmark_pattern=$3
+	benchmark_budget=$4
 	(
 		cd "$root"
-		"$go_bin" test -mod=readonly -trimpath -buildvcs=false -run '^$' -bench "$benchmark_pattern" -benchtime=250ms -count=1 ./internal/l7/adapter/git
+		"$go_bin" test -mod=readonly -trimpath -buildvcs=false -run '^$' -bench "$benchmark_pattern" -benchtime="$benchmark_budget" -count=1 ./internal/l7/adapter/git
 	) >>"$output"
+}
+
+run_sample()
+{
+	sample_root=$1
+	sample_output=$2
+	run_benchmark "$sample_root" "$sample_output" '^BenchmarkParseStatus10000Paths$' 250x
+	run_benchmark "$sample_root" "$sample_output" '^BenchmarkSnapshot10000Paths$' 10x
 }
 
 for sample in 1 2 3 4 5; do
@@ -70,7 +79,7 @@ for sample in 1 2 3 4 5; do
 	esac
 done
 
-printf 'check-cli-benchmarks: host=%s/%s toolchain=%s samples=5 benchtime=250ms\n' \
+printf 'check-cli-benchmarks: host=%s/%s toolchain=%s samples=5 parse_status_benchtime=250x snapshot_benchtime=10x\n' \
 	"$("$go_bin" env GOHOSTOS)" "$("$go_bin" env GOHOSTARCH)" "$("$go_bin" env GOVERSION)"
 (
 	cd "$candidate_root"
