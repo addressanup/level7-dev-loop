@@ -97,7 +97,7 @@ func Resolve(name string) (Executable, error) {
 func MinimalEnvironment() []string {
 	allowed := map[string]bool{
 		"HOME": true, "PATH": true, "TMPDIR": true, "LANG": true, "LC_ALL": true,
-		"TERM": true, "COLORTERM": true,
+		"TERM": true, "COLORTERM": true, "USER": true, "LOGNAME": true, "SHELL": true,
 	}
 	values := make(map[string]string)
 	for _, entry := range os.Environ() {

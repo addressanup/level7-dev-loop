@@ -112,6 +112,10 @@ transitive	internal/l7/adapter/provider	internal/l7/adapter/codex	BND-609
 transitive	internal/l7/adapter/provider	internal/l7/adapter/claude	BND-609
 transitive	internal/l7/adapter/verify	internal/l7/adapter/codex	BND-610
 transitive	internal/l7/adapter/verify	internal/l7/adapter/claude	BND-610
+transitive	internal/l7/adapter/gateway	internal/l7/adapter/codex	BND-614
+transitive	internal/l7/adapter/gateway	internal/l7/adapter/claude	BND-614
+transitive	internal/l7/adapter/codexapp	internal/l7/adapter/claude	BND-615
+transitive	internal/l7/adapter/codexapp	internal/l7/adapter/gateway	BND-615
 transitive	internal/l7/adapter/ci	internal/l7/app	BND-611
 transitive	internal/l7/adapter/ci	internal/l7/presentation	BND-611
 transitive	internal/l7/adapter/ci	internal/harness	BND-611
@@ -129,3 +133,7 @@ transitive	internal/harness/distribution	internal/render	BND-701
 effect	internal/harness/distribution	net	BND-702
 effect	internal/harness/distribution	os/exec	BND-702
 effect	internal/harness/distribution	syscall	BND-702
+transitive	internal/harness/v1candidate	internal/l7	BND-703
+transitive	internal/harness/v1candidate	internal/evaluator	BND-703
+transitive	internal/harness/v1candidate	internal/render	BND-703
+effect	internal/harness/v1candidate	net	BND-704

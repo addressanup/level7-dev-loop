@@ -124,7 +124,7 @@ l7_direct_effect_allowed()
 	case $imported in
 		os/exec)
 			case $relative_package in
-				internal/l7/adapter/git|internal/l7/adapter/process) return 0 ;;
+				internal/l7/adapter/codexapp|internal/l7/adapter/git|internal/l7/adapter/process) return 0 ;;
 				*) return 1 ;;
 			esac
 			;;
@@ -134,13 +134,19 @@ l7_direct_effect_allowed()
 				*) return 1 ;;
 			esac
 			;;
-		net|net/*) return 1 ;;
+		net|net/*)
+			case $relative_package in
+				internal/l7/adapter/gateway) return 0 ;;
+				*) return 1 ;;
+			esac
+			;;
 		*) return 0 ;;
 	esac
 }
 
 l7_direct_effect_allowed internal/l7/adapter/git os/exec || fail 'BND-607: Git effect owner rejected its positive control'
 l7_direct_effect_allowed internal/l7/adapter/process os/exec || fail 'BND-607: process effect owner rejected its positive control'
+l7_direct_effect_allowed internal/l7/adapter/codexapp os/exec || fail 'BND-607: Codex app-server transport owner rejected its positive control'
 l7_direct_effect_allowed internal/l7/adapter/localfile syscall || fail 'BND-607: local-file syscall owner rejected its positive control'
 if l7_direct_effect_allowed internal/l7/adapter/codex os/exec; then
 	fail 'BND-607: provider adapter accepted direct process execution'

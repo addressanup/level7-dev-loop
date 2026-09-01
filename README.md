@@ -1,16 +1,24 @@
-# Level 7 Dev Loop — AI development workflow for Codex and Claude Code
+# Level 7 Dev Loop — multi-host AI development orchestration
 
-**Level 7 Dev Loop is a skills-only AI development workflow plugin for Codex
-and Claude Code.** Give your coding agent one concrete objective, and Level 7
-guides it through inspection, implementation, testing, repair, truthful
-self-review, and a review-ready handoff.
+**Level 7 Dev Loop v1 is a local-first orchestration engine for Codex, Claude
+Code, and explicitly configured OpenAI Responses- or Anthropic
+Messages-compatible gateways.** It discovers authenticated hosts, routes work
+by verified capability and effort, maintains private codebase memory, performs
+bounded security audits, and can execute durable feature waves before stopping
+at the release boundary.
+
+> **Release status:** `v0.1.1` remains the stable, skills-only release. The
+> bundled `1.0.0-dev` engine is an unsigned development candidate and must not
+> be represented as `v1.0.0` until exact-candidate verification, an independent
+> read-only audit, named owner GO, protected release identities, and signed
+> attestations exist.
 
 You describe the outcome. Level 7 keeps ordinary, reversible repository work
 moving—and asks for your judgment only when it reaches a decision or effect
 that genuinely needs you.
 
 [Install](#install) · [See how it works](#how-level-7-works) ·
-[Explore the skills](#the-12-level-7-skills) ·
+[Explore the skills](#the-16-level-7-skills) ·
 [Read the FAQ](#frequently-asked-questions)
 
 <p align="center">
@@ -21,7 +29,46 @@ that genuinely needs you.
 </p>
 
 > **The short version:** most developers only need one skill:
-> `l7-next`. It conducts the complete local development loop.
+> `l7-onboard` starts v1 by inspecting the project without mutation. Stable
+> v0.1.1 users continue to start with `l7-next`.
+
+## v1 development candidate
+
+The v1 candidate supports macOS 13+ on Apple Silicon and Intel. The canonical
+entry points are:
+
+```text
+l7 onboard --status|--apply
+l7 providers list|probe
+l7 route explain
+l7 sync --incremental|--rebuild|--query <text>
+l7 cyber [--active] [--export markdown|json]
+l7 cyber remediate --report <id>
+l7 headless plan|start|status|resume|cancel
+l7 mcp
+```
+
+All new features are default OFF in the strict tracked
+`.l7/orchestration.json`. `l7 onboard --apply` is the only onboarding action
+that creates or updates that policy. Credentials are references to environment
+variables or macOS Keychain entries only; secret values are never accepted in
+configuration or intentionally persisted to logs, memory, findings,
+checkpoints, or handoffs.
+
+Private derived state stays Git-bound and uncommitted by default:
+
+- `.git/l7/memory` holds content-addressed graph segments and derived indexes;
+- `.git/l7/security` holds complete Cyber evidence;
+- `.git/l7/headless` holds manifests, events, checkpoints, and handoffs;
+- `.git/l7/orchestration` holds provider snapshots and explainable routes.
+
+`l7 headless start` is intentionally consequential. It requires a finalized
+`concept.md` or feature-wave manifest with measurable acceptance criteria and
+explicit confirmation of the exact manifest digest. It may implement, test,
+independently review, and locally merge every approved Tier 1/2 wave without
+another prompt. It pauses on scope expansion, Tier 3 work, protected paths,
+secrets, destructive actions, branch divergence, or repeated no-progress, and
+always stops before push, release, or deployment.
 
 ## Quick start
 
@@ -151,7 +198,7 @@ Solo assurance is the default. A repository can explicitly select team
 assurance when it has genuinely distinct owner and reviewer identities. Level 7
 never labels a self-review as independent.
 
-## The 12 Level 7 skills
+## The 16 Level 7 skills
 
 Most users start—and finish—with `l7-next`. The other skills are focused
 execution lenses that the conductor can use internally or that you can invoke
@@ -160,6 +207,10 @@ directly for a specialized job.
 | Skill | Best for |
 |---|---|
 | [`l7-next`](skills/l7-next/SKILL.md) | Conducting one objective from inspection to tested handoff |
+| [`l7-onboard`](skills/l7-onboard/SKILL.md) | Inspecting project/provider/memory state and naming the next executable transition |
+| [`l7-sync`](skills/l7-sync/SKILL.md) | Building or querying private, Git-bound codebase memory |
+| [`l7-cyber`](skills/l7-cyber/SKILL.md) | Running a read-only security audit or explicitly isolated active confirmation |
+| [`l7-headless`](skills/l7-headless/SKILL.md) | Planning and executing durable, approved feature waves before the release boundary |
 | [`l7-build`](skills/l7-build/SKILL.md) | Implementing one bounded feature or fix |
 | [`l7-change`](skills/l7-change/SKILL.md) | Changing a live product while preserving contracts, data, and SLOs |
 | [`l7-review`](skills/l7-review/SKILL.md) | Reviewing an existing implementation with targeted checks |
@@ -229,6 +280,14 @@ The plugin is **not a sandbox** and does not make agent actions risk-free. It
 guides the host to preserve unrelated work, verify changes, and request explicit
 authority before consequential effects; your host configuration remains the
 actual enforcement boundary.
+
+The unsigned v1 candidate is materially different: it bundles architecture-
+specific Go executables, a Swift Apple Natural Language embedding helper, and
+a local MCP server. Gateway endpoint traffic is the only implicit network
+operation after explicit provider configuration. Cyber active mode additionally
+requires a pinned signed OCI image and an isolated Docker/OrbStack-compatible
+runtime; it fails closed without isolation, uses a disposable tracked-file
+copy, runs non-root with resource limits, and has no Internet or host sockets.
 
 ## Compatibility and current limits
 
@@ -326,10 +385,9 @@ host version, operating system, architecture, command, and exact error.
 
 ### What is Level 7 Dev Loop?
 
-Level 7 Dev Loop is a skills-only AI development workflow plugin that helps
-Codex and Claude Code carry one software objective from repository inspection
-through implementation, automated testing, repair, truthfully labeled
-self-review, and handoff.
+The stable v0.1.1 distribution is a skills-only workflow plugin. The v1
+development candidate adds a bundled multi-host engine while preserving that
+stable rollback package unchanged.
 
 ### Is Level 7 another coding agent?
 
@@ -349,9 +407,10 @@ review remains useful or required according to your team, repository, and risk.
 
 ### Does Level 7 need another API key?
 
-No. The plugin has no credential flow or network service of its own. Codex or
-Claude Code still requires whatever account and credentials that host normally
-uses.
+Not for the native Codex or Claude Code adapters; Level 7 reuses their
+user-managed logins and never becomes an identity broker. Optional API gateways
+may reference a user-provided environment variable or macOS Keychain entry.
+Level 7 never stores the referenced secret value.
 
 ### Can a beginner use Level 7?
 
@@ -367,14 +426,14 @@ opt into team assurance with genuinely distinct owner and reviewer identities.
 ### Why do Codex and Claude use different commands?
 
 They are different plugin hosts with different native manifests, marketplace
-commands, and skill invocation syntax. Level 7 packages the same 12 instruction
-skills for both.
+commands, executable path contracts, and skill invocation syntax. Level 7
+generates both v1 packages from the same 16 canonical skills and engine source.
 
-### Is the experimental `l7` Go CLI included?
+### Is the `l7` Go CLI included?
 
-No. The standalone Go CLI in `cmd/l7` is a separate `0.1.0-dev` preview for
-repository lifecycle experiments. Installing the v0.1.1 plugin does not install
-that binary.
+The stable v0.1.1 plugin does not include it. The unsigned v1 development
+candidate bundles `l7` for macOS arm64 and amd64 and launches MCP through
+`l7 mcp`.
 
 ### Will Level 7 automatically push, merge, deploy, or publish?
 
@@ -400,7 +459,7 @@ The repository contains:
   [`plugins/level7-dev-loop/`](plugins/level7-dev-loop);
 - deterministic distribution checks under
   [`internal/harness/distribution/`](internal/harness/distribution);
-- the separate experimental CLI under [`cmd/l7/`](cmd/l7);
+- the bundled v1 development CLI and MCP server under [`cmd/l7/`](cmd/l7);
 - the project workflow contract in [`AGENTS.md`](AGENTS.md).
 
 Bug reports, focused improvements, and reproducible compatibility findings are

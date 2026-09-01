@@ -42,31 +42,31 @@ func TestRunTranslatesBothRolesWithoutDangerousBypass(t *testing.T) {
 	}
 }
 
-func TestProbeDegradesUnknownVersion(t *testing.T) {
+func TestProbeAcceptsChangingSemanticVersion(t *testing.T) {
 	adapter := NewWithRuntime(provider.NewRuntime(fakeResolve("codex"), func(context.Context, processadapter.Request) (processadapter.Result, error) {
 		return processadapter.Result{ExitCode: 0, Stdout: []byte("codex-cli 0.150.0\n")}, nil
 	}))
 	identity, err := adapter.Probe(context.Background())
-	if err != nil || identity.Capability != domain.CapabilityDegraded {
+	if err != nil || identity.Capability != domain.CapabilityAvailable {
 		t.Fatalf("Probe()=%+v error=%v", identity, err)
 	}
 }
 
-func TestRunDoesNotSemanticallyInvokeFailedTargetVersion(t *testing.T) {
-	const failedTarget = "codex-cli 0.150.1"
+func TestRunAttemptsSemanticInvocationForAdmittedVersion(t *testing.T) {
+	const changingVersion = "codex-cli 0.150.1"
 	probes := 0
 	semanticInvocations := 0
 	adapter := NewWithRuntime(provider.NewRuntime(fakeResolve("codex"), func(_ context.Context, request processadapter.Request) (processadapter.Result, error) {
 		if len(request.Arguments) == 1 && request.Arguments[0] == "--version" {
 			probes++
-			return processadapter.Result{ExitCode: 0, Stdout: []byte(failedTarget + "\n")}, nil
+			return processadapter.Result{ExitCode: 0, Stdout: []byte(changingVersion + "\n")}, nil
 		}
 		semanticInvocations++
-		return processadapter.Result{}, errors.New("unexpected semantic Codex invocation")
+		return processadapter.Result{ExitCode: 0, Stdout: []byte(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"{\"schema\":1,\"outcome\":\"complete\",\"summary\":\"Implemented.\",\"findings\":[]}"}}` + "\n")}, nil
 	}))
 
 	response, err := adapter.Run(context.Background(), providerTask(domain.RoleImplementer), 1<<20, 30)
-	if err == nil || !strings.Contains(err.Error(), "no qualified adapter contract") || response.Identity.Version != failedTarget || response.Identity.Capability != domain.CapabilityDegraded || response.Role != domain.RoleImplementer || probes != 1 || semanticInvocations != 0 {
+	if err != nil || response.Identity.Version != changingVersion || response.Identity.Capability != domain.CapabilityAvailable || response.Role != domain.RoleImplementer || probes != 1 || semanticInvocations != 1 {
 		t.Fatalf("Run()=%+v error=%v probes=%d semantic_invocations=%d", response, err, probes, semanticInvocations)
 	}
 }

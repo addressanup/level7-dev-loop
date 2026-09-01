@@ -456,7 +456,10 @@ func loadInputs(root string) (loadedInputs, error) {
 	if err != nil {
 		return loadedInputs{}, err
 	}
-	changelog, err := readRegularBounded(absolute, "CHANGELOG.md")
+	// The v0.1.1 stable package is a frozen rollback artifact. Its package
+	// changelog, like its skills, must come from the committed historical
+	// payload rather than the evolving v1 source documents.
+	changelog, err := readRegularBounded(absolute, filepath.ToSlash(filepath.Join("plugins", descriptor.Name, "CHANGELOG.md")))
 	if err != nil {
 		return loadedInputs{}, err
 	}
@@ -467,7 +470,11 @@ func loadInputs(root string) (loadedInputs, error) {
 	skillBytes := make(map[string][]byte, len(descriptor.Skills))
 	for _, skill := range descriptor.Skills {
 		relative := filepath.ToSlash(filepath.Join("skills", skill, "SKILL.md"))
-		data, readErr := readRegularBounded(absolute, relative)
+		// v0.1.1 is a frozen rollback artifact. New canonical skills may evolve for
+		// v1, but rebuilding this historical package must continue to consume the
+		// exact payload committed under plugins/level7-dev-loop.
+		snapshot := filepath.ToSlash(filepath.Join("plugins", descriptor.Name, relative))
+		data, readErr := readRegularBounded(absolute, snapshot)
 		if readErr != nil {
 			return loadedInputs{}, readErr
 		}

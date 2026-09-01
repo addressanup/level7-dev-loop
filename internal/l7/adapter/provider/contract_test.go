@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
+
+const fuzzTerminalMaxBytes = 64 << 10
 
 func TestProbeDistinguishesInstalledFromCompatible(t *testing.T) {
 	runtime := NewRuntime(
@@ -81,11 +84,42 @@ func TestProbePropagatesUnavailableExecutable(t *testing.T) {
 	}
 }
 
+func TestParseTerminalEnforcesProductionSizeBoundary(t *testing.T) {
+	pad := func(data []byte, size int) []byte {
+		t.Helper()
+		if len(data) > size {
+			t.Fatalf("fixture length %d exceeds boundary %d", len(data), size)
+		}
+		result := append([]byte(nil), data...)
+		return append(result, bytes.Repeat([]byte(" "), size-len(result))...)
+	}
+
+	valid := []byte(`{"schema":1,"outcome":"complete","summary":"No blocker.","findings":[],"decision":"GO"}`)
+	atLimit := pad(valid, MaxProviderPrompt)
+	response, err := ParseTerminal(atLimit, domain.RoleReviewer)
+	if err != nil || response.Decision != domain.DecisionGO {
+		t.Fatalf("valid provider response at %d-byte boundary was rejected: response=%+v error=%v", MaxProviderPrompt, response, err)
+	}
+
+	invalidAtLimit := pad([]byte(`{"schema":1,"schema":1}`), MaxProviderPrompt)
+	if _, err := ParseTerminal(invalidAtLimit, domain.RoleReviewer); err == nil {
+		t.Fatalf("strict-invalid provider response at %d-byte boundary was accepted", MaxProviderPrompt)
+	}
+
+	aboveLimit := append(append([]byte(nil), atLimit...), ' ')
+	if _, err := ParseTerminal(aboveLimit, domain.RoleReviewer); err == nil {
+		t.Fatalf("provider response above %d-byte boundary was accepted", MaxProviderPrompt)
+	}
+}
+
 func FuzzParseTerminal(f *testing.F) {
 	f.Add([]byte(`{"schema":1,"outcome":"complete","summary":"Implemented.","findings":[]}`), false)
 	f.Add([]byte(`{"schema":1,"outcome":"complete","summary":"No blocker.","findings":[],"decision":"GO"}`), true)
 	f.Add([]byte{0xff}, true)
 	f.Fuzz(func(t *testing.T, data []byte, reviewer bool) {
+		if len(data) > fuzzTerminalMaxBytes {
+			t.Skip()
+		}
 		role := domain.RoleImplementer
 		if reviewer {
 			role = domain.RoleReviewer

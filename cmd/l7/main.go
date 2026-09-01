@@ -23,7 +23,7 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/presentation"
 )
 
-var version = "0.1.0-dev"
+var version = "1.0.0-dev"
 
 const (
 	maxArguments     = 1024
@@ -61,6 +61,9 @@ func runAtWithTerminal(ctx context.Context, arguments []string, workingDirectory
 }
 
 func runAtWithTerminalAndInput(ctx context.Context, arguments []string, workingDirectory string, stdout, stderr io.Writer, terminal authorityadapter.Terminal, input io.Reader) int {
+	if handled, exitCode := runOrchestrationCommand(ctx, arguments, workingDirectory, input, stdout, stderr); handled {
+		return exitCode
+	}
 	baseApplication := cliapp.New(version)
 	request, jsonOutput, invalid := parseArguments(arguments, baseApplication)
 	application := baseApplication

@@ -13,6 +13,8 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
+// CompatibleVersion remains as a fixture baseline for upgrade tests. Runtime
+// admission is capability-based and deliberately does not pin this value.
 const CompatibleVersion = "codex-cli 0.149.1"
 
 const maxEvents = 4096
@@ -31,7 +33,7 @@ func NewWithRuntime(runtime provider.Runtime) Adapter {
 
 func (adapter Adapter) Probe(ctx context.Context) (domain.ProviderIdentity, error) {
 	return adapter.runtime.Probe(ctx, "codex", domain.ProviderCodex, []string{"--version"}, func(version string) bool {
-		return version == CompatibleVersion
+		return strings.HasPrefix(version, "codex-cli ") || strings.HasPrefix(version, "codex ")
 	})
 }
 

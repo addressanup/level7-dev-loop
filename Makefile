@@ -35,7 +35,7 @@ $(error harness/modules.lock.tsv must contain exactly one active core module)
 endif
 override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness
 override HARNESS_IDENTITY_LDFLAGS := -X $(HARNESS_IMPORT_PATH).expectedGoVersion=$(L7_EXPECT_GO_VERSION) -X $(HARNESS_IMPORT_PATH).expectedGOOS=$(HOST_GOOS) -X $(HARNESS_IMPORT_PATH).expectedGOARCH=$(HOST_GOARCH)
-override L7_CLI_VERSION := 0.1.0-dev
+override L7_CLI_VERSION := 1.0.0-dev
 override CLI_PACKAGE := ./cmd/l7
 override CLI_LDFLAGS := -buildid= -X main.version=$(L7_CLI_VERSION)
 
@@ -43,7 +43,7 @@ override GOENV := off
 override GOTOOLCHAIN := local
 override GOWORK := off
 override GO111MODULE := on
-override GOFLAGS :=
+override GOFLAGS := -tags=grammar_subset,grammar_subset_javascript,grammar_subset_typescript,grammar_subset_tsx,grammar_subset_python
 override GOROOT := $(GO_ROOT)
 override CGO_ENABLED := 0
 override GOOS := $(HOST_GOOS)
@@ -79,10 +79,17 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap prepare toolchain-check install build cli-build cli-cross-build cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap bootstrap-ci bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
+
+bootstrap-ci: bootstrap
+	@"$(PROJECT_ROOT)/scripts/harness/prepare-cache.sh" "$(PROJECT_ROOT)" "$(GO_VERSION)"
+	@"$(PROJECT_ROOT)/scripts/harness/bootstrap-modules.sh" "$(GO)" "$(GO_VERSION)"
+
+bootstrap-modules-check:
+	@./scripts/harness/check-bootstrap-modules.sh
 
 prepare:
 	@"$(PROJECT_ROOT)/scripts/harness/prepare-cache.sh" "$(PROJECT_ROOT)" "$(GO_VERSION)"
@@ -98,7 +105,7 @@ toolchain-check: prepare
 	@test "$$("$(GO)" env GOHOSTARCH)" = "$(HOST_GOARCH)"
 	@test "$$("$(GO)" env GOTOOLCHAIN)" = "local"
 	@test "$$("$(GO)" env GOWORK)" = "off"
-	@test -z "$$("$(GO)" env GOFLAGS)"
+	@test "$$("$(GO)" env GOFLAGS)" = "$(GOFLAGS)"
 	@test "$$("$(GO)" env CGO_ENABLED)" = "0"
 	@test "$$("$(GO)" env GOPROXY)" = "off"
 	@test "$$("$(GO)" env GOSUMDB)" = "off"
@@ -116,7 +123,8 @@ toolchain-check: prepare
 	@grep -Fq 'TEST_TELEMETRY_DIR' "$(GO_ROOT)/src/cmd/internal/telemetry/telemetry.go"
 	@grep -Fq 'TEST_TELEMETRY_DIR' "$(GO_ROOT)/src/cmd/internal/telemetry/counter/counter.go"
 
-# The Wave 1 CLI intentionally has no third-party production dependencies.
+# Production dependencies are exact-version pinned and verified before build;
+# Tree-sitter compilation embeds only the four declared v1 grammar blobs.
 install: toolchain-check
 	@"$(GO)" mod download
 	@"$(GO)" mod verify
@@ -132,6 +140,38 @@ cli-cross-build: install
 	@mkdir -p "$(PROJECT_ROOT)/build/bin"
 	@GOOS=darwin GOARCH=arm64 GOARM64=v8.0 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7-darwin-arm64" $(CLI_PACKAGE)
 	@GOOS=darwin GOARCH=amd64 GOAMD64=v1 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/bin/l7-darwin-amd64" $(CLI_PACKAGE)
+
+v1-inputs: install
+	@mkdir -p "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64" "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64"
+	@GOOS=darwin GOARCH=arm64 GOARM64=v8.0 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64/l7" $(CLI_PACKAGE)
+	@GOOS=darwin GOARCH=amd64 GOAMD64=v1 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7" $(CLI_PACKAGE)
+	@xcrun swiftc -O -target arm64-apple-macos13.0 -o "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64/l7-embed" "$(PROJECT_ROOT)/cmd/l7-embed/main.swift"
+	@xcrun swiftc -O -target x86_64-apple-macos13.0 -o "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7-embed" "$(PROJECT_ROOT)/cmd/l7-embed/main.swift"
+
+v1-candidate: v1-inputs
+	@mkdir -p "$(PROJECT_ROOT)/build/v1-candidate"
+	@"$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$(PROJECT_ROOT)/build/v1-inputs" --output "$(PROJECT_ROOT)/build/v1-candidate"
+
+v1-conformance-check: v1-candidate
+	@./scripts/harness/check-v1-conformance.sh "$(GO)"
+
+v1-candidate-check: v1-candidate v1-conformance-check
+	@set -eu; \
+	 second="$$(mktemp -d "$(PROJECT_ROOT)/build/v1-repro.XXXXXX")"; \
+	 trap 'rm -rf "$$second"' EXIT HUP INT TERM; \
+	 mkdir -p "$$second/input/darwin-arm64" "$$second/input/darwin-amd64" "$$second/output"; \
+	 GOOS=darwin GOARCH=arm64 GOARM64=v8.0 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$$second/input/darwin-arm64/l7" $(CLI_PACKAGE); \
+	 GOOS=darwin GOARCH=amd64 GOAMD64=v1 "$(GO)" build -mod=readonly -trimpath -buildvcs=false -ldflags='$(CLI_LDFLAGS)' -o "$$second/input/darwin-amd64/l7" $(CLI_PACKAGE); \
+	 xcrun swiftc -O -target arm64-apple-macos13.0 -o "$$second/input/darwin-arm64/l7-embed" "$(PROJECT_ROOT)/cmd/l7-embed/main.swift"; \
+	 xcrun swiftc -O -target x86_64-apple-macos13.0 -o "$$second/input/darwin-amd64/l7-embed" "$(PROJECT_ROOT)/cmd/l7-embed/main.swift"; \
+	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64/l7" "$$second/input/darwin-arm64/l7"; \
+	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7" "$$second/input/darwin-amd64/l7"; \
+	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64/l7-embed" "$$second/input/darwin-arm64/l7-embed"; \
+	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7-embed" "$$second/input/darwin-amd64/l7-embed"; \
+	 "$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$$second/input" --output "$$second/output" >/dev/null; \
+	 cmp "$(PROJECT_ROOT)/build/v1-candidate/level7-dev-loop-$(L7_CLI_VERSION)-codex.zip" "$$second/output/level7-dev-loop-$(L7_CLI_VERSION)-codex.zip"; \
+	 cmp "$(PROJECT_ROOT)/build/v1-candidate/level7-dev-loop-$(L7_CLI_VERSION)-claude.zip" "$$second/output/level7-dev-loop-$(L7_CLI_VERSION)-claude.zip"; \
+	 printf 'v1-candidate-check: PASS (darwin arm64/amd64 reproducible binaries and host packages; unsigned release blocked)\n'
 
 cli-benchmark-check: toolchain-check
 	@test -n "$(L7_BENCHMARK_BASE_ROOT)" || { echo 'L7_BENCHMARK_BASE_ROOT must name a separate base checkout' >&2; exit 1; }
@@ -168,7 +208,7 @@ l7-import-closure-check: toolchain-check
 	     fi; \
 	   done; \
 	 }; \
-	 domain_allowed=''; \
+	 domain_allowed='strings'; \
 	 app_allowed='context $(CORE_MODULE_PATH)/internal/l7/domain strings unicode/utf8'; \
 	 presentation_allowed='bytes encoding/json fmt $(CORE_MODULE_PATH)/internal/l7/domain strconv'; \
 	 for target in '$(HOST_GOOS)/$(HOST_GOARCH)' 'darwin/arm64' 'darwin/amd64'; do \
@@ -200,7 +240,7 @@ format-check: toolchain-check
 	@unformatted="$$(find . -type f -name '*.go' -not -path './.cache/*' -not -path './build/*' -print0 | xargs -0 "$(GOFMT)" -l)"; \
 	 test -z "$$unformatted" || { printf 'unformatted Go files:\n%s\n' "$$unformatted" >&2; exit 1; }
 
-technical-lint: install import-check format-check
+technical-lint: install import-check format-check bootstrap-modules-check
 	@for script in scripts/harness/*.sh; do sh -n "$$script"; done
 	@"$(GO)" vet -mod=readonly ./...
 
@@ -214,6 +254,12 @@ cli-actual-host-compile: install
 
 test: install
 	@"$(GO)" test -mod=readonly -trimpath -buildvcs=false -ldflags='$(HARNESS_IDENTITY_LDFLAGS)' -count=1 -shuffle=off -timeout=2m ./...
+
+race-check: install
+	@CGO_ENABLED=1 "$(GO)" test -mod=readonly -trimpath -buildvcs=false -race -p=1 -count=1 -shuffle=off -timeout=5m ./internal/l7/... ./cmd/l7 ./cmd/l7pack ./internal/harness/v1candidate
+
+fuzz-check: install
+	@./scripts/harness/check-l7-fuzz.sh "$(GO)"
 
 reproducible: install
 	@set -eu; \
@@ -233,7 +279,7 @@ cli-reproducible: install
 	 cmp "$$repro_root/l7-a" "$$repro_root/l7-b"; \
 	 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$$repro_root/l7-a"; else shasum -a 256 "$$repro_root/l7-a"; fi
 
-technical-verify: install technical-lint typecheck cli-actual-host-compile test reproducible cli-reproducible distribution-check
+technical-verify: install technical-lint typecheck cli-actual-host-compile test race-check fuzz-check reproducible cli-reproducible distribution-check
 
 verify: policy-check technical-verify
 
