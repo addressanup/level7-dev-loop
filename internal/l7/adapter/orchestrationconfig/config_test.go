@@ -1,6 +1,7 @@
 package orchestrationconfig
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/localfile"
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
+
+const fuzzConfigurationMaxBytes = 64 << 10
 
 func TestDefaultIsValidAndEffectsAreOff(t *testing.T) {
 	configuration := Default()
@@ -182,6 +185,51 @@ func TestStrictLoadRejectsUnknownAndDuplicateFields(t *testing.T) {
 	}
 }
 
+func TestStrictLoadEnforcesProductionSizeBoundary(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".l7"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	valid, err := localfile.EncodeJSON(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pad := func(data []byte, size int) []byte {
+		t.Helper()
+		if len(data) > size {
+			t.Fatalf("fixture length %d exceeds boundary %d", len(data), size)
+		}
+		result := append([]byte(nil), data...)
+		return append(result, bytes.Repeat([]byte(" "), size-len(result))...)
+	}
+	write := func(data []byte) {
+		t.Helper()
+		if err := os.WriteFile(Path(root), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	atLimit := pad(valid, MaxBytes)
+	write(atLimit)
+	if _, err := Load(root); err != nil {
+		t.Fatalf("valid configuration at %d-byte boundary was rejected: %v", MaxBytes, err)
+	}
+
+	invalidAtLimit := pad([]byte(`{"schema":1,"schema":1}`), MaxBytes)
+	write(invalidAtLimit)
+	if _, err := Load(root); err == nil {
+		t.Fatalf("invalid configuration at %d-byte boundary was accepted", MaxBytes)
+	}
+
+	write(append(append([]byte(nil), atLimit...), ' '))
+	if _, err := Load(root); err == nil {
+		t.Fatalf("configuration above %d-byte boundary was accepted", MaxBytes)
+	}
+}
+
 func FuzzStrictConfigurationDecode(f *testing.F) {
 	valid, err := localfile.EncodeJSON(Default())
 	if err != nil {
@@ -190,7 +238,7 @@ func FuzzStrictConfigurationDecode(f *testing.F) {
 	f.Add(valid)
 	f.Add([]byte(`{"schema":1,"schema":1}`))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		if len(data) > MaxBytes {
+		if len(data) > fuzzConfigurationMaxBytes {
 			t.Skip()
 		}
 		var configuration File
