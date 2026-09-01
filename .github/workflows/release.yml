@@ -1,0 +1,648 @@
+name: Stable release v1.0.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_commit:
+        description: Exact merged main commit (40 lowercase hexadecimal characters)
+        required: true
+        type: string
+      candidate_tree:
+        description: Exact candidate tree (40 lowercase hexadecimal characters)
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: stable-release-v1.0.0
+  cancel-in-progress: false
+
+env:
+  L7_RELEASE_BASE: e88b18ef1cbfd4f811efb1f0ab1b12a27a770503
+  L7_RELEASE_VERSION: 1.0.0
+  L7_RELEASE_CHANNEL: stable
+  L7_RELEASE_TAG: v1.0.0
+
+jobs:
+  prepare:
+    name: Prepare signed and notarized assets
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment:
+      name: v1-signing
+    permissions:
+      actions: read
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - name: Validate immutable dispatch identity
+        env:
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+          CANDIDATE_TREE: ${{ inputs.candidate_tree }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTOR" = anup19950725
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$CANDIDATE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_TREE" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Check out exact merged candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.candidate_commit }}
+          fetch-depth: 1
+          path: candidate
+          persist-credentials: false
+
+      - name: Fail closed on hosted or release-control drift
+        id: preflight
+        env:
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+          CANDIDATE_TREE: ${{ inputs.candidate_tree }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$RELEASE_ADMIN_TOKEN"
+
+          source_tree=$(git -C candidate rev-parse 'HEAD^{tree}')
+          test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_COMMIT"
+          test "$source_tree" = "$CANDIDATE_TREE"
+          test -z "$(git -C candidate status --porcelain --untracked-files=all)"
+          main_head=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)
+          test "$main_head" = "$CANDIDATE_COMMIT"
+
+          pulls=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_COMMIT}/pulls?per_page=100")
+          pull=$(printf '%s' "$pulls" | jq -ce --arg commit "$CANDIDATE_COMMIT" \
+            '[.[] | select(.merged_at != null and .merge_commit_sha == $commit)] | if length == 1 then .[0] else error("exact merged pull request not found") end')
+          number=$(printf '%s' "$pull" | jq -r .number)
+          pr_head=$(printf '%s' "$pull" | jq -r .head.sha)
+          test "$(printf '%s' "$pull" | jq -r .base.sha)" = "$L7_RELEASE_BASE"
+          test "$(printf '%s' "$pull" | jq -r .user.login)" = anup19950725
+          test "$(printf '%s' "$pull" | jq -r .state)" = closed
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${pr_head}" --jq .tree.sha)" = "$CANDIDATE_TREE"
+          read -r -a parents <<< "$(git -C candidate rev-list --parents -n 1 HEAD)"
+          test "${#parents[@]}" = 3
+          test "${parents[1]}" = "$L7_RELEASE_BASE"
+          test "${parents[2]}" = "$pr_head"
+
+          labels=$(printf '%s' "$pull" | jq -c '[.labels[].name | select(test("^l7-risk-tier-[123]$"))] | unique')
+          test "$labels" = '["l7-risk-tier-3"]'
+
+          check_stream=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${pr_head}/check-runs?per_page=100" --jq '.check_runs[]')
+          for name in \
+            'Go 1.26.7 (baseline)' \
+            'Go 1.27.0 (shadow)' \
+            'CLI macOS 15 (arm64)' \
+            'CLI macOS 15 (amd64)' \
+            'CLI paired benchmark gate' \
+            'evaluate'
+          do
+            latest=$(printf '%s\n' "$check_stream" | jq -sce --arg name "$name" \
+              '[.[] | select(.name == $name)] | sort_by(.started_at // .created_at) | if length > 0 then last else error("required check absent") end')
+            test "$(printf '%s' "$latest" | jq -r .head_sha)" = "$pr_head"
+            test "$(printf '%s' "$latest" | jq -r .app.slug)" = github-actions
+            test "$(printf '%s' "$latest" | jq -r .status)" = completed
+            test "$(printf '%s' "$latest" | jq -r .conclusion)" = success
+          done
+
+          review_stream=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${number}/reviews?per_page=100" --jq '.[]')
+          for reviewer in addressanup apbusinessidentity-tech
+          do
+            review=$(printf '%s\n' "$review_stream" | jq -sce --arg reviewer "$reviewer" \
+              '[.[] | select(.user.login == $reviewer)] | sort_by(.submitted_at // "") | if length > 0 then last else error("required review absent") end')
+            test "$(printf '%s' "$review" | jq -r .commit_id)" = "$pr_head"
+            test "$(printf '%s' "$review" | jq -r .state)" = APPROVED
+          done
+
+          signing=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/environments/v1-signing")
+          printf '%s' "$signing" | jq -e \
+            '.deployment_branch_policy.protected_branches == true and .deployment_branch_policy.custom_branch_policies == false' >/dev/null
+          production=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/environments/v1-production")
+          printf '%s' "$production" | jq -e '
+            .deployment_branch_policy.protected_branches == true and
+            .deployment_branch_policy.custom_branch_policies == false and
+            ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 1 and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].prevent_self_review == true) and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].reviewers | length) == 1 and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].reviewers[0].type == "User") and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].reviewers[0].reviewer.login == "addressanup")' >/dev/null
+          immutable=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/immutable-releases")
+          test "$(printf '%s' "$immutable" | jq -r .enabled)" = true
+
+          expect_absent() {
+            local endpoint=$1 response status
+            response=$(mktemp "$RUNNER_TEMP/l7-absent.XXXXXX")
+            status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/${endpoint}")
+            test "$status" = 404
+            rm -f -- "$response"
+          }
+          expect_absent "repos/${GITHUB_REPOSITORY}/git/ref/tags/${L7_RELEASE_TAG}"
+          expect_absent "repos/${GITHUB_REPOSITORY}/releases/tags/${L7_RELEASE_TAG}"
+          echo "pull-request=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Materialize clean source and bootstrap pinned dependencies
+        env:
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/l7-v1.0.0-source"
+          test ! -e "$source_root"
+          mkdir -m 0700 "$source_root"
+          git -C candidate archive --format=tar "$CANDIDATE_COMMIT" | tar -xf - -C "$source_root"
+          test ! -e "$source_root/.git"
+          test -z "$(find "$source_root" -type l -print -quit)"
+          make -C "$source_root" bootstrap-ci GO_VERSION=1.26.7
+
+      - name: Build and compare two clean unsigned stable inputs
+        env:
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+        run: |
+          set -euo pipefail
+          source_root="$RUNNER_TEMP/l7-v1.0.0-source"
+          first="$RUNNER_TEMP/l7-v1.0.0-unsigned-first"
+          test ! -e "$first"
+          mkdir -m 0700 "$first"
+
+          make -C "$source_root" distribution GO_VERSION=1.26.7
+          make -C "$source_root" v1-inputs GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+          make -C "$source_root" v1-package GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+          for relative in darwin-arm64/l7 darwin-arm64/l7-embed darwin-amd64/l7 darwin-amd64/l7-embed
+          do
+            test -f "$source_root/build/v1-inputs/$relative"
+            test ! -L "$source_root/build/v1-inputs/$relative"
+            mkdir -p "$first/${relative%/*}"
+            cp -p "$source_root/build/v1-inputs/$relative" "$first/$relative"
+          done
+          mkdir "$first/packages"
+          for host in claude codex
+          do
+            cp -p "$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-${host}.zip" "$first/packages/"
+          done
+          test "$(find "$source_root/build/v1-inputs" -type f | wc -l | tr -d ' ')" = 4
+          test "$(find "$source_root/build/v1-candidate" -type f | wc -l | tr -d ' ')" = 2
+
+          input_root="$source_root/build/v1-inputs"
+          package_root="$source_root/build/v1-candidate"
+          case "$input_root" in "$source_root"/build/v1-inputs) rm -rf -- "$input_root" ;; *) exit 1 ;; esac
+          case "$package_root" in "$source_root"/build/v1-candidate) rm -rf -- "$package_root" ;; *) exit 1 ;; esac
+          make -C "$source_root" v1-inputs GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+          make -C "$source_root" v1-package GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+          for relative in darwin-arm64/l7 darwin-arm64/l7-embed darwin-amd64/l7 darwin-amd64/l7-embed
+          do
+            cmp "$first/$relative" "$input_root/$relative"
+          done
+          for host in claude codex
+          do
+            cmp "$first/packages/level7-dev-loop-${L7_RELEASE_VERSION}-${host}.zip" \
+              "$package_root/level7-dev-loop-${L7_RELEASE_VERSION}-${host}.zip"
+          done
+          test "$(find "$input_root" -type f | wc -l | tr -d ' ')" = 4
+          test "$(find "$package_root" -type f | wc -l | tr -d ' ')" = 2
+          make -C "$source_root" v1-package-check GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+
+          jq -n --sort-keys \
+            --arg arm64_l7 "$(shasum -a 256 "$first/darwin-arm64/l7" | awk '{print $1}')" \
+            --arg arm64_embed "$(shasum -a 256 "$first/darwin-arm64/l7-embed" | awk '{print $1}')" \
+            --arg amd64_l7 "$(shasum -a 256 "$first/darwin-amd64/l7" | awk '{print $1}')" \
+            --arg amd64_embed "$(shasum -a 256 "$first/darwin-amd64/l7-embed" | awk '{print $1}')" \
+            '{"darwin-amd64/l7":$amd64_l7,"darwin-amd64/l7-embed":$amd64_embed,"darwin-arm64/l7":$arm64_l7,"darwin-arm64/l7-embed":$arm64_embed}' \
+            > "$RUNNER_TEMP/l7-v1.0.0-unsigned-inputs.json"
+          jq -n --sort-keys \
+            --arg claude "$(shasum -a 256 "$first/packages/level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" | awk '{print $1}')" \
+            --arg codex "$(shasum -a 256 "$first/packages/level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" | awk '{print $1}')" \
+            '{"level7-dev-loop-1.0.0-claude.zip":$claude,"level7-dev-loop-1.0.0-codex.zip":$codex}' \
+            > "$RUNNER_TEMP/l7-v1.0.0-unsigned-packages.json"
+          case "$package_root" in "$source_root"/build/v1-candidate) rm -rf -- "$package_root" ;; *) exit 1 ;; esac
+
+      - name: Sign, validate, notarize once, and freeze release assets
+        env:
+          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+          CANDIDATE_TREE: ${{ inputs.candidate_tree }}
+          PULL_REQUEST: ${{ steps.preflight.outputs.pull-request }}
+        run: |
+          set -euo pipefail
+          for secret_name in \
+            APPLE_DEVELOPER_ID_P12_BASE64 APPLE_DEVELOPER_ID_P12_PASSWORD \
+            APPLE_NOTARY_ISSUER_ID APPLE_NOTARY_KEY_BASE64 APPLE_NOTARY_KEY_ID APPLE_SIGNING_IDENTITY
+          do
+            test -n "${!secret_name:-}"
+          done
+
+          source_root="$RUNNER_TEMP/l7-v1.0.0-source"
+          input_root="$source_root/build/v1-inputs"
+          keychain="$RUNNER_TEMP/l7-v1.0.0.keychain-db"
+          certificate="$RUNNER_TEMP/l7-v1.0.0-signing.p12"
+          notary_key="$RUNNER_TEMP/l7-v1.0.0-notary.p8"
+          assets="$RUNNER_TEMP/l7-v1.0.0-release-assets"
+          extracted="$RUNNER_TEMP/l7-v1.0.0-extracted"
+          keychain_password=$(uuidgen)
+          cleanup() {
+            security delete-keychain "$keychain" >/dev/null 2>&1 || true
+            case "$certificate" in "$RUNNER_TEMP"/l7-v1.0.0-signing.p12) rm -f -- "$certificate" ;; esac
+            case "$notary_key" in "$RUNNER_TEMP"/l7-v1.0.0-notary.p8) rm -f -- "$notary_key" ;; esac
+          }
+          trap cleanup EXIT
+          trap 'exit 130' HUP INT TERM
+          umask 077
+          test ! -e "$keychain"
+          test ! -e "$certificate"
+          test ! -e "$notary_key"
+          test ! -e "$assets"
+          test ! -e "$extracted"
+          printf '%s' "$APPLE_DEVELOPER_ID_P12_BASE64" | /usr/bin/base64 -D > "$certificate"
+          printf '%s' "$APPLE_NOTARY_KEY_BASE64" | /usr/bin/base64 -D > "$notary_key"
+          test -s "$certificate"
+          test -s "$notary_key"
+
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" >/dev/null
+          security find-identity -v -p codesigning "$keychain" | grep -Fq "\"$APPLE_SIGNING_IDENTITY\""
+          xcrun notarytool store-credentials l7-v1-release \
+            --key "$notary_key" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --keychain "$keychain"
+
+          for relative in darwin-arm64/l7 darwin-arm64/l7-embed darwin-amd64/l7 darwin-amd64/l7-embed
+          do
+            binary="$input_root/$relative"
+            codesign --force --sign "$APPLE_SIGNING_IDENTITY" --keychain "$keychain" \
+              --options runtime --timestamp "$binary"
+            codesign --verify --strict --verbose=2 "$binary"
+            details=$(codesign --display --verbose=4 "$binary" 2>&1)
+            printf '%s\n' "$details" | grep -Eq '^CodeDirectory .*flags=.*runtime'
+            printf '%s\n' "$details" | grep -Eq '^Timestamp='
+          done
+
+          make -C "$source_root" v1-package GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+          test "$(find "$source_root/build/v1-candidate" -type f | wc -l | tr -d ' ')" = 2
+          make -C "$source_root" v1-package-check GO_VERSION=1.26.7 \
+            L7_CLI_VERSION="$L7_RELEASE_VERSION" L7_PACKAGE_CHANNEL="$L7_RELEASE_CHANNEL"
+
+          mkdir -m 0700 "$extracted"
+          for host in codex claude
+          do
+            archive="$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-${host}.zip"
+            test -f "$archive"
+            mkdir "$extracted/$host"
+            ditto -x -k "$archive" "$extracted/$host"
+            for relative in darwin-arm64/l7 darwin-arm64/l7-embed darwin-amd64/l7 darwin-amd64/l7-embed
+            do
+              codesign --verify --strict --verbose=2 "$extracted/$host/bin/$relative"
+            done
+          done
+
+          codex_result="$RUNNER_TEMP/l7-v1.0.0-codex-notary.json"
+          claude_result="$RUNNER_TEMP/l7-v1.0.0-claude-notary.json"
+          xcrun notarytool submit "$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" \
+            --keychain-profile l7-v1-release --keychain "$keychain" --wait --output-format json > "$codex_result"
+          jq -e '.status == "Accepted" and (.id | type == "string" and length > 0)' "$codex_result" >/dev/null
+          xcrun notarytool submit "$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" \
+            --keychain-profile l7-v1-release --keychain "$keychain" --wait --output-format json > "$claude_result"
+          jq -e '.status == "Accepted" and (.id | type == "string" and length > 0)' "$claude_result" >/dev/null
+
+          mkdir -m 0700 "$assets"
+          cp "$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" "$assets/"
+          cp "$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" "$assets/"
+          (
+            cd "$assets"
+            shasum -a 256 \
+              "level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" \
+              "level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" > SHA256SUMS
+          )
+
+          codex_name="level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip"
+          claude_name="level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip"
+          codex_sha=$(shasum -a 256 "$assets/$codex_name" | awk '{print $1}')
+          claude_sha=$(shasum -a 256 "$assets/$claude_name" | awk '{print $1}')
+          checksums_sha=$(shasum -a 256 "$assets/SHA256SUMS" | awk '{print $1}')
+          notes_sha=$(shasum -a 256 "$source_root/docs/releases/v1.0.0.md" | awk '{print $1}')
+          jq -n --sort-keys \
+            --arg change_id l7-v1-stable-release \
+            --arg version "$L7_RELEASE_VERSION" \
+            --arg tag "$L7_RELEASE_TAG" \
+            --arg base "$L7_RELEASE_BASE" \
+            --arg commit "$CANDIDATE_COMMIT" \
+            --arg tree "$CANDIDATE_TREE" \
+            --argjson pull_request "$PULL_REQUEST" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg codex_name "$codex_name" \
+            --arg codex_sha "$codex_sha" \
+            --argjson codex_size "$(stat -f %z "$assets/$codex_name")" \
+            --arg codex_notary_id "$(jq -r .id "$codex_result")" \
+            --arg claude_name "$claude_name" \
+            --arg claude_sha "$claude_sha" \
+            --argjson claude_size "$(stat -f %z "$assets/$claude_name")" \
+            --arg claude_notary_id "$(jq -r .id "$claude_result")" \
+            --arg checksums_sha "$checksums_sha" \
+            --argjson checksums_size "$(stat -f %z "$assets/SHA256SUMS")" \
+            --arg notes_sha "$notes_sha" \
+            --slurpfile unsigned_inputs "$RUNNER_TEMP/l7-v1.0.0-unsigned-inputs.json" \
+            --slurpfile unsigned_packages "$RUNNER_TEMP/l7-v1.0.0-unsigned-packages.json" \
+            '{schema:1,change_id:$change_id,version:$version,tag:$tag,candidate:{base:$base,commit:$commit,tree:$tree,pull_request:$pull_request},workflow:{repository:$repository,run_id:$run_id,run_attempt:$run_attempt},unsigned_inputs:$unsigned_inputs[0],unsigned_packages:$unsigned_packages[0],artifacts:[{name:$claude_name,sha256:$claude_sha,size:$claude_size,notarization:{id:$claude_notary_id,status:"Accepted"}},{name:$codex_name,sha256:$codex_sha,size:$codex_size,notarization:{id:$codex_notary_id,status:"Accepted"}}],checksums:{name:"SHA256SUMS",sha256:$checksums_sha,size:$checksums_size},release_notes:{path:"docs/releases/v1.0.0.md",sha256:$notes_sha},artifact_state:"signed-notarized-prepared",authority:"external-only",publication_blocked:true,next:"complete exact-asset provider trials, hosted owner authorization, and protected production approval"}' \
+            > "$assets/RELEASE-MANIFEST.json"
+
+          expected=$(printf '%s\n' RELEASE-MANIFEST.json SHA256SUMS "$claude_name" "$codex_name" | LC_ALL=C sort)
+          observed=$(find "$assets" -mindepth 1 -maxdepth 1 -type f -exec basename {} \; | LC_ALL=C sort)
+          test "$observed" = "$expected"
+          test -z "$(find "$assets" -mindepth 1 -maxdepth 1 ! -type f -print -quit)"
+
+      - name: Attest exact prepared assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/l7-v1.0.0-release-assets/*
+
+      - name: Upload exact prepared assets
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: v1.0.0-prepared-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/l7-v1.0.0-release-assets/level7-dev-loop-1.0.0-codex.zip
+            ${{ runner.temp }}/l7-v1.0.0-release-assets/level7-dev-loop-1.0.0-claude.zip
+            ${{ runner.temp }}/l7-v1.0.0-release-assets/SHA256SUMS
+            ${{ runner.temp }}/l7-v1.0.0-release-assets/RELEASE-MANIFEST.json
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 7
+
+      - name: Emit the exact external handoff
+        env:
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+          CANDIDATE_TREE: ${{ inputs.candidate_tree }}
+        run: |
+          set -euo pipefail
+          assets="$RUNNER_TEMP/l7-v1.0.0-release-assets"
+          codex_sha=$(shasum -a 256 "$assets/level7-dev-loop-1.0.0-codex.zip" | awk '{print $1}')
+          claude_sha=$(shasum -a 256 "$assets/level7-dev-loop-1.0.0-claude.zip" | awk '{print $1}')
+          checksums_sha=$(shasum -a 256 "$assets/SHA256SUMS" | awk '{print $1}')
+          manifest_sha=$(shasum -a 256 "$assets/RELEASE-MANIFEST.json" | awk '{print $1}')
+          authorization="I, Anup Pandey (addressanup), Product Owner, authorize GitHub Actions run ${GITHUB_RUN_ID} attempt ${GITHUB_RUN_ATTEMPT} to publish only Level 7 v1.0.0 candidate commit ${CANDIDATE_COMMIT}, tree ${CANDIDATE_TREE}, with assets level7-dev-loop-1.0.0-codex.zip=${codex_sha}, level7-dev-loop-1.0.0-claude.zip=${claude_sha}, SHA256SUMS=${checksums_sha}, RELEASE-MANIFEST.json=${manifest_sha}, as annotated tag and immutable GitHub release v1.0.0; no other release, installation, or deployment effect is authorized."
+          trial=$(jq -n --sort-keys \
+            --arg commit "$CANDIDATE_COMMIT" --arg tree "$CANDIDATE_TREE" \
+            --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg codex_sha "$codex_sha" --arg claude_sha "$claude_sha" '
+            {schema:1,kind:"l7-v1-provider-trial",result:"PASS",candidate_commit:$commit,candidate_tree:$tree,workflow_run_id:$run_id,workflow_run_attempt:$run_attempt,architecture:"REPLACE_WITH_darwin/arm64_OR_darwin/amd64",codex:{archive_sha256:$codex_sha,host_version:"REPLACE_WITH_OBSERVED_VERSION",provider:"REPLACE_WITH_OBSERVED_PROVIDER",model:"REPLACE_WITH_OBSERVED_MODEL",commands:["REPLACE_WITH_EACH_EXACT_COMMAND; AT_LEAST_NINE_ENTRIES"],transcript_sha256:"REPLACE_WITH_64_LOWERCASE_HEX",operations:{marketplace_validation:"PASS",marketplace_add:"PASS",install:"PASS",discovery:"PASS",named_skill_invocation:"PASS",provider_execution:"PASS",uninstall:"PASS",marketplace_remove:"PASS",residue:"PASS"}},claude:{archive_sha256:$claude_sha,host_version:"REPLACE_WITH_OBSERVED_VERSION",provider:"REPLACE_WITH_OBSERVED_PROVIDER",model:"REPLACE_WITH_OBSERVED_MODEL",commands:["REPLACE_WITH_EACH_EXACT_COMMAND; AT_LEAST_NINE_ENTRIES"],transcript_sha256:"REPLACE_WITH_64_LOWERCASE_HEX",operations:{marketplace_validation:"PASS",marketplace_add:"PASS",install:"PASS",discovery:"PASS",named_skill_invocation:"PASS",provider_execution:"PASS",uninstall:"PASS",marketplace_remove:"PASS",residue:"PASS"}}}')
+          {
+            printf "# v1.0.0 external handoff\n\n"
+            printf "The production job remains blocked. Under separate provider/network authority, \`anup19950725\` must download artifact \`%s\`, perform both exact-asset trials from disposable host roots, and post the completed raw JSON below on the merged pull request. Replace every placeholder, list each exact command, hash the redacted transcript, and include no credential or secret.\n\n" "${{ steps.upload.outputs.artifact-id }}"
+            printf "\`\`\`json\n%s\n\`\`\`\n\n" "$trial"
+            printf "After the trial passes, \`addressanup\` must post this exact separate authorization on that pull request, then approve \`v1-production\`:\n\n> %s\n" "$authorization"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: Owner-gated immutable publication
+    needs: prepare
+    runs-on: macos-15
+    timeout-minutes: 30
+    environment:
+      name: v1-production
+    permissions:
+      actions: read
+      attestations: read
+      contents: write
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Check out exact merged candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.candidate_commit }}
+          fetch-depth: 1
+          path: candidate
+          persist-credentials: false
+
+      - name: Download exact prepared artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact-id }}
+          path: prepared
+          merge-multiple: true
+
+      - name: Revalidate every boundary and publish once
+        env:
+          CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
+          CANDIDATE_TREE: ${{ inputs.candidate_tree }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTOR" = anup19950725
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$RELEASE_ADMIN_TOKEN"
+          [[ "$CANDIDATE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_TREE" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_COMMIT"
+          test "$(git -C candidate rev-parse 'HEAD^{tree}')" = "$CANDIDATE_TREE"
+          test -z "$(git -C candidate status --porcelain --untracked-files=all)"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)" = "$CANDIDATE_COMMIT"
+
+          expected=$(printf '%s\n' RELEASE-MANIFEST.json SHA256SUMS \
+            level7-dev-loop-1.0.0-claude.zip level7-dev-loop-1.0.0-codex.zip | LC_ALL=C sort)
+          observed=$(find prepared -mindepth 1 -maxdepth 1 -type f -exec basename {} \; | LC_ALL=C sort)
+          test "$observed" = "$expected"
+          test -z "$(find prepared -mindepth 1 -maxdepth 1 ! -type f -print -quit)"
+          test "$(find prepared -type f -size +300M -print -quit)" = ""
+          (cd prepared && shasum -a 256 -c SHA256SUMS)
+
+          manifest=prepared/RELEASE-MANIFEST.json
+          jq -e \
+            --arg commit "$CANDIDATE_COMMIT" --arg tree "$CANDIDATE_TREE" --arg base "$L7_RELEASE_BASE" \
+            --arg repository "$GITHUB_REPOSITORY" --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" '
+            .schema == 1 and .change_id == "l7-v1-stable-release" and .version == "1.0.0" and .tag == "v1.0.0" and
+            .candidate.base == $base and .candidate.commit == $commit and .candidate.tree == $tree and
+            .workflow.repository == $repository and .workflow.run_id == $run_id and .workflow.run_attempt == $run_attempt and
+            .artifact_state == "signed-notarized-prepared" and .authority == "external-only" and
+            .publication_blocked == true and (.unsigned_inputs | type == "object" and length == 4) and
+            (.unsigned_packages | type == "object" and length == 2) and
+            (.artifacts | length == 2) and all(.artifacts[]; .notarization.status == "Accepted" and (.notarization.id | length > 0)) and
+            .checksums.name == "SHA256SUMS" and .release_notes.path == "docs/releases/v1.0.0.md"' "$manifest" >/dev/null
+          test "$(jq -r .release_notes.sha256 "$manifest")" = "$(shasum -a 256 candidate/docs/releases/v1.0.0.md | awk '{print $1}')"
+          for name in level7-dev-loop-1.0.0-claude.zip level7-dev-loop-1.0.0-codex.zip
+          do
+            test "$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .sha256' "$manifest")" = \
+              "$(shasum -a 256 "prepared/$name" | awk '{print $1}')"
+            test "$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .size' "$manifest")" = \
+              "$(stat -f %z "prepared/$name")"
+          done
+          test "$(jq -r .checksums.sha256 "$manifest")" = "$(shasum -a 256 prepared/SHA256SUMS | awk '{print $1}')"
+          test "$(jq -r .checksums.size "$manifest")" = "$(stat -f %z prepared/SHA256SUMS)"
+
+          pulls=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${CANDIDATE_COMMIT}/pulls?per_page=100")
+          pull=$(printf '%s' "$pulls" | jq -ce --arg commit "$CANDIDATE_COMMIT" \
+            '[.[] | select(.merged_at != null and .merge_commit_sha == $commit)] | if length == 1 then .[0] else error("exact merged pull request not found") end')
+          number=$(printf '%s' "$pull" | jq -r .number)
+          pr_head=$(printf '%s' "$pull" | jq -r .head.sha)
+          test "$number" = "$(jq -r .candidate.pull_request "$manifest")"
+          test "$(printf '%s' "$pull" | jq -r .base.sha)" = "$L7_RELEASE_BASE"
+          test "$(printf '%s' "$pull" | jq -r .user.login)" = anup19950725
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${pr_head}" --jq .tree.sha)" = "$CANDIDATE_TREE"
+          read -r -a parents <<< "$(git -C candidate rev-list --parents -n 1 HEAD)"
+          test "${#parents[@]}" = 3
+          test "${parents[1]}" = "$L7_RELEASE_BASE"
+          test "${parents[2]}" = "$pr_head"
+          test "$(printf '%s' "$pull" | jq -c '[.labels[].name | select(test("^l7-risk-tier-[123]$"))] | unique')" = '["l7-risk-tier-3"]'
+
+          check_stream=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${pr_head}/check-runs?per_page=100" --jq '.check_runs[]')
+          for name in \
+            'Go 1.26.7 (baseline)' \
+            'Go 1.27.0 (shadow)' \
+            'CLI macOS 15 (arm64)' \
+            'CLI macOS 15 (amd64)' \
+            'CLI paired benchmark gate' \
+            'evaluate'
+          do
+            latest=$(printf '%s\n' "$check_stream" | jq -sce --arg name "$name" \
+              '[.[] | select(.name == $name)] | sort_by(.started_at // .created_at) | if length > 0 then last else error("required check absent") end')
+            test "$(printf '%s' "$latest" | jq -r .head_sha)" = "$pr_head"
+            test "$(printf '%s' "$latest" | jq -r .app.slug)" = github-actions
+            test "$(printf '%s' "$latest" | jq -r .status)" = completed
+            test "$(printf '%s' "$latest" | jq -r .conclusion)" = success
+          done
+          review_stream=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${number}/reviews?per_page=100" --jq '.[]')
+          for reviewer in addressanup apbusinessidentity-tech
+          do
+            review=$(printf '%s\n' "$review_stream" | jq -sce --arg reviewer "$reviewer" \
+              '[.[] | select(.user.login == $reviewer)] | sort_by(.submitted_at // "") | if length > 0 then last else error("required review absent") end')
+            test "$(printf '%s' "$review" | jq -r .commit_id)" = "$pr_head"
+            test "$(printf '%s' "$review" | jq -r .state)" = APPROVED
+          done
+
+          signing=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/environments/v1-signing")
+          printf '%s' "$signing" | jq -e \
+            '.deployment_branch_policy.protected_branches == true and .deployment_branch_policy.custom_branch_policies == false' >/dev/null
+          production=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/environments/v1-production")
+          printf '%s' "$production" | jq -e '
+            .deployment_branch_policy.protected_branches == true and
+            .deployment_branch_policy.custom_branch_policies == false and
+            ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 1 and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].prevent_self_review == true) and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].reviewers | length) == 1 and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].reviewers[0].type == "User") and
+            ([.protection_rules[] | select(.type == "required_reviewers")][0].reviewers[0].reviewer.login == "addressanup")' >/dev/null
+          immutable=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/immutable-releases")
+          test "$(printf '%s' "$immutable" | jq -r .enabled)" = true
+
+          expect_absent() {
+            local endpoint=$1 response status
+            response=$(mktemp "$RUNNER_TEMP/l7-absent.XXXXXX")
+            status=$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/${endpoint}")
+            test "$status" = 404
+            rm -f -- "$response"
+          }
+          expect_absent "repos/${GITHUB_REPOSITORY}/git/ref/tags/${L7_RELEASE_TAG}"
+          expect_absent "repos/${GITHUB_REPOSITORY}/releases/tags/${L7_RELEASE_TAG}"
+
+          for asset in prepared/level7-dev-loop-1.0.0-claude.zip prepared/level7-dev-loop-1.0.0-codex.zip prepared/SHA256SUMS prepared/RELEASE-MANIFEST.json
+          do
+            gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY"
+          done
+
+          codex_sha=$(shasum -a 256 prepared/level7-dev-loop-1.0.0-codex.zip | awk '{print $1}')
+          claude_sha=$(shasum -a 256 prepared/level7-dev-loop-1.0.0-claude.zip | awk '{print $1}')
+          checksums_sha=$(shasum -a 256 prepared/SHA256SUMS | awk '{print $1}')
+          manifest_sha=$(shasum -a 256 prepared/RELEASE-MANIFEST.json | awk '{print $1}')
+          comment_stream=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${number}/comments?per_page=100" --jq '.[]')
+          trial_count=$(printf '%s\n' "$comment_stream" | jq -sc \
+            --arg actor anup19950725 --arg commit "$CANDIDATE_COMMIT" --arg tree "$CANDIDATE_TREE" \
+            --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg codex_sha "$codex_sha" --arg claude_sha "$claude_sha" '
+            def observed_text:
+              type == "string" and length > 0 and length <= 128 and
+              (contains("<") | not) and . != "REPLACE" and . != "TODO" and . != "UNKNOWN";
+            def host_pass($host; $sha):
+              $host.archive_sha256 == $sha and
+              ($host.host_version | observed_text) and ($host.provider | observed_text) and ($host.model | observed_text) and
+              ($host.commands | type == "array" and length >= 9 and all(.[]; type == "string" and length > 0 and length <= 1024 and (contains("REPLACE_WITH") | not))) and
+              ($host.transcript_sha256 | test("^[0-9a-f]{64}$")) and
+              all([$host.operations.marketplace_validation,$host.operations.marketplace_add,$host.operations.install,$host.operations.discovery,$host.operations.named_skill_invocation,$host.operations.provider_execution,$host.operations.uninstall,$host.operations.marketplace_remove,$host.operations.residue][]; . == "PASS");
+            [.[] | select(.user.login == $actor) | (.body | fromjson?) as $trial |
+              select($trial.schema == 1 and $trial.kind == "l7-v1-provider-trial" and $trial.result == "PASS" and
+                $trial.candidate_commit == $commit and $trial.candidate_tree == $tree and
+                $trial.workflow_run_id == $run_id and $trial.workflow_run_attempt == $run_attempt and
+                ($trial.architecture == "darwin/arm64" or $trial.architecture == "darwin/amd64") and
+                host_pass($trial.codex; $codex_sha) and host_pass($trial.claude; $claude_sha))] | length')
+          test "$trial_count" = 1
+
+          authorization="I, Anup Pandey (addressanup), Product Owner, authorize GitHub Actions run ${GITHUB_RUN_ID} attempt ${GITHUB_RUN_ATTEMPT} to publish only Level 7 v1.0.0 candidate commit ${CANDIDATE_COMMIT}, tree ${CANDIDATE_TREE}, with assets level7-dev-loop-1.0.0-codex.zip=${codex_sha}, level7-dev-loop-1.0.0-claude.zip=${claude_sha}, SHA256SUMS=${checksums_sha}, RELEASE-MANIFEST.json=${manifest_sha}, as annotated tag and immutable GitHub release v1.0.0; no other release, installation, or deployment effect is authorized."
+          owner_count=$(printf '%s\n' "$comment_stream" | jq -sc --arg body "$authorization" \
+            '[.[] | select(.user.login == "addressanup" and .author_association == "OWNER" and .body == $body)] | length')
+          test "$owner_count" = 1
+
+          create_request="$RUNNER_TEMP/l7-v1.0.0-create-release.json"
+          jq -n --rawfile body candidate/docs/releases/v1.0.0.md \
+            --arg tag "$L7_RELEASE_TAG" --arg commit "$CANDIDATE_COMMIT" \
+            '{tag_name:$tag,target_commitish:$commit,name:"Level 7 Dev Loop v1.0.0",body:$body,draft:true,prerelease:false,generate_release_notes:false,make_latest:"true"}' \
+            > "$create_request"
+          tag_object=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/tags" \
+            -f tag="$L7_RELEASE_TAG" -f message='Level 7 Dev Loop v1.0.0' -f object="$CANDIDATE_COMMIT" -f type=commit)
+          tag_sha=$(printf '%s' "$tag_object" | jq -er .sha)
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/${L7_RELEASE_TAG}" -f sha="$tag_sha" >/dev/null
+          release=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" --input "$create_request")
+          release_id=$(printf '%s' "$release" | jq -er 'select(.draft == true and .tag_name == "v1.0.0") | .id')
+          gh release upload "$L7_RELEASE_TAG" \
+            prepared/level7-dev-loop-1.0.0-codex.zip \
+            prepared/level7-dev-loop-1.0.0-claude.zip \
+            prepared/SHA256SUMS \
+            prepared/RELEASE-MANIFEST.json
+
+          remote=$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}")
+          test "$(printf '%s' "$remote" | jq -r .draft)" = true
+          test "$(printf '%s' "$remote" | jq -c '[.assets[].name] | sort')" = \
+            '["RELEASE-MANIFEST.json","SHA256SUMS","level7-dev-loop-1.0.0-claude.zip","level7-dev-loop-1.0.0-codex.zip"]'
+          test "$(printf '%s' "$remote" | jq '[.assets[] | select(.state == "uploaded" and .size > 0)] | length')" = 4
+          body_check="$RUNNER_TEMP/l7-v1.0.0-release-body.md"
+          printf '%s' "$remote" | jq -j .body > "$body_check"
+          cmp candidate/docs/releases/v1.0.0.md "$body_check"
+          staged="$RUNNER_TEMP/l7-v1.0.0-staged-assets"
+          test ! -e "$staged"
+          mkdir -m 0700 "$staged"
+          gh release download "$L7_RELEASE_TAG" --dir "$staged"
+          test "$(find "$staged" -mindepth 1 -maxdepth 1 -type f -exec basename {} \; | LC_ALL=C sort)" = "$expected"
+          for name in RELEASE-MANIFEST.json SHA256SUMS level7-dev-loop-1.0.0-claude.zip level7-dev-loop-1.0.0-codex.zip
+          do
+            cmp "prepared/$name" "$staged/$name"
+          done
+
+          published=$(jq -n '{draft:false,make_latest:"true"}' | \
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" --input -)
+          test "$(printf '%s' "$published" | jq -r .draft)" = false
+          final=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}")
+          test "$(printf '%s' "$final" | jq -r .tag_name)" = "$L7_RELEASE_TAG"
+          test "$(printf '%s' "$final" | jq -r .draft)" = false
+          test "$(printf '%s' "$final" | jq -r .immutable)" = true
+          test "$(printf '%s' "$final" | jq -c '[.assets[].name] | sort')" = \
+            '["RELEASE-MANIFEST.json","SHA256SUMS","level7-dev-loop-1.0.0-claude.zip","level7-dev-loop-1.0.0-codex.zip"]'

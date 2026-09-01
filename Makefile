@@ -35,7 +35,14 @@ $(error harness/modules.lock.tsv must contain exactly one active core module)
 endif
 override HARNESS_IMPORT_PATH := $(CORE_MODULE_PATH)/internal/harness
 override HARNESS_IDENTITY_LDFLAGS := -X $(HARNESS_IMPORT_PATH).expectedGoVersion=$(L7_EXPECT_GO_VERSION) -X $(HARNESS_IMPORT_PATH).expectedGOOS=$(HOST_GOOS) -X $(HARNESS_IMPORT_PATH).expectedGOARCH=$(HOST_GOARCH)
-override L7_CLI_VERSION := 1.0.0-dev
+ifneq ($(filter environment environment override,$(origin L7_CLI_VERSION)),)
+$(error L7_CLI_VERSION must be an explicit make command-line variable, not ambient environment state)
+endif
+ifneq ($(filter environment environment override,$(origin L7_PACKAGE_CHANNEL)),)
+$(error L7_PACKAGE_CHANNEL must be an explicit make command-line variable, not ambient environment state)
+endif
+L7_CLI_VERSION ?= 1.0.0-dev
+L7_PACKAGE_CHANNEL ?= development-candidate
 override CLI_PACKAGE := ./cmd/l7
 override CLI_LDFLAGS := -buildid= -X main.version=$(L7_CLI_VERSION)
 
@@ -79,7 +86,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap bootstrap-ci bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap bootstrap-ci bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -148,9 +155,25 @@ v1-inputs: install
 	@xcrun swiftc -O -target arm64-apple-macos13.0 -o "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64/l7-embed" "$(PROJECT_ROOT)/cmd/l7-embed/main.swift"
 	@xcrun swiftc -O -target x86_64-apple-macos13.0 -o "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7-embed" "$(PROJECT_ROOT)/cmd/l7-embed/main.swift"
 
-v1-candidate: v1-inputs
+v1-package: install
 	@mkdir -p "$(PROJECT_ROOT)/build/v1-candidate"
-	@"$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$(PROJECT_ROOT)/build/v1-inputs" --output "$(PROJECT_ROOT)/build/v1-candidate"
+	@"$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$(PROJECT_ROOT)/build/v1-inputs" --output "$(PROJECT_ROOT)/build/v1-candidate" --version "$(L7_CLI_VERSION)" --channel "$(L7_PACKAGE_CHANNEL)"
+
+v1-package-check: install
+	@set -eu; \
+	 work="$$(mktemp -d "$(PROJECT_ROOT)/build/v1-package-check.XXXXXX")"; \
+	 cleanup() { case $$work in "$(PROJECT_ROOT)"/build/v1-package-check.*) rm -rf -- "$$work" ;; *) return 1 ;; esac; }; \
+	 trap cleanup EXIT; \
+	 trap 'exit 130' HUP INT TERM; \
+	 "$(GO)" run -mod=readonly ./internal/harness/v1candidate \
+	   --candidate "$(PROJECT_ROOT)/build/v1-candidate" \
+	   --stable "$(PROJECT_ROOT)/build/distributions" \
+	   --work "$$work" \
+	   --candidate-version "$(L7_CLI_VERSION)" \
+	   --candidate-channel "$(L7_PACKAGE_CHANNEL)"; \
+	 test -z "$$(find "$$work" -mindepth 1 -print -quit)"
+
+v1-candidate: v1-inputs v1-package
 
 v1-conformance-check: v1-candidate
 	@./scripts/harness/check-v1-conformance.sh "$(GO)"
@@ -168,7 +191,7 @@ v1-candidate-check: v1-candidate v1-conformance-check
 	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7" "$$second/input/darwin-amd64/l7"; \
 	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-arm64/l7-embed" "$$second/input/darwin-arm64/l7-embed"; \
 	 cmp "$(PROJECT_ROOT)/build/v1-inputs/darwin-amd64/l7-embed" "$$second/input/darwin-amd64/l7-embed"; \
-	 "$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$$second/input" --output "$$second/output" >/dev/null; \
+	 "$(GO)" run -mod=readonly ./cmd/l7pack --root "$(PROJECT_ROOT)" --input "$$second/input" --output "$$second/output" --version "$(L7_CLI_VERSION)" --channel "$(L7_PACKAGE_CHANNEL)" >/dev/null; \
 	 cmp "$(PROJECT_ROOT)/build/v1-candidate/level7-dev-loop-$(L7_CLI_VERSION)-codex.zip" "$$second/output/level7-dev-loop-$(L7_CLI_VERSION)-codex.zip"; \
 	 cmp "$(PROJECT_ROOT)/build/v1-candidate/level7-dev-loop-$(L7_CLI_VERSION)-claude.zip" "$$second/output/level7-dev-loop-$(L7_CLI_VERSION)-claude.zip"; \
 	 printf 'v1-candidate-check: PASS (darwin arm64/amd64 reproducible binaries and host packages; unsigned release blocked)\n'

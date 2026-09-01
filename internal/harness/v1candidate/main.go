@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"debug/buildinfo"
 	"debug/macho"
 	"encoding/hex"
 	"encoding/json"
@@ -30,6 +31,10 @@ import (
 const (
 	stableVersion      = "0.1.1"
 	candidateVersion   = "1.0.0-dev"
+	releaseVersion     = "1.0.0"
+	candidateChannel   = "development-candidate"
+	releaseChannel     = "stable"
+	v1MarketplaceName  = "level7-engineering-v1"
 	maxArchiveBytes    = 256 << 20
 	maxArchiveFiles    = 512
 	maxFileBytes       = 128 << 20
@@ -37,6 +42,11 @@ const (
 	maxProcessOutput   = 4 << 20
 	networkDenyProfile = "(version 1)(allow default)(deny network*)"
 )
+
+type candidateIdentity struct {
+	Version string
+	Channel string
+}
 
 var canonicalSkills = []string{
 	"l7-build", "l7-change", "l7-constitution", "l7-cyber", "l7-deploy", "l7-experience", "l7-geometry", "l7-greenfield",
@@ -93,7 +103,14 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	candidateDirectory := flags.String("candidate", "", "directory containing v1 candidate archives")
 	stableDirectory := flags.String("stable", "", "directory containing frozen v0.1.1 archives")
 	workDirectory := flags.String("work", "", "empty disposable work root")
+	candidateVersionFlag := flags.String("candidate-version", candidateVersion, "exact candidate package version")
+	candidateChannelFlag := flags.String("candidate-channel", candidateChannel, "exact candidate package channel")
 	if flags.Parse(arguments) != nil || flags.NArg() != 0 || *candidateDirectory == "" || *stableDirectory == "" || *workDirectory == "" {
+		return 2
+	}
+	identity, err := validateCandidateIdentity(*candidateVersionFlag, *candidateChannelFlag)
+	if err != nil {
+		fmt.Fprintln(stderr, "v1candidate: candidate identity must be exactly 1.0.0-dev/development-candidate or 1.0.0/stable")
 		return 2
 	}
 	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm64" && runtime.GOARCH != "amd64") {
@@ -135,13 +152,13 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		if err == nil {
 			err = verifySHA256Sidecar(filepath.Join(stableRoot, stableName+".sha256"), stableName, stableArchive.Digest)
 		}
-		candidateName := fmt.Sprintf("level7-dev-loop-%s-%s.zip", candidateVersion, host)
+		candidateName := fmt.Sprintf("level7-dev-loop-%s-%s.zip", identity.Version, host)
 		var candidateArchive archivePackage
 		if err == nil {
-			candidateArchive, err = loadArchive(filepath.Join(candidateRoot, candidateName), host, candidateVersion)
+			candidateArchive, err = loadArchive(filepath.Join(candidateRoot, candidateName), host, identity.Version)
 		}
 		if err == nil {
-			err = validateCandidate(candidateArchive)
+			err = validateCandidate(candidateArchive, identity)
 		}
 		if err == nil {
 			err = installInitial(lifecycleRoot, stableArchive)
@@ -150,7 +167,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 			err = upgradeInstallation(lifecycleRoot, stableArchive.Digest, candidateArchive)
 		}
 		if err == nil {
-			err = executeCandidate(lifecycleRoot, executionRoot, host)
+			err = executeCandidate(lifecycleRoot, executionRoot, host, identity.Version)
 		}
 		if err == nil {
 			err = rollbackInstallation(lifecycleRoot, candidateArchive.Digest, stableArchive.Digest)
@@ -169,6 +186,15 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "%s stable_sha256=%s candidate_sha256=%s native=darwin/%s lifecycle=PASS cli=PASS mcp=PASS\n", host, stableArchive.Digest, candidateArchive.Digest, runtime.GOARCH)
 	}
 	return 0
+}
+
+func validateCandidateIdentity(version, channel string) (candidateIdentity, error) {
+	identity := candidateIdentity{Version: version, Channel: channel}
+	if identity == (candidateIdentity{Version: candidateVersion, Channel: candidateChannel}) ||
+		identity == (candidateIdentity{Version: releaseVersion, Channel: releaseChannel}) {
+		return identity, nil
+	}
+	return candidateIdentity{}, errors.New("unsupported candidate identity")
 }
 
 func loadArchive(name, host, version string) (archivePackage, error) {
@@ -259,7 +285,10 @@ func validateStable(pkg archivePackage) error {
 	return nil
 }
 
-func validateCandidate(pkg archivePackage) error {
+func validateCandidate(pkg archivePackage, identity candidateIdentity) error {
+	if observed, err := validateCandidateIdentity(pkg.Version, identity.Channel); err != nil || observed != identity {
+		return errors.New("candidate version and channel are invalid")
+	}
 	manifest := ".codex-plugin/plugin.json"
 	if pkg.Host == "claude" {
 		manifest = ".claude-plugin/plugin.json"
@@ -268,7 +297,7 @@ func validateCandidate(pkg archivePackage) error {
 		return err
 	}
 	expected := []string{
-		manifest, ".mcp.json", "CHANGELOG.md", "CHECKSUMS.json", "LICENSE", "PERMISSIONS.json", "PROVENANCE.input.json", "README.md", "SBOM.spdx.json",
+		manifest, candidateMarketplacePath(pkg.Host), ".mcp.json", "CHANGELOG.md", "CHECKSUMS.json", "LICENSE", "PERMISSIONS.json", "PROVENANCE.input.json", "README.md", "SBOM.spdx.json",
 		"bin/darwin-amd64/l7", "bin/darwin-amd64/l7-embed", "bin/darwin-arm64/l7", "bin/darwin-arm64/l7-embed", "bin/l7",
 	}
 	for _, skill := range canonicalSkills {
@@ -296,7 +325,7 @@ func validateCandidate(pkg archivePackage) error {
 		Version string         `json:"version"`
 		Files   []declaredFile `json:"files"`
 	}
-	if err := decodeArchiveJSON(pkg, "CHECKSUMS.json", &checksums); err != nil || checksums.Schema != 1 || checksums.Version != candidateVersion {
+	if err := decodeArchiveJSON(pkg, "CHECKSUMS.json", &checksums); err != nil || checksums.Schema != 1 || checksums.Version != pkg.Version {
 		return errors.New("candidate checksum metadata is invalid")
 	}
 	if err := validateDeclaredFiles(pkg, checksums.Files, map[string]bool{"CHECKSUMS.json": true, "SBOM.spdx.json": true}, false); err != nil {
@@ -305,18 +334,11 @@ func validateCandidate(pkg archivePackage) error {
 	if err := validateCandidateSBOM(pkg, checksums.Files); err != nil {
 		return err
 	}
-	var provenance struct {
-		Channel        string `json:"channel"`
-		Host           string `json:"host"`
-		Next           string `json:"next"`
-		ReleaseBlocked bool   `json:"release_blocked"`
-		Schema         int    `json:"schema"`
-		Signed         bool   `json:"signed"`
-		Version        string `json:"version"`
+	if err := validateCandidateProvenance(pkg, identity); err != nil {
+		return err
 	}
-	if err := decodeArchiveJSON(pkg, "PROVENANCE.input.json", &provenance); err != nil || provenance.Schema != 1 || provenance.Version != candidateVersion ||
-		provenance.Host != pkg.Host || provenance.Channel != "development-candidate" || provenance.Signed || !provenance.ReleaseBlocked || provenance.Next == "" {
-		return errors.New("candidate unsigned provenance is invalid")
+	if err := validateCandidateMarketplace(pkg); err != nil {
+		return err
 	}
 	if err := validateMCPConfiguration(pkg); err != nil {
 		return err
@@ -327,11 +349,97 @@ func validateCandidate(pkg archivePackage) error {
 			if entry == nil || validateMachO(entry.Data, architecture) != nil {
 				return fmt.Errorf("candidate darwin/%s %s is invalid", architecture, executable)
 			}
+			if executable == "l7" && validateGoBinaryIdentity(entry.Data, identity.Version) != nil {
+				return fmt.Errorf("candidate darwin/%s Level 7 build identity is invalid", architecture)
+			}
 		}
 	}
 	launcher := archiveFileNamed(pkg, "bin/l7")
 	if launcher == nil || !bytes.HasPrefix(launcher.Data, []byte("#!/bin/sh\n")) || !bytes.Contains(launcher.Data, []byte(`exec "$platform_dir/l7" "$@"`)) {
 		return errors.New("candidate native launcher is invalid")
+	}
+	return nil
+}
+
+func candidateMarketplacePath(host string) string {
+	if host == "claude" {
+		return ".claude-plugin/marketplace.json"
+	}
+	return ".agents/plugins/marketplace.json"
+}
+
+func validateCandidateProvenance(pkg archivePackage, identity candidateIdentity) error {
+	var provenance struct {
+		Schema         int    `json:"schema"`
+		Version        string `json:"version"`
+		Host           string `json:"host"`
+		Channel        string `json:"channel"`
+		ArtifactState  string `json:"artifact_state"`
+		Authority      string `json:"authority"`
+		ReleaseBlocked bool   `json:"release_blocked"`
+		Next           string `json:"next"`
+	}
+	if err := decodeArchiveJSON(pkg, "PROVENANCE.input.json", &provenance); err != nil || provenance.Schema != 2 || provenance.Version != identity.Version ||
+		provenance.Host != pkg.Host || provenance.Channel != identity.Channel || provenance.ArtifactState != "package-input" ||
+		provenance.Authority != "external-only" || !provenance.ReleaseBlocked || provenance.Next == "" {
+		return errors.New("candidate release-blocked input provenance is invalid")
+	}
+	return nil
+}
+
+func validateCandidateMarketplace(pkg archivePackage) error {
+	if pkg.Host == "codex" {
+		var catalog struct {
+			Name      string `json:"name"`
+			Interface struct {
+				DisplayName string `json:"displayName"`
+			} `json:"interface"`
+			Plugins []struct {
+				Name   string `json:"name"`
+				Source struct {
+					Source string `json:"source"`
+					Path   string `json:"path"`
+				} `json:"source"`
+				Policy struct {
+					Installation   string `json:"installation"`
+					Authentication string `json:"authentication"`
+				} `json:"policy"`
+				Category string `json:"category"`
+			} `json:"plugins"`
+		}
+		if err := decodeArchiveJSON(pkg, candidateMarketplacePath(pkg.Host), &catalog); err != nil || catalog.Name != v1MarketplaceName || catalog.Interface.DisplayName != "Level 7 Engineering v1" || len(catalog.Plugins) != 1 {
+			return errors.New("candidate Codex marketplace is invalid")
+		}
+		plugin := catalog.Plugins[0]
+		if plugin.Name != "level7-dev-loop" || plugin.Source.Source != "local" || plugin.Source.Path != "." ||
+			plugin.Policy.Installation != "AVAILABLE" || plugin.Policy.Authentication != "ON_INSTALL" || plugin.Category != "Developer Tools" {
+			return errors.New("candidate Codex marketplace source is invalid")
+		}
+		return nil
+	}
+	var catalog struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Owner       struct {
+			Name string `json:"name"`
+		} `json:"owner"`
+		Plugins []struct {
+			Name        string `json:"name"`
+			Source      string `json:"source"`
+			Description string `json:"description"`
+			Version     string `json:"version"`
+			License     string `json:"license"`
+			Category    string `json:"category"`
+			Strict      bool   `json:"strict"`
+		} `json:"plugins"`
+	}
+	if err := decodeArchiveJSON(pkg, candidateMarketplacePath(pkg.Host), &catalog); err != nil || catalog.Name != v1MarketplaceName || catalog.Description == "" || catalog.Owner.Name != "Level 7 Engineering" || len(catalog.Plugins) != 1 {
+		return errors.New("candidate Claude marketplace is invalid")
+	}
+	plugin := catalog.Plugins[0]
+	if plugin.Name != "level7-dev-loop" || plugin.Source != "." || plugin.Description == "" || plugin.Version != pkg.Version ||
+		plugin.License != "MIT" || plugin.Category != "Development Tools" || !plugin.Strict {
+		return errors.New("candidate Claude marketplace source is invalid")
 	}
 	return nil
 }
@@ -395,7 +503,7 @@ func validateCandidateSBOM(pkg archivePackage, checks []declaredFile) error {
 		} `json:"files"`
 	}
 	if err := decodeArchiveJSON(pkg, "SBOM.spdx.json", &document); err != nil || document.SPDXVersion != "SPDX-2.3" || document.DataLicense != "CC0-1.0" || document.SPDXID != "SPDXRef-DOCUMENT" ||
-		document.Name != "level7-dev-loop-"+candidateVersion+"-"+pkg.Host || !strings.HasSuffix(document.DocumentNamespace, "/"+candidateVersion+"/"+pkg.Host) || len(document.Files) != len(checks) {
+		document.Name != "level7-dev-loop-"+pkg.Version+"-"+pkg.Host || !strings.HasSuffix(document.DocumentNamespace, "/"+pkg.Version+"/"+pkg.Host) || len(document.Files) != len(checks) {
 		return errors.New("candidate SBOM identity is invalid")
 	}
 	for index, file := range document.Files {
@@ -702,7 +810,7 @@ func receiptDigest(receipt lifecycleReceipt) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func executeCandidate(lifecycleRoot, executionRoot, host string) error {
+func executeCandidate(lifecycleRoot, executionRoot, host, expectedVersion string) error {
 	if err := os.Mkdir(executionRoot, 0o700); err != nil {
 		return err
 	}
@@ -727,7 +835,7 @@ func executeCandidate(lifecycleRoot, executionRoot, host string) error {
 		Next    string `json:"next"`
 		Details []any  `json:"details"`
 	}
-	if decodeStrict(versionOutput, &version) != nil || version.Schema != 4 || version.Outcome != "PASS" || version.Code != "L7-CLI-000" || version.Command != "version" || version.Version != candidateVersion {
+	if decodeStrict(versionOutput, &version) != nil || version.Schema != 4 || version.Outcome != "PASS" || version.Code != "L7-CLI-000" || version.Command != "version" || version.Version != expectedVersion {
 		return errors.New("native JSON CLI contract is invalid")
 	}
 	requests := strings.Join([]string{
@@ -743,7 +851,7 @@ func executeCandidate(lifecycleRoot, executionRoot, host string) error {
 	if err != nil || len(responses) != 3 {
 		return errors.New("native MCP framing is invalid")
 	}
-	if err := validateMCPResponses(responses, host); err != nil {
+	if err := validateMCPResponses(responses, host, expectedVersion); err != nil {
 		return err
 	}
 	return nil
@@ -824,7 +932,7 @@ func decodeMCP(data []byte) ([]mcpEnvelope, error) {
 	return responses, scanner.Err()
 }
 
-func validateMCPResponses(responses []mcpEnvelope, host string) error {
+func validateMCPResponses(responses []mcpEnvelope, host, expectedVersion string) error {
 	var initialize struct {
 		ProtocolVersion string `json:"protocolVersion"`
 		Capabilities    struct {
@@ -839,7 +947,7 @@ func validateMCPResponses(responses []mcpEnvelope, host string) error {
 		Instructions string `json:"instructions"`
 	}
 	if string(responses[0].ID) != "1" || responses[0].Error != nil || json.Unmarshal(responses[0].Result, &initialize) != nil ||
-		initialize.ProtocolVersion != "2025-11-25" || initialize.ServerInfo.Name != "level7" || initialize.ServerInfo.Version != candidateVersion {
+		initialize.ProtocolVersion != "2025-11-25" || initialize.ServerInfo.Name != "level7" || initialize.ServerInfo.Version != expectedVersion {
 		return fmt.Errorf("%s MCP initialize contract is invalid", host)
 	}
 	var listing struct {
@@ -973,6 +1081,74 @@ func validateMachO(data []byte, architecture string) error {
 		return errors.New("Mach-O architecture mismatch")
 	}
 	return nil
+}
+
+func validateGoBinaryIdentity(data []byte, expectedVersion string) error {
+	info, err := buildinfo.Read(bytes.NewReader(data))
+	if err != nil {
+		return errors.New("Go build identity is invalid")
+	}
+	version, err := readMachOStringSymbol(data, "main.version")
+	if err != nil {
+		return errors.New("Go binary version is invalid")
+	}
+	return validateDecodedGoIdentity(info.Path, info.Main.Path, version, expectedVersion)
+}
+
+func validateDecodedGoIdentity(path, module, version, expectedVersion string) error {
+	if path != "github.com/addressanup/level7-dev-loop/cmd/l7" || module != "github.com/addressanup/level7-dev-loop" || version != expectedVersion {
+		return errors.New("Go binary path, module, or version is invalid")
+	}
+	return nil
+}
+
+func readMachOStringSymbol(data []byte, name string) (string, error) {
+	value, err := macho.NewFile(bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	defer value.Close()
+	if value.Symtab == nil {
+		return "", errors.New("Mach-O symbol table is missing")
+	}
+	address := uint64(0)
+	matches := 0
+	for _, symbol := range value.Symtab.Syms {
+		if symbol.Name == name {
+			address = symbol.Value
+			matches++
+		}
+	}
+	if matches != 1 {
+		return "", errors.New("Mach-O string symbol is missing or duplicated")
+	}
+	header, err := machODataAt(value, data, address, 16)
+	if err != nil {
+		return "", err
+	}
+	stringAddress := value.ByteOrder.Uint64(header[:8])
+	stringLength := value.ByteOrder.Uint64(header[8:])
+	if stringLength < 1 || stringLength > 64 {
+		return "", errors.New("Mach-O string symbol length is invalid")
+	}
+	content, err := machODataAt(value, data, stringAddress, stringLength)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+func machODataAt(value *macho.File, data []byte, address, size uint64) ([]byte, error) {
+	for _, section := range value.Sections {
+		if address < section.Addr || address-section.Addr > section.Size || size > section.Size-(address-section.Addr) {
+			continue
+		}
+		offset := uint64(section.Offset) + address - section.Addr
+		if offset <= uint64(len(data)) && size <= uint64(len(data))-offset {
+			return data[offset : offset+size], nil
+		}
+	}
+	return nil, errors.New("Mach-O address is outside file-backed sections")
 }
 
 func verifySHA256Sidecar(name, archiveName, digest string) error {
