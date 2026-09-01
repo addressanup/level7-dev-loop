@@ -86,7 +86,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap bootstrap-ci bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap bootstrap-ci bootstrap-go-check bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -94,6 +94,9 @@ bootstrap:
 bootstrap-ci: bootstrap
 	@"$(PROJECT_ROOT)/scripts/harness/prepare-cache.sh" "$(PROJECT_ROOT)" "$(GO_VERSION)"
 	@"$(PROJECT_ROOT)/scripts/harness/bootstrap-modules.sh" "$(GO)" "$(GO_VERSION)"
+
+bootstrap-go-check: prepare
+	@./scripts/harness/check-bootstrap-go.sh
 
 bootstrap-modules-check:
 	@./scripts/harness/check-bootstrap-modules.sh
@@ -263,7 +266,7 @@ format-check: toolchain-check
 	@unformatted="$$(find . -type f -name '*.go' -not -path './.cache/*' -not -path './build/*' -print0 | xargs -0 "$(GOFMT)" -l)"; \
 	 test -z "$$unformatted" || { printf 'unformatted Go files:\n%s\n' "$$unformatted" >&2; exit 1; }
 
-technical-lint: install import-check format-check bootstrap-modules-check
+technical-lint: install import-check format-check bootstrap-go-check bootstrap-modules-check
 	@for script in scripts/harness/*.sh; do sh -n "$$script"; done
 	@"$(GO)" vet -mod=readonly ./...
 
