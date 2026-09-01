@@ -7,17 +7,16 @@ by verified capability and effort, maintains private codebase memory, performs
 bounded security audits, and can execute durable feature waves before stopping
 at the release boundary.
 
-> **Release status:** `v0.1.1` remains the stable, skills-only release. The
-> bundled `1.0.0-dev` engine is an unsigned development candidate and must not
-> be represented as `v1.0.0` until exact-candidate verification, an independent
-> read-only audit, named owner GO, protected release identities, and signed
-> attestations exist.
+> **Release status:** install `v1.0.0` only from the immutable GitHub release
+> when that release exists and all four attached assets verify. Until then,
+> `v0.1.1` remains the stable skills-only release and rollback. Repository
+> source, a workflow run, or an unsigned `1.0.0-dev` archive is not a release.
 
 You describe the outcome. Level 7 keeps ordinary, reversible repository work
 moving—and asks for your judgment only when it reaches a decision or effect
 that genuinely needs you.
 
-[Install](#install) · [See how it works](#how-level-7-works) ·
+[Install](#install-v100) · [See how it works](#how-level-7-works) ·
 [Explore the skills](#the-16-level-7-skills) ·
 [Read the FAQ](#frequently-asked-questions)
 
@@ -28,11 +27,11 @@ that genuinely needs you.
   </picture>
 </p>
 
-> **The short version:** most developers only need one skill:
-> `l7-onboard` starts v1 by inspecting the project without mutation. Stable
-> v0.1.1 users continue to start with `l7-next`.
+> **The short version:** most v1 users start with `l7-onboard`, which inspects
+> the project without mutation. The preserved v0.1.1 rollback package starts
+> with `l7-next`.
 
-## v1 development candidate
+## v1 orchestration
 
 The v1 candidate supports macOS 13+ on Apple Silicon and Intel. The canonical
 entry points are:
@@ -72,17 +71,45 @@ always stops before push, release, or deployment.
 
 ## Quick start
 
-### Install
+### Install v1.0.0
 
-Level 7 v0.1.1 installs directly from this GitHub repository. You do not need
-to clone the source, build the Go project, extract a ZIP, or add another API
-key.
+The installable v1 packages are the two signed ZIP assets attached to the
+immutable [`v1.0.0` release](https://github.com/addressanup/level7-dev-loop/releases/tag/v1.0.0),
+not GitHub's generated source archives. Download all four release assets into
+a new local root, verify their digests and GitHub attestations, then extract
+only the package for your host:
+
+```sh
+release_root="$HOME/.local/share/level7/releases/v1.0.0"
+test ! -e "$release_root"
+mkdir -p "$release_root/assets" "$release_root/codex" "$release_root/claude"
+gh release download v1.0.0 \
+  --repo addressanup/level7-dev-loop \
+  --dir "$release_root/assets"
+(cd "$release_root/assets" && shasum -a 256 -c SHA256SUMS)
+for asset in "$release_root"/assets/*; do
+  gh attestation verify "$asset" --repo addressanup/level7-dev-loop
+done
+ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-codex.zip" "$release_root/codex"
+ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-claude.zip" "$release_root/claude"
+for package in codex claude; do
+  for arch in arm64 amd64; do
+    codesign --verify --strict "$release_root/$package/bin/darwin-$arch/l7"
+    codesign --verify --strict "$release_root/$package/bin/darwin-$arch/l7-embed"
+  done
+done
+```
+
+`RELEASE-MANIFEST.json` binds the exact merged commit and tree, workflow run,
+unsigned input digests, accepted Apple notarization submissions, final archive
+digests, checksums, and these release notes. The packages support macOS 13+ on
+Apple Silicon and Intel; other systems are outside the v1.0.0 boundary.
 
 #### Codex
 
 ```sh
-codex plugin marketplace add addressanup/level7-dev-loop --ref v0.1.1
-codex plugin add level7-dev-loop@level7-engineering
+codex plugin marketplace add "$release_root/codex"
+codex plugin add level7-dev-loop@level7-engineering-v1
 ```
 
 Start a new Codex task and give it one objective:
@@ -94,8 +121,8 @@ $l7-next Fix the flaky checkout test, verify the repair, and hand back a clean d
 #### Claude Code
 
 ```sh
-claude plugin marketplace add addressanup/level7-dev-loop@v0.1.1 --scope user
-claude plugin install level7-dev-loop@level7-engineering --scope user
+claude plugin marketplace add "$release_root/claude" --scope user
+claude plugin install level7-dev-loop@level7-engineering-v1 --scope user
 ```
 
 Start a new Claude Code session—or run `/reload-plugins`—then give it one
@@ -105,10 +132,11 @@ objective:
 /level7-dev-loop:l7-next Add CSV export, test it, and prepare the change for review.
 ```
 
-**Why are there two installation commands?** The first registers this
-repository's tag-pinned plugin catalog. The second installs Level 7 from that
-catalog. Both hosts keep marketplace registration and plugin installation as
-separate actions.
+**Why are there two installation commands?** The first registers the verified,
+host-specific local catalog from the extracted archive. The second installs
+Level 7 from that catalog. Both hosts keep marketplace registration and plugin
+installation as separate actions; the catalog resolves only to its own
+extracted package root.
 
 ### What happens next?
 
@@ -260,71 +288,64 @@ For Claude Code, replace the Codex prefix with
 
 ## Permissions, privacy, and trust
 
-Level 7 v0.1.1 is deliberately small: the installed plugin is a bundle of 12
-Markdown instruction skills.
+Level 7 v1.0.0 contains 16 Markdown skills, a local MCP server, architecture-
+specific Go executables, and an Apple Natural Language embedding helper. It
+does not install a service, hook, updater, telemetry client, host setting, or
+credential broker. All orchestration features remain default OFF until the
+tracked `.l7/orchestration.json` policy explicitly enables them.
 
-| The plugin includes | The plugin does not include |
-|---|---|
-| Human-readable workflow instructions | Executables or background processes |
-| Native Codex and Claude plugin manifests | Hooks or host-setting mutations |
-| A README, changelog, and MIT license | An MCP server or extra tools |
-| The same 12 skills on both hosts | Telemetry, analytics, or a credential flow |
-| Risk and effect-boundary guidance | Network access of its own |
-
-Level 7 does not grant new permissions and does not collect or transmit data by
-itself. The surrounding Codex or Claude Code host still uses its independently
-configured tools, credentials, model, network access, workspace boundaries, and
-provider policies.
+Level 7 does not grant host permissions. Codex or Claude Code still controls
+the available filesystem, Git, network, tool, model, and provider authority.
+Optional gateway credentials are references to user-managed environment
+variables or macOS Keychain items; Level 7 rejects secret values in policy and
+does not intentionally persist them in logs, memory, findings, checkpoints, or
+handoffs.
 
 The plugin is **not a sandbox** and does not make agent actions risk-free. It
 guides the host to preserve unrelated work, verify changes, and request explicit
 authority before consequential effects; your host configuration remains the
 actual enforcement boundary.
 
-The unsigned v1 candidate is materially different: it bundles architecture-
-specific Go executables, a Swift Apple Natural Language embedding helper, and
-a local MCP server. Gateway endpoint traffic is the only implicit network
-operation after explicit provider configuration. Cyber active mode additionally
-requires a pinned signed OCI image and an isolated Docker/OrbStack-compatible
-runtime; it fails closed without isolation, uses a disposable tracked-file
-copy, runs non-root with resource limits, and has no Internet or host sockets.
+Gateway endpoint traffic is the only implicit network operation after explicit
+provider configuration. Cyber active mode additionally requires a pinned
+signed OCI image and an isolated Docker/OrbStack-compatible runtime; it fails
+closed without isolation, uses a disposable tracked-file copy, runs non-root
+with resource limits, and has no Internet or host sockets.
 
 ## Compatibility and current limits
 
-The stable plugin release is
-[`v0.1.1`](https://github.com/addressanup/level7-dev-loop/releases/tag/v0.1.1).
-Its qualification boundary is intentionally conservative:
+v1.0.0 is bounded to macOS 13+ on arm64 and amd64. Both architectures pass the
+same offline package, native CLI/MCP, upgrade, rollback, removal, and safety
+gates. Publication additionally requires exact-archive Codex and Claude
+marketplace/provider trials whose host versions, architecture, model,
+transcript digest, archive digest, and cleanup result are recorded on the
+merged release pull request for the exact workflow run.
 
-| Host | Lifecycle smoke tested | Package build checked |
-|---|---|---|
-| Codex CLI | 0.151.0 on macOS arm64 | macOS arm64 and amd64 |
-| Claude Code | 2.1.247 on macOS arm64 | macOS arm64 and amd64 |
+That evidence does not imply support for a different host version, operating
+system, architecture, archive, or provider configuration. GitHub's source ZIP
+and tarball are never installable v1 packages. If verification, installation,
+discovery, named invocation, provider execution, or cleanup fails, stop and
+roll back; do not repeatedly retry or relax the gate.
 
-The smoke covered validation, marketplace discovery, installation, inspection,
-removal, and cleanup through the committed local marketplace. Remote tag
-fetching and provider/model invocation were not part of that qualification.
-Other operating systems, architectures, and host versions remain unqualified,
-and the project does not yet make a broad formal support claim.
+The unchanged [`v0.1.1` release](https://github.com/addressanup/level7-dev-loop/releases/tag/v0.1.1)
+remains the skills-only rollback. Its conservative qualification boundary is
+recorded separately in
+[`distribution/compatibility.json`](distribution/compatibility.json).
 
-See the
-[`distribution/compatibility.json`](distribution/compatibility.json)
-record for the machine-readable boundary and the
-[`v0.1.1` release](https://github.com/addressanup/level7-dev-loop/releases/tag/v0.1.1)
-for the separate Codex and Claude ZIPs with SHA-256 sidecars.
+## Update or roll back Level 7
 
-## Update Level 7
-
-Marketplace sources are pinned to an immutable release tag. To move to a later
-release, remove the installed plugin and old marketplace, then add the new tag
-and reinstall.
+Each v1 marketplace resolves to one retained, verified extraction root. Before
+changing versions, remove the installed plugin and its marketplace, verify and
+extract the replacement into a new versioned root, then reinstall. Never
+overwrite an existing extraction or substitute GitHub source archives.
 
 ### Codex
 
 ```sh
-codex plugin remove level7-dev-loop@level7-engineering
-codex plugin marketplace remove level7-engineering
-codex plugin marketplace add addressanup/level7-dev-loop --ref vX.Y.Z
-codex plugin add level7-dev-loop@level7-engineering
+codex plugin remove level7-dev-loop@level7-engineering-v1
+codex plugin marketplace remove level7-engineering-v1
+codex plugin marketplace add "/absolute/verified/path/to/the/new/codex/root"
+codex plugin add level7-dev-loop@level7-engineering-v1
 ```
 
 Start a new Codex task after installation.
@@ -332,32 +353,46 @@ Start a new Codex task after installation.
 ### Claude Code
 
 ```sh
-claude plugin uninstall level7-dev-loop@level7-engineering --scope user
-claude plugin marketplace remove level7-engineering --scope user
-claude plugin marketplace add addressanup/level7-dev-loop@vX.Y.Z --scope user
-claude plugin install level7-dev-loop@level7-engineering --scope user
+claude plugin uninstall level7-dev-loop@level7-engineering-v1 --scope user
+claude plugin marketplace remove level7-engineering-v1 --scope user
+claude plugin marketplace add "/absolute/verified/path/to/the/new/claude/root" --scope user
+claude plugin install level7-dev-loop@level7-engineering-v1 --scope user
 ```
 
 Start a new session or run `/reload-plugins`.
+
+To roll back to the skills-only v0.1.1 package after removing v1, use the
+preserved tag-pinned catalogs:
+
+```sh
+codex plugin marketplace add addressanup/level7-dev-loop --ref v0.1.1
+codex plugin add level7-dev-loop@level7-engineering
+
+claude plugin marketplace add addressanup/level7-dev-loop@v0.1.1 --scope user
+claude plugin install level7-dev-loop@level7-engineering --scope user
+```
 
 ## Uninstall
 
 ### Codex
 
 ```sh
-codex plugin remove level7-dev-loop@level7-engineering
-codex plugin marketplace remove level7-engineering
+codex plugin remove level7-dev-loop@level7-engineering-v1
+codex plugin marketplace remove level7-engineering-v1
 ```
 
 ### Claude Code
 
 ```sh
-claude plugin uninstall level7-dev-loop@level7-engineering --scope user
-claude plugin marketplace remove level7-engineering --scope user
+claude plugin uninstall level7-dev-loop@level7-engineering-v1 --scope user
+claude plugin marketplace remove level7-engineering-v1 --scope user
 ```
 
-These commands remove the Level 7 plugin and its marketplace registration. The
-plugin owns no service, database, migration, or persistent runtime data.
+These commands remove the v1 plugin and marketplace registration. After both
+succeed, the corresponding retained extraction can be moved to Trash. Private
+v1 state, when present, is under the repository's Git common directory at
+`.git/l7`; inspect it and remove only deliberately. Uninstall never removes a
+repository, credentials, provider configuration, or unrelated host state.
 
 ## Troubleshooting
 
@@ -385,9 +420,9 @@ host version, operating system, architecture, command, and exact error.
 
 ### What is Level 7 Dev Loop?
 
-The stable v0.1.1 distribution is a skills-only workflow plugin. The v1
-development candidate adds a bundled multi-host engine while preserving that
-stable rollback package unchanged.
+The v1.0.0 distribution is a local-first multi-host orchestration engine with
+16 workflow skills, a native CLI, and an MCP bridge. The unchanged v0.1.1
+distribution remains available as a skills-only rollback.
 
 ### Is Level 7 another coding agent?
 
@@ -431,9 +466,9 @@ generates both v1 packages from the same 16 canonical skills and engine source.
 
 ### Is the `l7` Go CLI included?
 
-The stable v0.1.1 plugin does not include it. The unsigned v1 development
-candidate bundles `l7` for macOS arm64 and amd64 and launches MCP through
-`l7 mcp`.
+Yes, the two v1.0.0 host packages bundle signed `l7` executables for macOS
+arm64 and amd64 and launch MCP through `l7 mcp`. The v0.1.1 rollback package
+does not contain an executable or MCP server.
 
 ### Will Level 7 automatically push, merge, deploy, or publish?
 
@@ -459,7 +494,7 @@ The repository contains:
   [`plugins/level7-dev-loop/`](plugins/level7-dev-loop);
 - deterministic distribution checks under
   [`internal/harness/distribution/`](internal/harness/distribution);
-- the bundled v1 development CLI and MCP server under [`cmd/l7/`](cmd/l7);
+- the bundled v1 CLI and MCP server under [`cmd/l7/`](cmd/l7);
 - the project workflow contract in [`AGENTS.md`](AGENTS.md).
 
 Bug reports, focused improvements, and reproducible compatibility findings are

@@ -15,6 +15,132 @@ import (
 	"testing"
 )
 
+func TestCandidateIdentityAcceptsOnlyDeclaredPairs(t *testing.T) {
+	for _, identity := range []candidateIdentity{
+		{Version: candidateVersion, Channel: candidateChannel},
+		{Version: releaseVersion, Channel: releaseChannel},
+	} {
+		if observed, err := validateCandidateIdentity(identity.Version, identity.Channel); err != nil || observed != identity {
+			t.Fatalf("identity=%v observed=%v err=%v", identity, observed, err)
+		}
+	}
+	for _, identity := range []candidateIdentity{
+		{Version: candidateVersion, Channel: releaseChannel},
+		{Version: releaseVersion, Channel: candidateChannel},
+		{Version: "v1.0.0", Channel: releaseChannel},
+		{Version: releaseVersion, Channel: "Stable"},
+	} {
+		if _, err := validateCandidateIdentity(identity.Version, identity.Channel); err == nil {
+			t.Fatalf("unsupported identity was accepted: %v", identity)
+		}
+	}
+}
+
+func TestDecodedGoIdentityRejectsVersionAndArchitectureBinarySubstitution(t *testing.T) {
+	path := "github.com/addressanup/level7-dev-loop/cmd/l7"
+	module := "github.com/addressanup/level7-dev-loop"
+	if err := validateDecodedGoIdentity(path, module, releaseVersion, releaseVersion); err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []struct{ path, module, version string }{
+		{path, module, candidateVersion},
+		{"example.invalid/substitute", module, releaseVersion},
+		{path, "example.invalid/substitute", releaseVersion},
+	} {
+		if err := validateDecodedGoIdentity(value.path, value.module, value.version, releaseVersion); err == nil {
+			t.Fatalf("substituted binary identity passed: %+v", value)
+		}
+	}
+}
+
+func TestRunRejectsMixedIdentityBeforeHostOrFilesystemAccess(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := run([]string{
+		"--candidate", "missing-candidate", "--stable", "missing-stable", "--work", "missing-work",
+		"--candidate-version", releaseVersion, "--candidate-channel", candidateChannel,
+	}, &stdout, &stderr)
+	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "candidate identity") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+}
+
+func TestCandidateMarketplaceBindsOneLocalHostPackage(t *testing.T) {
+	codex := fixturePackage("codex", releaseVersion, map[string]fixtureFile{
+		candidateMarketplacePath("codex"): {Data: []byte(`{
+  "name": "level7-engineering-v1",
+  "interface": {"displayName": "Level 7 Engineering v1"},
+  "plugins": [{
+    "name": "level7-dev-loop",
+    "source": {"source": "local", "path": "."},
+    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+    "category": "Developer Tools"
+  }]
+}` + "\n"), Mode: 0o644},
+	})
+	if err := validateCandidateMarketplace(codex); err != nil {
+		t.Fatal(err)
+	}
+	claude := fixturePackage("claude", releaseVersion, map[string]fixtureFile{
+		candidateMarketplacePath("claude"): {Data: []byte(`{
+  "name": "level7-engineering-v1",
+  "description": "Default-off multi-host orchestration.",
+  "owner": {"name": "Level 7 Engineering"},
+  "plugins": [{
+    "name": "level7-dev-loop",
+    "source": ".",
+    "description": "Default-off multi-host orchestration.",
+    "version": "1.0.0",
+    "license": "MIT",
+    "category": "Development Tools",
+    "strict": true
+  }]
+}` + "\n"), Mode: 0o644},
+	})
+	if err := validateCandidateMarketplace(claude); err != nil {
+		t.Fatal(err)
+	}
+	crossHost := fixturePackage("codex", releaseVersion, map[string]fixtureFile{
+		candidateMarketplacePath("claude"): {Data: claude.Files[0].Data, Mode: 0o644},
+	})
+	if err := validateCandidateMarketplace(crossHost); err == nil {
+		t.Fatal("cross-host marketplace was accepted")
+	}
+}
+
+func TestCandidateProvenanceCannotAssertReleaseAuthority(t *testing.T) {
+	identity := candidateIdentity{Version: releaseVersion, Channel: releaseChannel}
+	valid := []byte(`{
+  "schema": 2,
+  "version": "1.0.0",
+  "host": "codex",
+  "channel": "stable",
+  "artifact_state": "package-input",
+  "authority": "external-only",
+  "release_blocked": true,
+  "next": "require external release evidence"
+}` + "\n")
+	pkg := fixturePackage("codex", releaseVersion, map[string]fixtureFile{
+		"PROVENANCE.input.json": {Data: valid, Mode: 0o644},
+	})
+	if err := validateCandidateProvenance(pkg, identity); err != nil {
+		t.Fatal(err)
+	}
+	for name, changed := range map[string][]byte{
+		"release ready":  bytes.Replace(valid, []byte(`"release_blocked": true`), []byte(`"release_blocked": true, "release_ready": true`), 1),
+		"self authority": bytes.Replace(valid, []byte(`"external-only"`), []byte(`"candidate"`), 1),
+		"wrong channel":  bytes.Replace(valid, []byte(`"stable"`), []byte(`"development-candidate"`), 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			changedPackage := fixturePackage("codex", releaseVersion, map[string]fixtureFile{
+				"PROVENANCE.input.json": {Data: changed, Mode: 0o644},
+			})
+			if err := validateCandidateProvenance(changedPackage, identity); err == nil {
+				t.Fatal("unsafe provenance was accepted")
+			}
+		})
+	}
+}
+
 func TestLoadArchiveRejectsTraversalSymlinkDuplicateAndCollision(t *testing.T) {
 	tests := map[string][]zipFixture{
 		"traversal": {{Name: "../escape", Mode: 0o644, Data: []byte("escape\n")}},

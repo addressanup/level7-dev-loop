@@ -4,6 +4,24 @@ All notable changes to the Level 7 instruction plugin packages are recorded
 here. Host observations and support claims remain scoped by
 `distribution/compatibility.json`.
 
+## 1.0.0
+
+- Add explicit, fail-closed `1.0.0`/`stable` package identity while preserving
+  `1.0.0-dev`/`development-candidate` as the ordinary default.
+- Add self-contained, host-specific local marketplace catalogs to the Codex
+  and Claude packages without changing the v0.1.1 catalogs or rollback bytes.
+- Validate stable and development archives through the same closed inventory,
+  checksums, SPDX SBOM, offline native CLI/MCP, upgrade, rollback, removal,
+  path-safety, and disposable-root boundaries.
+- Add a manual-only release workflow that compares clean unsigned inputs before
+  signing, verifies four Developer ID signatures, requires two accepted Apple
+  notarization submissions, and attests the exact prepared assets.
+- Require fresh exact-head checks and reviews, exact-archive provider trials,
+  a hosted digest-bound owner authorization, and a protected production
+  approval before creating the absent annotated tag and immutable release.
+- Document signed-asset verification, local marketplace installation,
+  permissions, compatibility limits, update, uninstall, and v0.1.1 rollback.
+
 ## 1.0.0-dev
 
 - Add a default-off, bundled macOS arm64/amd64 orchestration engine and local
