@@ -362,13 +362,15 @@ jobs:
           latest=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest")
           printf '%s' "$latest" | jq -e '
             .id == 379330897 and .tag_name == "v0.1.1" and .draft == false and .prerelease == false' >/dev/null
-          echo "pull-request=$number" >> "$GITHUB_OUTPUT"
-          echo "pr_harness_id=$pr_harness_id" >> "$GITHUB_OUTPUT"
-          echo "policy_id=$policy_id" >> "$GITHUB_OUTPUT"
-          echo "evaluate_id=$evaluate_id" >> "$GITHUB_OUTPUT"
-          echo "owner_review_id=$owner_review_id" >> "$GITHUB_OUTPUT"
-          echo "auditor_review_id=$auditor_review_id" >> "$GITHUB_OUTPUT"
-          echo "postmerge_harness_id=$harness_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "pull-request=$number"
+            echo "pr_harness_id=$pr_harness_id"
+            echo "policy_id=$policy_id"
+            echo "evaluate_id=$evaluate_id"
+            echo "owner_review_id=$owner_review_id"
+            echo "auditor_review_id=$auditor_review_id"
+            echo "postmerge_harness_id=$harness_id"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Materialize clean source and bootstrap pinned dependencies once
         env:
@@ -884,10 +886,10 @@ jobs:
             {schema:1,kind:"l7-v1-unsigned-host-trial",result:"PASS",candidate_commit:$commit,candidate_tree:$tree,workflow_run_id:$run_id,workflow_run_attempt:$run_attempt,artifact_id:$artifact_id,architecture:"REPLACE_WITH_darwin/arm64_OR_darwin/amd64",other_architecture:"NOT_RUN",macos_version:"REPLACE_WITH_OBSERVED_MACOS_VERSION",provider_execution:"NOT_RUN",support:"WITHHELD",codex:{archive_name:$codex_name,archive_size:$codex_size,archive_sha256:$codex_sha,host_version:"REPLACE_WITH_OBSERVED_VERSION",commands:["REPLACE_WITH_EACH_EXACT_COMMAND; AT_LEAST_NINE_ENTRIES"],transcript_sha256:"REPLACE_WITH_64_LOWERCASE_HEX",operations:{marketplace_validation:"PASS",marketplace_add:"PASS",installation:"PASS",discovery:"PASS",native_cli_startup:"PASS",mcp_startup:"PASS",uninstall:"PASS",marketplace_removal:"PASS",residue:"PASS"}},claude:{archive_name:$claude_name,archive_size:$claude_size,archive_sha256:$claude_sha,host_version:"REPLACE_WITH_OBSERVED_VERSION",commands:["REPLACE_WITH_EACH_EXACT_COMMAND; AT_LEAST_NINE_ENTRIES"],transcript_sha256:"REPLACE_WITH_64_LOWERCASE_HEX",operations:{marketplace_validation:"PASS",marketplace_add:"PASS",installation:"PASS",discovery:"PASS",native_cli_startup:"PASS",mcp_startup:"PASS",uninstall:"PASS",marketplace_removal:"PASS",residue:"PASS"}}}')
           {
             printf '# v1.0.0-dev explicitly unsigned prerelease handoff\n\n'
-            printf 'Prepared artifact ID: `%s`\n\n' "$artifact_id"
-            printf 'Under separate host-trial authority, `anup19950725` must download only this artifact, complete one bounded Codex lifecycle trial and one bounded Claude lifecycle trial from disposable roots on one declared package architecture, and post exactly one raw JSON comment on the merged pull request. Do not run a provider or model, retry a failure, or include a secret.\n\n'
-            printf '```json\n%s\n```\n\n' "$trial"
-            printf 'After that exact host-only evidence passes, `addressanup` must separately post the following byte-exact sentence and then approve the pending `v1-prerelease` deployment once:\n\n%s\n' "$authorization"
+            printf "Prepared artifact ID: \`%s\`\n\n" "$artifact_id"
+            printf "Under separate host-trial authority, \`anup19950725\` must download only this artifact, complete one bounded Codex lifecycle trial and one bounded Claude lifecycle trial from disposable roots on one declared package architecture, and post exactly one raw JSON comment on the merged pull request. Do not run a provider or model, retry a failure, or include a secret.\n\n"
+            printf "\`\`\`json\n%s\n\`\`\`\n\n" "$trial"
+            printf "After that exact host-only evidence passes, \`addressanup\` must separately post the following byte-exact sentence and then approve the pending \`v1-prerelease\` deployment once:\n\n%s\n" "$authorization"
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
