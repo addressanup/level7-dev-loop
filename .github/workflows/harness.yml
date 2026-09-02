@@ -45,15 +45,17 @@ jobs:
   cli-macos:
     name: CLI macOS 15 (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: arm64
             runner: macos-15
+            timeout: 15
           - arch: amd64
             runner: macos-15-intel
+            timeout: 25
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
