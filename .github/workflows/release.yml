@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  L7_RELEASE_BASE: c634e092b2f938ad3038be0632d162b2bdde41f3
+  L7_RELEASE_BASE: 5c23038e38a07b4f91f8ef38bbf163e061857910
   L7_RELEASE_VERSION: 1.0.0
   L7_RELEASE_CHANNEL: stable
   L7_RELEASE_TAG: v1.0.0
