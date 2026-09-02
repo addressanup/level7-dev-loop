@@ -96,6 +96,29 @@ fi
 archive="$download_root/$filename"
 signature="$download_root/$filename.asc"
 public_key="$download_root/google-linux-signing-key.pub"
+download_temporary=
+
+cleanup_download()
+{
+	test -n "$download_temporary" || return 0
+	case $download_temporary in
+		"$download_root"/*.partial.*) rm -f -- "$download_temporary" ;;
+		*) return 1 ;;
+	esac
+}
+
+trap cleanup_download EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+download_failure()
+{
+	status=$1
+	shift
+	printf 'bootstrap-go: %s\n' "$*" >&2
+	exit "$status"
+}
 
 download()
 {
@@ -103,21 +126,91 @@ download()
 	output=$2
 	test ! -L "$output" || fail "refusing symlinked download: $output"
 	if test -e "$output"; then
+		test -f "$output" || fail "existing download is not a regular file: $output"
 		return
 	fi
-	curl \
-		--fail \
-		--silent \
-		--show-error \
-		--location \
-		--proto '=https' \
-		--proto-redir '=https' \
-		--tlsv1.2 \
-		--retry 3 \
-		--connect-timeout 20 \
-		--max-time 600 \
-		--output "$output" \
-		"$url"
+
+	download_started_at=$(date +%s)
+	download_attempt=1
+	while test "$download_attempt" -le 4; do
+		download_now=$(date +%s)
+		download_remaining=$((600 - (download_now - download_started_at)))
+		test "$download_remaining" -gt 0 || download_failure 28 \
+			"download aggregate deadline exceeded before attempt $download_attempt/4 (curl=28 http=000): $url"
+
+		download_temporary=$(mktemp "$output.partial.XXXXXX") || fail "could not create download temporary file: $output"
+		case $download_temporary in
+			"$output".partial.*) ;;
+			*) fail "mktemp returned an unexpected download path: $download_temporary" ;;
+		esac
+		test -f "$download_temporary" || fail "download temporary path is not a regular file: $download_temporary"
+		test ! -L "$download_temporary" || fail "download temporary path is a symlink: $download_temporary"
+
+		download_curl_status=0
+		download_http_status=$(curl \
+			--disable \
+			--fail \
+			--silent \
+			--show-error \
+			--location \
+			--proto '=https' \
+			--proto-redir '=https' \
+			--tlsv1.2 \
+			--connect-timeout 20 \
+			--max-time "$download_remaining" \
+			--write-out '%{http_code}' \
+			--output "$download_temporary" \
+			"$url") || download_curl_status=$?
+		case $download_http_status in
+			[0-9][0-9][0-9]) ;;
+			*) download_http_status=000 ;;
+		esac
+
+		if test "$download_curl_status" -eq 0; then
+			test ! -e "$output" || fail "download path appeared during transfer: $output"
+			ln "$download_temporary" "$output" || fail "could not atomically install download: $output"
+			rm -f -- "$download_temporary" || fail "could not remove installed download temporary file: $download_temporary"
+			download_temporary=
+			return
+		fi
+
+		download_retry=0
+		case $download_curl_status in
+			28|56) download_retry=1 ;;
+			22)
+				case $download_http_status in
+					408|429|500|502|503|504) download_retry=1 ;;
+				esac
+			;;
+		esac
+		printf 'bootstrap-go: download attempt %s/4 failed (curl=%s http=%s): %s\n' \
+			"$download_attempt" "$download_curl_status" "$download_http_status" "$url" >&2
+		rm -f -- "$download_temporary" || fail "could not remove failed download temporary file: $download_temporary"
+		download_temporary=
+
+		if test "$download_retry" -ne 1; then
+			download_failure "$download_curl_status" \
+				"download failure is not retryable (curl=$download_curl_status http=$download_http_status): $url"
+		fi
+		if test "$download_attempt" -eq 4; then
+			download_failure "$download_curl_status" \
+				"download failed after 4 attempts (curl=$download_curl_status http=$download_http_status): $url"
+		fi
+
+		case $download_attempt in
+			1) download_delay=1 ;;
+			2) download_delay=2 ;;
+			3) download_delay=4 ;;
+			*) fail 'invalid download retry state' ;;
+		esac
+		download_now=$(date +%s)
+		download_remaining=$((600 - (download_now - download_started_at)))
+		test "$download_remaining" -gt "$download_delay" || download_failure 28 \
+			"download aggregate deadline exceeded before retry delay (curl=28 http=$download_http_status): $url"
+		printf 'bootstrap-go: retrying download in %s second(s)\n' "$download_delay" >&2
+		sleep "$download_delay"
+		download_attempt=$((download_attempt + 1))
+	done
 }
 
 download "$archive_url" "$archive"
