@@ -36,9 +36,23 @@ here. Host observations and support claims remain scoped by
   audits, and durable multi-wave Headless execution with crash recovery,
   provider failover, natural quota waiting, exact-ref local merges, and a hard
   stop before push, release, or deployment.
-- Add reproducible unsigned development packages, checksums, SPDX SBOMs, and
-  explicit release-blocked provenance. Stable `v1.0.0` is not published by
-  this change.
+- Add reproducible `1.0.0-dev` / `development-candidate` packages for Codex and
+  Claude with macOS arm64 and amd64 executables, checksums, SPDX SBOMs, and
+  explicit `release_blocked:true` input provenance.
+- Add a separately governed, manual-only path for an immutable `v1.0.0-dev`
+  GitHub prerelease containing exactly the two host ZIPs, `SHA256SUMS`, and
+  `UNSIGNED-PRERELEASE-MANIFEST.json`.
+- State prominently that prerelease binaries have no Apple Developer ID
+  signature, were not notarized, may be blocked by Gatekeeper, are for
+  evaluation only, and carry no formal support claim.
+- Limit prerelease actual-host evidence to one bounded Codex lifecycle trial
+  and one bounded Claude lifecycle trial on one recorded architecture.
+  Provider/model execution and the other architecture's host lifecycle remain
+  `NOT_RUN`; support remains `WITHHELD`.
+- At the `v1.0.0-dev` publication boundary, keep `v0.1.1` as the latest
+  stable rollback with `make_latest:"false"` for the prerelease. The separate
+  signed and notarized `v1.0.0` release, when available, uses new bytes, hashes,
+  evidence, and owner authorization.
 
 ## 0.1.1
 

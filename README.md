@@ -7,16 +7,21 @@ by verified capability and effort, maintains private codebase memory, performs
 bounded security audits, and can execute durable feature waves before stopping
 at the release boundary.
 
-> **Release status:** install `v1.0.0` only from the immutable GitHub release
-> when that release exists and all four attached assets verify. Until then,
-> `v0.1.1` remains the stable skills-only release and rollback. Repository
-> source, a workflow run, or an unsigned `1.0.0-dev` archive is not a release.
+> **Release status:** An immutable `v1.0.0-dev` GitHub prerelease, when
+> present, is explicitly unsigned, not Apple-notarized, evaluation-only, and
+> unsupported; macOS Gatekeeper may block it. At that prerelease's publication
+> boundary, `v0.1.1` is the latest stable skills-only release and rollback.
+> Install stable `v1.0.0` only from its separate immutable release, when
+> available, after all four attached assets verify and the packaged executables
+> have the required Developer ID signatures and notarization.
 
 You describe the outcome. Level 7 keeps ordinary, reversible repository work
 moving—and asks for your judgment only when it reaches a decision or effect
 that genuinely needs you.
 
-[Install](#install-v100) · [See how it works](#how-level-7-works) ·
+[Install stable v1.0.0](#install-v100) ·
+[Evaluate unsigned v1.0.0-dev](#evaluate-v100-dev-unsigned-and-unnotarized) ·
+[See how it works](#how-level-7-works) ·
 [Explore the skills](#the-16-level-7-skills) ·
 [Read the FAQ](#frequently-asked-questions)
 
@@ -33,8 +38,9 @@ that genuinely needs you.
 
 ## v1 orchestration
 
-The v1 candidate supports macOS 13+ on Apple Silicon and Intel. The canonical
-entry points are:
+The v1 candidate targets macOS 13+ on Apple Silicon and Intel; formal support
+for the `v1.0.0-dev` prerelease remains `WITHHELD`. The canonical entry points
+are:
 
 ```text
 l7 onboard --status|--apply
@@ -137,6 +143,33 @@ host-specific local catalog from the extracted archive. The second installs
 Level 7 from that catalog. Both hosts keep marketplace registration and plugin
 installation as separate actions; the catalog resolves only to its own
 extracted package root.
+
+### Evaluate v1.0.0-dev (unsigned and unnotarized)
+
+The [`v1.0.0-dev` prerelease](https://github.com/addressanup/level7-dev-loop/releases/tag/v1.0.0-dev)
+is a separate evaluation channel. Its binaries have no Apple Developer ID
+signature and were not submitted for Apple notarization. Gatekeeper may block
+them. Formal support is `WITHHELD`, actual provider/model execution is
+`NOT_RUN`, and the prerelease does not satisfy or weaken the separate signed
+and notarized `v1.0.0` gates.
+
+Use only these four attached assets:
+
+- `level7-dev-loop-1.0.0-dev-codex.zip`
+- `level7-dev-loop-1.0.0-dev-claude.zip`
+- `SHA256SUMS`
+- `UNSIGNED-PRERELEASE-MANIFEST.json`
+
+GitHub-generated source archives are not installable assets. Verify the
+checksums and all four GitHub attestations, review the manifest, and use only a
+new disposable extraction root. The host marketplace and plugin commands modify
+that host's configured state; do not replace an existing installation with this
+prerelease. Follow the complete
+[`v1.0.0-dev` verification, evaluation, and removal instructions](https://github.com/addressanup/level7-dev-loop/blob/v1.0.0-dev/docs/releases/v1.0.0-dev.md).
+
+If Gatekeeper refuses a binary, stop. Never disable Gatekeeper globally. Users
+who require normal macOS publisher identity and trust behavior must wait for
+the separately signed and notarized stable `v1.0.0` release.
 
 ### What happens next?
 
@@ -327,6 +360,15 @@ and tarball are never installable v1 packages. If verification, installation,
 discovery, named invocation, provider execution, or cleanup fails, stop and
 roll back; do not repeatedly retry or relax the gate.
 
+The `v1.0.0-dev` prerelease has a deliberately narrower evidence boundary.
+Both declared macOS architectures receive reproducible offline package and
+native CLI/MCP validation, but publication records actual Codex and Claude
+lifecycle behavior on only one declared package architecture. The other
+architecture's actual-host lifecycle remains `NOT_RUN`; provider/model
+execution remains `NOT_RUN`; formal support remains `WITHHELD`. Checksums and
+GitHub attestations establish byte integrity and workflow provenance, not
+Developer ID identity, Apple notarization, provider qualification, or support.
+
 The unchanged [`v0.1.1` release](https://github.com/addressanup/level7-dev-loop/releases/tag/v0.1.1)
 remains the skills-only rollback. Its conservative qualification boundary is
 recorded separately in
@@ -466,9 +508,13 @@ generates both v1 packages from the same 16 canonical skills and engine source.
 
 ### Is the `l7` Go CLI included?
 
-Yes, the two v1.0.0 host packages bundle signed `l7` executables for macOS
-arm64 and amd64 and launch MCP through `l7 mcp`. The v0.1.1 rollback package
-does not contain an executable or MCP server.
+Yes. The two v1 host packages include `l7` executables for macOS arm64 and
+amd64 and launch MCP through `l7 mcp`. The `v1.0.0-dev` prerelease copies are
+explicitly not Developer ID-signed or Apple-notarized and remain unsupported;
+the separate stable `v1.0.0` packages, when available, require independently
+signed and notarized bytes. The v0.1.1 rollback package does not contain an
+executable or MCP
+server.
 
 ### Will Level 7 automatically push, merge, deploy, or publish?
 
