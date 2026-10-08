@@ -77,44 +77,56 @@ always stops before push, release, or deployment.
 
 ## Quick start
 
-### Install v1.0.0
+### Evaluate v1.0.0-dev (current release)
 
-The installable v1 packages are the two signed ZIP assets attached to the
-immutable [`v1.0.0` release](https://github.com/addressanup/level7-dev-loop/releases/tag/v1.0.0),
-not GitHub's generated source archives. Download all four release assets into
-a new local root, verify their digests and GitHub attestations, then extract
-only the package for your host:
+Stable `v1.0.0` has not been published yet, so
+`gh release download v1.0.0` will not work. The currently downloadable v1
+package is the immutable, explicitly unsigned and unnotarized
+[`v1.0.0-dev` prerelease](https://github.com/addressanup/level7-dev-loop/releases/tag/v1.0.0-dev).
+Gatekeeper may block its binaries, formal support is `WITHHELD`, and it must
+not replace an existing Level 7 installation. Actual provider/model execution
+is `NOT_RUN` and is not implied by package installation.
+
+Install the GitHub CLI and `jq`, then download only the four attached release
+assets into a new disposable root and verify their checksums and attestations:
 
 ```sh
-release_root="$HOME/.local/share/level7/releases/v1.0.0"
-test ! -e "$release_root"
-mkdir -p "$release_root/assets" "$release_root/codex" "$release_root/claude"
-gh release download v1.0.0 \
+evaluation_root="$HOME/.local/share/level7/evaluations/v1.0.0-dev"
+test ! -e "$evaluation_root"
+mkdir -p "$evaluation_root/assets" "$evaluation_root/codex" "$evaluation_root/claude"
+
+gh release download v1.0.0-dev \
   --repo addressanup/level7-dev-loop \
-  --dir "$release_root/assets"
-(cd "$release_root/assets" && shasum -a 256 -c SHA256SUMS)
-for asset in "$release_root"/assets/*; do
-  gh attestation verify "$asset" --repo addressanup/level7-dev-loop
+  --dir "$evaluation_root/assets"
+
+(cd "$evaluation_root/assets" && shasum -a 256 -c SHA256SUMS)
+
+candidate_commit=$(jq -er .candidate.commit \
+  "$evaluation_root/assets/UNSIGNED-PRERELEASE-MANIFEST.json")
+for asset in "$evaluation_root"/assets/*; do
+  gh attestation verify "$asset" \
+    --repo addressanup/level7-dev-loop \
+    --signer-workflow addressanup/level7-dev-loop/.github/workflows/unsigned-prerelease.yml \
+    --signer-digest "$candidate_commit" \
+    --source-ref refs/heads/main \
+    --source-digest "$candidate_commit"
 done
-ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-codex.zip" "$release_root/codex"
-ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-claude.zip" "$release_root/claude"
-for package in codex claude; do
-  for arch in arm64 amd64; do
-    codesign --verify --strict "$release_root/$package/bin/darwin-$arch/l7"
-    codesign --verify --strict "$release_root/$package/bin/darwin-$arch/l7-embed"
-  done
-done
+
+ditto -x -k \
+  "$evaluation_root/assets/level7-dev-loop-1.0.0-dev-codex.zip" \
+  "$evaluation_root/codex"
+ditto -x -k \
+  "$evaluation_root/assets/level7-dev-loop-1.0.0-dev-claude.zip" \
+  "$evaluation_root/claude"
 ```
 
-`RELEASE-MANIFEST.json` binds the exact merged commit and tree, workflow run,
-unsigned input digests, accepted Apple notarization submissions, final archive
-digests, checksums, and these release notes. The packages support macOS 13+ on
-Apple Silicon and Intel; other systems are outside the v1.0.0 boundary.
+Review `UNSIGNED-PRERELEASE-MANIFEST.json` and accept the unsigned evaluation
+boundary before registering either extracted package with its host.
 
 #### Codex
 
 ```sh
-codex plugin marketplace add "$release_root/codex"
+codex plugin marketplace add "$evaluation_root/codex"
 codex plugin add level7-dev-loop@level7-engineering-v1
 ```
 
@@ -127,7 +139,7 @@ $l7-next Fix the flaky checkout test, verify the repair, and hand back a clean d
 #### Claude Code
 
 ```sh
-claude plugin marketplace add "$release_root/claude" --scope user
+claude plugin marketplace add "$evaluation_root/claude" --scope user
 claude plugin install level7-dev-loop@level7-engineering-v1 --scope user
 ```
 
@@ -144,46 +156,33 @@ Level 7 from that catalog. Both hosts keep marketplace registration and plugin
 installation as separate actions; the catalog resolves only to its own
 extracted package root.
 
-### Evaluate v1.0.0-dev (unsigned and unnotarized)
+GitHub-generated source archives are not installable packages. If Gatekeeper
+refuses a binary, stop; never disable Gatekeeper globally. Follow the complete
+[`v1.0.0-dev` verification, evaluation, and removal instructions](https://github.com/addressanup/level7-dev-loop/blob/v1.0.0-dev/docs/releases/v1.0.0-dev.md),
+including residue checks and cleanup after evaluation.
 
-The [`v1.0.0-dev` prerelease](https://github.com/addressanup/level7-dev-loop/releases/tag/v1.0.0-dev)
-is a separate evaluation channel. Its binaries have no Apple Developer ID
-signature and were not submitted for Apple notarization. Gatekeeper may block
-them. Formal support is `WITHHELD`, actual provider/model execution is
-`NOT_RUN`, and the prerelease does not satisfy or weaken the separate signed
-and notarized `v1.0.0` gates.
+### Stable v1.0.0 (not yet available)
 
-Use only these four attached assets:
-
-- `level7-dev-loop-1.0.0-dev-codex.zip`
-- `level7-dev-loop-1.0.0-dev-claude.zip`
-- `SHA256SUMS`
-- `UNSIGNED-PRERELEASE-MANIFEST.json`
-
-GitHub-generated source archives are not installable assets. Verify the
-checksums and all four GitHub attestations, review the manifest, and use only a
-new disposable extraction root. The host marketplace and plugin commands modify
-that host's configured state; do not replace an existing installation with this
-prerelease. Follow the complete
-[`v1.0.0-dev` verification, evaluation, and removal instructions](https://github.com/addressanup/level7-dev-loop/blob/v1.0.0-dev/docs/releases/v1.0.0-dev.md).
-
-If Gatekeeper refuses a binary, stop. Never disable Gatekeeper globally. Users
-who require normal macOS publisher identity and trust behavior must wait for
-the separately signed and notarized stable `v1.0.0` release.
+Users who require normal macOS publisher identity and trust behavior must wait
+for the separately signed and Apple-notarized stable `v1.0.0` release. Its
+future packages and evidence are distinct from `v1.0.0-dev`; do not substitute
+or rename the prerelease assets.
 
 ### What happens next?
 
 ```text
 You:      "Add keyboard navigation to the command palette."
 
-Level 7:  inspect → implement → test → repair → self-review → handoff
+Level 7:  foundation check → inspect → implement → test → repair → self-review → handoff
 
 You:      Review the finished result—or step in earlier only if a material
           decision or external effect needs your authority.
 ```
 
 No skill-selection quiz. No approval prompt between ordinary development
-steps. No fake independent reviewer for a solo project.
+steps. No fake independent reviewer for a solo project. If the product
+foundation is incomplete, Level 7 completes it before anything else; see
+[Foundation first](#foundation-first).
 
 ## Why developers use Level 7
 
@@ -219,18 +218,41 @@ Level 7 gives Codex and Claude Code a practical development conductor:
 The default conductor, `l7-next`, takes ownership of the complete
 repository-local loop:
 
-1. **Inspect** repository instructions, Git state, the current change, relevant
+1. **Confirm the foundation** before any repository change, and complete any
+   missing foundation step first.
+2. **Inspect** repository instructions, Git state, the current change, relevant
    code, tests, and CI—while preserving unrelated work.
-2. **Define the smallest coherent result** that satisfies the objective.
-3. **Classify actual risk** instead of treating every change like a release.
-4. **Implement continuously** through ordinary, reversible local work.
-5. **Test fast, then broad**: start with targeted checks, repair failures, and
+3. **Define the smallest coherent result** that satisfies the objective.
+4. **Classify actual risk** instead of treating every change like a release.
+5. **Implement continuously** through ordinary, reversible local work.
+6. **Test fast, then broad**: start with targeted checks, repair failures, and
    expand verification in proportion to the change.
-6. **Self-review truthfully** for correctness, scope, security, data,
+7. **Self-review truthfully** for correctness, scope, security, data,
    compatibility, performance, accessibility, operations, and rollback where
    relevant.
-7. **Hand off a review-ready result** with what changed, what passed, and any
+8. **Hand off a review-ready result** with what changed, what passed, and any
    real limitation or next step.
+
+### Foundation first
+
+`l7-next` does not build on an undefined product. Before any repository change,
+it checks the six `l7-greenfield` foundation steps in order:
+
+| Step | Complete when the repository records |
+|---|---|
+| 1. Requirements | Problem, users, functional and non-functional requirements, constraints, measurable metrics, and risks |
+| 2. Feature backlog | P0/P1/P2 features with dependencies, effort, and acceptance criteria |
+| 3. Architecture | Three scored options, the selected design, and failure modes |
+| 4. Technology selection | Scored candidates, the selected stack, compatibility, and pinned versions |
+| 5. Harness | Layout, lint, type checks, tests, CI, logging, and README, with commands verified passing |
+| 6. Orchestration plan | Waves, shared files, and parallelism limits |
+
+Existing documents, code, and CI count as evidence, so an established
+repository may already satisfy several steps. Progress is recorded in
+`docs/foundation/README.md`. While any step is incomplete, every other change
+waits—even a routine fix—and Level 7 resumes the foundation from the first
+incomplete step. Invoking a specialized skill directly, such as `l7-ops` during
+an incident, is not gated.
 
 ### It continues when it can—and pauses when it should
 
@@ -267,7 +289,7 @@ directly for a specialized job.
 
 | Skill | Best for |
 |---|---|
-| [`l7-next`](skills/l7-next/SKILL.md) | Conducting one objective from inspection to tested handoff |
+| [`l7-next`](skills/l7-next/SKILL.md) | Confirming the foundation, then conducting one objective from inspection to tested handoff |
 | [`l7-onboard`](skills/l7-onboard/SKILL.md) | Inspecting project/provider/memory state and naming the next executable transition |
 | [`l7-sync`](skills/l7-sync/SKILL.md) | Building or querying private, Git-bound codebase memory |
 | [`l7-cyber`](skills/l7-cyber/SKILL.md) | Running a read-only security audit or explicitly isolated active confirmation |
@@ -278,7 +300,7 @@ directly for a specialized job.
 | [`l7-release`](skills/l7-release/SKILL.md) | Evaluating a real release boundary or opt-in team assurance |
 | [`l7-deploy`](skills/l7-deploy/SKILL.md) | Deploying an exact verified candidate with rollback and monitoring |
 | [`l7-ops`](skills/l7-ops/SKILL.md) | Operating a live product from SLOs, incidents, feedback, and fixes |
-| [`l7-greenfield`](skills/l7-greenfield/SKILL.md) | Establishing the minimum useful foundation for a new product |
+| [`l7-greenfield`](skills/l7-greenfield/SKILL.md) | Assessing, starting, or resuming the six-step product foundation |
 | [`l7-experience`](skills/l7-experience/SKILL.md) | Diagnosing and improving a working product's UX |
 | [`l7-geometry`](skills/l7-geometry/SKILL.md) | Applying focused spacing, sizing, and alignment polish |
 | [`l7-storybook`](skills/l7-storybook/SKILL.md) | Explaining multi-tenant behavior and unresolved product decisions |
@@ -307,8 +329,8 @@ and missing tests. Report only evidenced issues.
 ```
 
 ```text
-$l7-greenfield Turn this product idea into the minimum buildable foundation,
-then implement the first useful vertical slice.
+$l7-greenfield Take this product idea through the six-step foundation, then
+build Wave 1.
 ```
 
 ```text
@@ -494,6 +516,14 @@ Level 7 never stores the referenced secret value.
 Yes. Start with one concrete objective and `l7-next`. The workflow supplies a
 clear sequence and asks for input only when it reaches a decision only you can
 make or an action requiring your permission.
+
+### Why did `l7-next` start with the foundation instead of my request?
+
+The foundation gate holds every repository change until the six
+`l7-greenfield` steps are complete. Level 7 reports which steps are complete,
+partial, or missing, resumes from the first incomplete step, and returns to your
+request once the foundation is complete. Steps already covered by existing
+documents, code, or CI are reused rather than rewritten.
 
 ### Can a team use Level 7?
 

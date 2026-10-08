@@ -16,6 +16,13 @@ apply the specialized Level 7 skills internally, but the skill graph is not a
 user interface. Do not stop after proposing a plan when implementation was
 requested.
 
+Before any repository change, `l7-next` confirms the six-step product
+foundation that `l7-greenfield` defines: requirements, feature backlog,
+architecture, technology selection, harness, and orchestration plan. Evidence
+in `docs/foundation/README.md` and the repository decides each step. While any
+step is incomplete, hold the objective, make no other change of any tier, and
+resume `l7-greenfield` from the first incomplete step.
+
 Pause only for a material product decision or missing authority at an external,
 destructive, irreversible, credentialed, production, publication, deployment,
 release, or protected-branch merge boundary. Consolidate that boundary into one
@@ -63,7 +70,7 @@ without asking the user to approve the routing decision:
 
 | Intent | Internal skill |
 |---|---|
-| new product | `l7-greenfield` |
+| new product or incomplete foundation | `l7-greenfield` |
 | implement feature/wave | `l7-build` |
 | optional team/release audit | `l7-release` |
 | deploy | `l7-deploy` |
