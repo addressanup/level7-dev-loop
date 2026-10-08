@@ -1,8 +1,9 @@
 ---
 name: l7-next
 description: >
-  Conduct one intent through inspection, implementation, verification, repair,
-  self-review, and a review-ready handoff without exposing a skill graph.
+  Confirm the six-step product foundation first, then conduct one intent
+  through inspection, implementation, verification, repair, self-review, and a
+  review-ready handoff without exposing a skill graph.
 user-invocable: true
 ---
 
@@ -11,6 +12,26 @@ user-invocable: true
 Begin by invoking the same read-only project analysis as `$l7-onboard` status
 (local MCP first, bundled CLI fallback). Preserve `l7-next` as the compatibility
 entry point; do not recreate a separate project-state router.
+
+## Foundation gate
+
+Before any repository change, confirm the product foundation that
+`l7-greenfield` defines: requirements, feature backlog, architecture,
+technology selection, harness, and orchestration plan.
+
+1. Assess the six steps in order against the `l7-greenfield` completion
+   criteria, using `docs/foundation/README.md` and current repository evidence.
+   A status label is never evidence by itself.
+2. If every step is complete, continue with the conductor loop.
+3. Otherwise, hold the objective: make no other repository change of any tier,
+   including routine fixes. Report each step's status with its evidence or
+   gaps, name the first incomplete step, and apply `l7-greenfield` from that
+   step without redoing complete steps or skipping ahead.
+4. Resume the held objective only after all six steps are complete.
+
+Read-only questions and the foundation work itself are not held.
+
+## Conductor loop
 
 Take ownership of the complete repository-local development loop:
 

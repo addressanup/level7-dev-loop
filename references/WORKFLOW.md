@@ -1,11 +1,27 @@
 # Level 7 workflow
 
-The default path is one uninterrupted conductor loop:
+Once the foundation gate passes, the default path is one uninterrupted conductor
+loop:
 
 `intent → inspect → implement → test → repair → self-review → handoff`
 
 The user does not need to understand or approve a skill graph. `l7-next` is the
 default conductor and applies specialized skills internally.
+
+## Foundation gate
+
+Before any repository change, `l7-next` confirms the product foundation that
+`l7-greenfield` defines:
+
+`requirements → feature backlog → architecture → technology selection → harness → orchestration plan`
+
+`docs/foundation/README.md` records each step's status, evidence, gaps, and the
+commit at which it was assessed complete. Evidence decides completion; a status
+label alone never does. While any step is incomplete, every other change of
+every tier waits, and `l7-greenfield` resumes from the first incomplete step.
+Read-only questions are not held, and directly invoked specialized skills are
+not gated. Foundation documents live under `docs/foundation/`, outside the
+governance artifact budget.
 
 ## Risk tiers
 

@@ -176,14 +176,16 @@ the separately signed and notarized stable `v1.0.0` release.
 ```text
 You:      "Add keyboard navigation to the command palette."
 
-Level 7:  inspect → implement → test → repair → self-review → handoff
+Level 7:  foundation check → inspect → implement → test → repair → self-review → handoff
 
 You:      Review the finished result—or step in earlier only if a material
           decision or external effect needs your authority.
 ```
 
 No skill-selection quiz. No approval prompt between ordinary development
-steps. No fake independent reviewer for a solo project.
+steps. No fake independent reviewer for a solo project. If the product
+foundation is incomplete, Level 7 completes it before anything else; see
+[Foundation first](#foundation-first).
 
 ## Why developers use Level 7
 
@@ -219,18 +221,41 @@ Level 7 gives Codex and Claude Code a practical development conductor:
 The default conductor, `l7-next`, takes ownership of the complete
 repository-local loop:
 
-1. **Inspect** repository instructions, Git state, the current change, relevant
+1. **Confirm the foundation** before any repository change, and complete any
+   missing foundation step first.
+2. **Inspect** repository instructions, Git state, the current change, relevant
    code, tests, and CI—while preserving unrelated work.
-2. **Define the smallest coherent result** that satisfies the objective.
-3. **Classify actual risk** instead of treating every change like a release.
-4. **Implement continuously** through ordinary, reversible local work.
-5. **Test fast, then broad**: start with targeted checks, repair failures, and
+3. **Define the smallest coherent result** that satisfies the objective.
+4. **Classify actual risk** instead of treating every change like a release.
+5. **Implement continuously** through ordinary, reversible local work.
+6. **Test fast, then broad**: start with targeted checks, repair failures, and
    expand verification in proportion to the change.
-6. **Self-review truthfully** for correctness, scope, security, data,
+7. **Self-review truthfully** for correctness, scope, security, data,
    compatibility, performance, accessibility, operations, and rollback where
    relevant.
-7. **Hand off a review-ready result** with what changed, what passed, and any
+8. **Hand off a review-ready result** with what changed, what passed, and any
    real limitation or next step.
+
+### Foundation first
+
+`l7-next` does not build on an undefined product. Before any repository change,
+it checks the six `l7-greenfield` foundation steps in order:
+
+| Step | Complete when the repository records |
+|---|---|
+| 1. Requirements | Problem, users, functional and non-functional requirements, constraints, measurable metrics, and risks |
+| 2. Feature backlog | P0/P1/P2 features with dependencies, effort, and acceptance criteria |
+| 3. Architecture | Three scored options, the selected design, and failure modes |
+| 4. Technology selection | Scored candidates, the selected stack, compatibility, and pinned versions |
+| 5. Harness | Layout, lint, type checks, tests, CI, logging, and README, with commands verified passing |
+| 6. Orchestration plan | Waves, shared files, and parallelism limits |
+
+Existing documents, code, and CI count as evidence, so an established
+repository may already satisfy several steps. Progress is recorded in
+`docs/foundation/README.md`. While any step is incomplete, every other change
+waits—even a routine fix—and Level 7 resumes the foundation from the first
+incomplete step. Invoking a specialized skill directly, such as `l7-ops` during
+an incident, is not gated.
 
 ### It continues when it can—and pauses when it should
 
@@ -267,7 +292,7 @@ directly for a specialized job.
 
 | Skill | Best for |
 |---|---|
-| [`l7-next`](skills/l7-next/SKILL.md) | Conducting one objective from inspection to tested handoff |
+| [`l7-next`](skills/l7-next/SKILL.md) | Confirming the foundation, then conducting one objective from inspection to tested handoff |
 | [`l7-onboard`](skills/l7-onboard/SKILL.md) | Inspecting project/provider/memory state and naming the next executable transition |
 | [`l7-sync`](skills/l7-sync/SKILL.md) | Building or querying private, Git-bound codebase memory |
 | [`l7-cyber`](skills/l7-cyber/SKILL.md) | Running a read-only security audit or explicitly isolated active confirmation |
@@ -278,7 +303,7 @@ directly for a specialized job.
 | [`l7-release`](skills/l7-release/SKILL.md) | Evaluating a real release boundary or opt-in team assurance |
 | [`l7-deploy`](skills/l7-deploy/SKILL.md) | Deploying an exact verified candidate with rollback and monitoring |
 | [`l7-ops`](skills/l7-ops/SKILL.md) | Operating a live product from SLOs, incidents, feedback, and fixes |
-| [`l7-greenfield`](skills/l7-greenfield/SKILL.md) | Establishing the minimum useful foundation for a new product |
+| [`l7-greenfield`](skills/l7-greenfield/SKILL.md) | Assessing, starting, or resuming the six-step product foundation |
 | [`l7-experience`](skills/l7-experience/SKILL.md) | Diagnosing and improving a working product's UX |
 | [`l7-geometry`](skills/l7-geometry/SKILL.md) | Applying focused spacing, sizing, and alignment polish |
 | [`l7-storybook`](skills/l7-storybook/SKILL.md) | Explaining multi-tenant behavior and unresolved product decisions |
@@ -307,8 +332,8 @@ and missing tests. Report only evidenced issues.
 ```
 
 ```text
-$l7-greenfield Turn this product idea into the minimum buildable foundation,
-then implement the first useful vertical slice.
+$l7-greenfield Take this product idea through the six-step foundation, then
+build Wave 1.
 ```
 
 ```text
@@ -494,6 +519,14 @@ Level 7 never stores the referenced secret value.
 Yes. Start with one concrete objective and `l7-next`. The workflow supplies a
 clear sequence and asks for input only when it reaches a decision only you can
 make or an action requiring your permission.
+
+### Why did `l7-next` start with the foundation instead of my request?
+
+The foundation gate holds every repository change until the six
+`l7-greenfield` steps are complete. Level 7 reports which steps are complete,
+partial, or missing, resumes from the first incomplete step, and returns to your
+request once the foundation is complete. Steps already covered by existing
+documents, code, or CI are reused rather than rewritten.
 
 ### Can a team use Level 7?
 

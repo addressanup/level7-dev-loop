@@ -4,6 +4,15 @@ All notable changes to the Level 7 instruction plugin packages are recorded
 here. Host observations and support claims remain scoped by
 `distribution/compatibility.json`.
 
+## Unreleased
+
+- Make `l7-next` confirm the six-step product foundation before any repository
+  change. While a step is incomplete, it holds work of every tier and resumes
+  `l7-greenfield` from the first incomplete step.
+- Restore the original six-step `l7-greenfield` sequence with evidence-based
+  completion criteria, recorded in `docs/foundation/README.md`.
+- Leave the frozen v0.1.1 rollback skills unchanged.
+
 ## 1.0.0
 
 - Add explicit, fail-closed `1.0.0`/`stable` package identity while preserving
