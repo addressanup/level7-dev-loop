@@ -24,6 +24,9 @@ here. Host observations and support claims remain scoped by
   target moved before merging. Rebase conflicts become owner decisions.
 - Keep the crew local-only: it never pushes, opens pull requests, releases, or
   deploys.
+- Send the thread sandbox modes codex-cli 0.162 accepts. Every Codex session,
+  Headless included, failed at `thread/start`; request failures now keep the
+  server's bounded error message.
 
 ## 1.0.0
 
