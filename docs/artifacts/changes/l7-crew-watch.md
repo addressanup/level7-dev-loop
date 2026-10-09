@@ -5,7 +5,7 @@
 | Change ID | `l7-crew-watch` |
 | Risk tier | `3` — skill and workflow-contract change; owner takeover of autonomous worker sessions |
 | Status | `approved` by the active user for this bounded repository-local implementation |
-| Base commit | `33f66e942a876a1e617b0b57e004003e8a7df014` |
+| Base commit | `e13ebf789b8feff117e817fbf58e48aad1ec631e` |
 | Accountable owner | Active user; authority is recorded outside candidate-controlled repository text |
 | Implementer | `devin` |
 | Assurance | `solo` — self-review only; no independent audit is claimed |
