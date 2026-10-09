@@ -23,9 +23,11 @@ const (
 	OutcomeMerged OutcomeKind = "merged"
 	// OutcomeReported means a scout report is ready.
 	OutcomeReported OutcomeKind = "reported"
-	OutcomeQuota    OutcomeKind = "quota"
-	OutcomeDecision OutcomeKind = "decision"
-	OutcomeFailed   OutcomeKind = "failed"
+	// OutcomeDelivered means a pull request is open for the candidate.
+	OutcomeDelivered OutcomeKind = "delivered"
+	OutcomeQuota     OutcomeKind = "quota"
+	OutcomeDecision  OutcomeKind = "decision"
+	OutcomeFailed    OutcomeKind = "failed"
 )
 
 type Outcome struct {
@@ -41,14 +43,28 @@ type Outcome struct {
 	QuotaResetAtUTC  string
 	Report           string
 	Message          string
+	PullRequest      int
+	PullRequestURL   string
+}
+
+// PullRequestStatus is the forge's view of one delivered task.
+type PullRequestStatus struct {
+	// State is OPEN, MERGED, or CLOSED.
+	State string
+	Head  string
+	// Checks summarizes check results, such as "passed: 3".
+	Checks string
+	Failed bool
 }
 
 // Executor performs the repository and provider work for one task. Build must
 // be resumable from the checkpoint it receives. Integrate is only called for a
-// built ship task and never concurrently with another Integrate.
+// built ship task and never concurrently with another Integrate. Track reads
+// the pull request of a task in pr-open.
 type Executor interface {
 	Build(context.Context, domain.CrewPlan, domain.CrewTask, domain.CrewCheckpoint) (Outcome, error)
 	Integrate(context.Context, domain.CrewPlan, domain.CrewTask, domain.CrewCheckpoint) (Outcome, error)
+	Track(context.Context, domain.CrewPlan, domain.CrewTask, domain.CrewCheckpoint) (PullRequestStatus, error)
 }
 
 // errNotQueued skips an admission whose task changed state after scheduling.
@@ -61,6 +77,7 @@ type Engine struct {
 	now             func() time.Time
 	wait            func(context.Context, time.Time) error
 	poll            time.Duration
+	track           time.Duration
 	noProgressLimit int
 	failureLimit    int
 }
@@ -74,7 +91,7 @@ func NewEngineWith(now func() time.Time, wait func(context.Context, time.Time) e
 	if wait == nil {
 		wait = waitUntil
 	}
-	return Engine{now: now, wait: wait, poll: 2 * time.Second, noProgressLimit: 3, failureLimit: 8}
+	return Engine{now: now, wait: wait, poll: 2 * time.Second, track: time.Minute, noProgressLimit: 3, failureLimit: 8}
 }
 
 // Run supervises plan until no task can make progress without the owner. The
@@ -115,11 +132,16 @@ func (engine Engine) Run(ctx context.Context, store Store, plan domain.CrewPlan,
 	ticker := time.NewTicker(engine.poll)
 	defer ticker.Stop()
 	var loopErr error
+	var lastTrack time.Time
 	for {
+		tracking := false
 		if ctx.Err() == nil && loopErr == nil {
 			loopErr = engine.admit(ctx, store, plan, executor, &merge, running, finished)
 		}
-		if len(running) == 0 {
+		if ctx.Err() == nil && loopErr == nil {
+			tracking, lastTrack = engine.trackPullRequests(ctx, store, plan, executor, lastTrack)
+		}
+		if len(running) == 0 && !tracking {
 			if loopErr != nil {
 				return loopErr
 			}
@@ -187,6 +209,69 @@ func (engine Engine) admit(ctx context.Context, store Store, plan domain.CrewPla
 	return nil
 }
 
+// trackPullRequests polls the pull requests of pr-open tasks at most once per
+// track interval. It reports whether any task is waiting on a pull request,
+// which keeps the supervisor alive.
+func (engine Engine) trackPullRequests(ctx context.Context, store Store, plan domain.CrewPlan, executor Executor, last time.Time) (bool, time.Time) {
+	checkpoints, err := store.Checkpoints(plan)
+	if err != nil {
+		return false, last
+	}
+	open := []domain.CrewTask{}
+	for _, task := range plan.Tasks {
+		if checkpoints[task.ID].State == domain.CrewPROpen {
+			open = append(open, task)
+		}
+	}
+	if len(open) == 0 {
+		return false, last
+	}
+	if !last.IsZero() && time.Since(last) < engine.track {
+		return true, last
+	}
+	for _, task := range open {
+		checkpoint := checkpoints[task.ID]
+		status, err := executor.Track(ctx, plan, task, checkpoint)
+		if err != nil {
+			continue
+		}
+		engine.applyPullRequest(store, plan, task.ID, checkpoint, status)
+	}
+	return true, time.Now()
+}
+
+func (engine Engine) applyPullRequest(store Store, plan domain.CrewPlan, taskID string, checkpoint domain.CrewCheckpoint, status PullRequestStatus) {
+	pull := "pull request #" + strconv.Itoa(checkpoint.PullRequest)
+	switch {
+	case status.State == "MERGED":
+		engine.record(store, plan, taskID, Outcome{Message: pull + " was merged"}, domain.CrewDone, "pull the base branch to get the change")
+	case status.State == "CLOSED":
+		engine.record(store, plan, taskID, Outcome{Message: pull + " was closed without merging"}, domain.CrewCancelled, "the task will not run again; its branch and worktree are kept")
+	case status.State != "OPEN":
+		return
+	case status.Head != checkpoint.CandidateCommit:
+		engine.decide(store, plan, taskID, domain.CrewDecisionBlocked, pull+" head moved to "+shortCommit(status.Head)+" outside Level 7")
+	case status.Checks != checkpoint.Checks:
+		updated, err := store.Update(plan, taskID, engine.now(), func(next *domain.CrewCheckpoint) error {
+			if next.State != domain.CrewPROpen {
+				return errUnchanged
+			}
+			next.Checks, next.Message = status.Checks, pull+" checks: "+status.Checks
+			return nil
+		})
+		if err == nil && status.Failed && updated.State == domain.CrewPROpen {
+			engine.decide(store, plan, taskID, domain.CrewDecisionCIFailed, "checks failed on "+pull+": "+status.Checks)
+		}
+	}
+}
+
+func shortCommit(commit string) string {
+	if len(commit) > 12 {
+		return commit[:12]
+	}
+	return commit
+}
+
 // runTask drives one task until it finishes, needs the owner, or its context
 // ends. The context ends when the supervisor stops or the owner attaches.
 func (engine Engine) runTask(ctx context.Context, store Store, plan domain.CrewPlan, task domain.CrewTask, executor Executor, merge *sync.Mutex) {
@@ -214,6 +299,9 @@ func (engine Engine) runTask(ctx context.Context, store Store, plan domain.CrewP
 			}
 			engine.record(store, plan, task.ID, outcome, domain.CrewDone, "read the report at "+store.ReportPath(plan.ID, task.ID))
 			return
+		case outcome.Kind == OutcomeDelivered && task.Shape == domain.CrewShip:
+			engine.deliver(store, plan, task.ID, outcome)
+			return
 		case outcome.Kind == OutcomeBuilt && task.Shape == domain.CrewShip:
 			checkpoint = engine.record(store, plan, task.ID, outcome, domain.CrewMerging, "wait for the merge queue")
 			if checkpoint.TaskID == "" {
@@ -229,6 +317,9 @@ func (engine Engine) runTask(ctx context.Context, store Store, plan domain.CrewP
 			switch outcome.Kind {
 			case OutcomeMerged:
 				engine.record(store, plan, task.ID, outcome, domain.CrewDone, "fast-forward your branch from "+plan.TargetBranch+" when ready")
+				return
+			case OutcomeDelivered:
+				engine.deliver(store, plan, task.ID, outcome)
 				return
 			case OutcomeBuilt:
 				// The target moved and the rebased candidate needs another
@@ -323,6 +414,18 @@ func (engine Engine) record(store Store, plan domain.CrewPlan, taskID string, ou
 	return checkpoint
 }
 
+// deliver records an open pull request. Checks start pending because the
+// candidate head is new to the forge.
+func (engine Engine) deliver(store Store, plan domain.CrewPlan, taskID string, outcome Outcome) {
+	next := fmt.Sprintf("review pull request #%d, then run l7 crew merge --task %s --head %s --confirm", outcome.PullRequest, taskID, outcome.CandidateCommit)
+	_, _ = store.Update(plan, taskID, engine.now(), func(checkpoint *domain.CrewCheckpoint) error {
+		applyOutcome(checkpoint, outcome)
+		checkpoint.OwnerEdited, checkpoint.FailureSignature, checkpoint.RepeatedFailures = false, "", 0
+		checkpoint.State, checkpoint.Checks, checkpoint.Message, checkpoint.Next = domain.CrewPROpen, "pending", outcome.Message, next
+		return nil
+	})
+}
+
 func (engine Engine) pause(store Store, plan domain.CrewPlan, taskID, message string) {
 	_, _ = store.Update(plan, taskID, engine.now(), func(checkpoint *domain.CrewCheckpoint) error {
 		if checkpoint.State.Terminal() || checkpoint.State == domain.CrewNeedsDecision || checkpoint.State == domain.CrewAttached {
@@ -362,10 +465,14 @@ func applyOutcome(checkpoint *domain.CrewCheckpoint, outcome Outcome) {
 	for target, value := range map[*string]string{
 		&checkpoint.ProviderID: outcome.ProviderID, &checkpoint.ModelID: outcome.ModelID, &checkpoint.SessionID: outcome.SessionID,
 		&checkpoint.Worktree: outcome.Worktree, &checkpoint.CandidateCommit: outcome.CandidateCommit, &checkpoint.Verification: outcome.Verification,
+		&checkpoint.PullRequestURL: outcome.PullRequestURL,
 	} {
 		if value != "" {
 			*target = value
 		}
+	}
+	if outcome.PullRequest > 0 {
+		checkpoint.PullRequest = outcome.PullRequest
 	}
 }
 

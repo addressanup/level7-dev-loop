@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/crew"
+	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/forge"
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/localfile"
 	"github.com/addressanup/level7-dev-loop/internal/l7/adapter/orchestrationconfig"
 	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
@@ -46,6 +47,7 @@ type CrewExecutor struct {
 	provider  providerFunc
 	snapshots func() ([]domain.ProviderSnapshot, bool, error)
 	verify    func(context.Context, string, []domain.VerificationCommand) ([]domain.CheckResult, string, error)
+	forge     func() (forge.Client, error)
 }
 
 type crewProgress struct {
@@ -68,6 +70,8 @@ type crewProgress struct {
 	ReviewFailures         int                  `json:"review_failures"`
 	ReviewedCommit         string               `json:"reviewed_commit"`
 	ReviewedPatch          string               `json:"reviewed_patch"`
+	PullRequest            int                  `json:"pull_request,omitempty"`
+	PullRequestURL         string               `json:"pull_request_url,omitempty"`
 	UpdatedAtUTC           string               `json:"updated_at_utc"`
 }
 
@@ -86,6 +90,7 @@ func NewCrew(root, common string, configuration orchestrationconfig.File) (CrewE
 	executor.verify = func(ctx context.Context, worktree string, commands []domain.VerificationCommand) ([]domain.CheckResult, string, error) {
 		return verifyadapter.New(nil, nil).RunWithFailureTail(ctx, worktree, commands, configuration.Tools.MaxOutputBytes, configuration.Tools.MaxSeconds)
 	}
+	executor.forge = func() (forge.Client, error) { return forge.Discover(root) }
 	return executor, nil
 }
 
@@ -96,13 +101,17 @@ func (executor CrewExecutor) Build(ctx context.Context, plan domain.CrewPlan, ta
 	if task.Shape != domain.CrewShip {
 		return decision(domain.CrewDecisionBlocked, "unknown crew task shape"), nil
 	}
-	target, err := executor.ref(ctx, plan.TargetBranch)
-	if err != nil {
-		return decision(domain.CrewDecisionBlocked, "target branch "+plan.TargetBranch+" is unavailable"), nil
-	}
 	progress, err := executor.loadCrewProgress(plan, task, checkpoint.Attempt)
 	if err != nil {
 		return decision(domain.CrewDecisionBlocked, err.Error()), nil
+	}
+	// A pull-request task keeps the base it was fetched from; fetching again
+	// for an existing worktree would only move the comparison point.
+	target := progress.BaseCommit
+	if plan.Delivery != domain.CrewDeliveryPR || progress.Worktree == "" {
+		if target, err = executor.startPoint(ctx, plan); err != nil {
+			return decision(domain.CrewDecisionBlocked, err.Error()), nil
+		}
 	}
 	worktree, err := executor.crewWorktree(ctx, task, checkpoint.Attempt, target, progress.Worktree, false)
 	if err != nil {
@@ -142,6 +151,11 @@ func (executor CrewExecutor) Build(ctx context.Context, plan domain.CrewPlan, ta
 				ProviderID: progress.ImplementationRoute.ProviderID, ModelID: progress.ImplementationRoute.ModelID, SessionID: progress.ImplementationSession,
 				Message: "candidate verified and independently reviewed",
 			}, nil
+		case stageDelivered:
+			if !strings.HasPrefix(checkpoint.Checks, "failed") {
+				return delivered(progress, fmt.Sprintf("pull request #%d is open at %s", progress.PullRequest, short(progress.CandidateCommit))), nil
+			}
+			outcome, stop = executor.ciRepair(ctx, plan, &progress, checkpoint.Checks)
 		default:
 			return decision(domain.CrewDecisionBlocked, "crew worker checkpoint has an unknown stage"), nil
 		}
@@ -419,6 +433,9 @@ func (executor CrewExecutor) review(ctx context.Context, plan domain.CrewPlan, t
 // moved, it rebases first; a changed patch or failing verification sends the
 // task back for another build step instead of merging.
 func (executor CrewExecutor) Integrate(ctx context.Context, plan domain.CrewPlan, task domain.CrewTask, checkpoint domain.CrewCheckpoint) (crew.Outcome, error) {
+	if plan.Delivery == domain.CrewDeliveryPR {
+		return executor.deliver(ctx, plan, task, checkpoint)
+	}
 	progress, err := executor.loadCrewProgress(plan, task, checkpoint.Attempt)
 	if err != nil {
 		return decision(domain.CrewDecisionBlocked, err.Error()), nil
@@ -507,9 +524,9 @@ func (executor CrewExecutor) Integrate(ctx context.Context, plan domain.CrewPlan
 // native host. The reviewer contract keeps the provider read-only; its GO
 // means the report satisfies the acceptance criteria.
 func (executor CrewExecutor) scout(ctx context.Context, plan domain.CrewPlan, task domain.CrewTask, checkpoint domain.CrewCheckpoint) (crew.Outcome, error) {
-	target, err := executor.ref(ctx, plan.TargetBranch)
+	target, err := executor.startPoint(ctx, plan)
 	if err != nil {
-		return decision(domain.CrewDecisionBlocked, "target branch "+plan.TargetBranch+" is unavailable"), nil
+		return decision(domain.CrewDecisionBlocked, err.Error()), nil
 	}
 	progress, err := executor.loadCrewProgress(plan, task, checkpoint.Attempt)
 	if err != nil {
