@@ -22,12 +22,13 @@ import (
 )
 
 const (
-	stageStart     = "start"
-	stageRepairing = "repairing"
-	stageVerified  = "verified"
-	stageCommitted = "committed"
-	stageReviewed  = "reviewed"
-	stageMerged    = "merged"
+	stageStart       = "start"
+	stageRepairing   = "repairing"
+	stageOwnerEdited = "owner-edited"
+	stageVerified    = "verified"
+	stageCommitted   = "committed"
+	stageReviewed    = "reviewed"
+	stageMerged      = "merged"
 
 	maxFeedbackBytes = 12 << 10
 	maxWorkerSteps   = 32
@@ -113,6 +114,12 @@ func (executor CrewExecutor) Build(ctx context.Context, plan domain.CrewPlan, ta
 			return failed("worker-checkpoint", err.Error()), nil
 		}
 	}
+	if checkpoint.OwnerEdited && progress.Stage != stageOwnerEdited && progress.Stage != stageMerged {
+		progress.Stage = stageOwnerEdited
+		if err := executor.saveCrewProgress(plan, &progress); err != nil {
+			return failed("worker-checkpoint", err.Error()), nil
+		}
+	}
 	snapshots, found, err := executor.snapshots()
 	if err != nil || !found {
 		return decision(domain.CrewDecisionBlocked, "verified provider snapshot is unavailable; run l7 providers probe"), nil
@@ -121,6 +128,8 @@ func (executor CrewExecutor) Build(ctx context.Context, plan domain.CrewPlan, ta
 		var outcome crew.Outcome
 		var stop bool
 		switch progress.Stage {
+		case stageOwnerEdited:
+			outcome, stop = executor.ownerEdits(ctx, plan, task, &progress)
 		case stageStart, stageRepairing:
 			outcome, stop = executor.implement(ctx, plan, task, &progress, snapshots)
 		case stageVerified:
@@ -137,6 +146,9 @@ func (executor CrewExecutor) Build(ctx context.Context, plan domain.CrewPlan, ta
 			return decision(domain.CrewDecisionBlocked, "crew worker checkpoint has an unknown stage"), nil
 		}
 		if stop {
+			if outcome.Worktree == "" {
+				outcome.Worktree = progress.Worktree
+			}
 			return outcome, nil
 		}
 	}
@@ -184,7 +196,7 @@ func (executor CrewExecutor) implement(ctx context.Context, plan domain.CrewPlan
 	if runErr != nil {
 		progress.ImplementationFailures++
 		_ = executor.saveCrewProgress(plan, progress)
-		return withRoute(failed("implementation:"+route.ProviderID, "implementation session failed: "+runErr.Error()), route), true
+		return withRoute(failed("implementation:"+route.ProviderID, "implementation session failed: "+runErr.Error()), route, progress.ImplementationSession), true
 	}
 	pending, err := executor.git.Pending(ctx, progress.Worktree)
 	if err != nil {
@@ -201,7 +213,7 @@ func (executor CrewExecutor) implement(ctx context.Context, plan domain.CrewPlan
 	if len(pending.Paths) == 0 {
 		progress.ImplementationFailures++
 		_ = executor.saveCrewProgress(plan, progress)
-		return failed("no-change", "the worker finished without changing any file"), true
+		return withRoute(failed("no-change", "the worker finished without changing any file"), route, progress.ImplementationSession), true
 	}
 	checks, tail, verifyErr := executor.verify(ctx, progress.Worktree, crewVerificationCommands(task.Verification))
 	if problem, broken := verificationEnvironmentProblem(checks); broken {
@@ -226,7 +238,88 @@ func (executor CrewExecutor) implement(ctx context.Context, plan domain.CrewPlan
 	progress.ImplementationFailures++
 	progress.RepairRounds = 0
 	_ = executor.saveCrewProgress(plan, progress)
-	return failed("verification:"+failedCheckName(checks), fmt.Sprintf("verification still failed after %d repair rounds", plan.RepairRounds)), true
+	return withRoute(failed("verification:"+failedCheckName(checks), fmt.Sprintf("verification still failed after %d repair rounds", plan.RepairRounds)), route, progress.ImplementationSession), true
+}
+
+// ownerEdits takes over a worktree the owner may have changed while the task
+// was attached. Owner changes face the same scope, protected-path,
+// verification, and review gates as worker changes.
+func (executor CrewExecutor) ownerEdits(ctx context.Context, plan domain.CrewPlan, task domain.CrewTask, progress *crewProgress) (crew.Outcome, bool) {
+	pending, err := executor.git.Pending(ctx, progress.Worktree)
+	if err != nil {
+		return failed("pending", err.Error()), true
+	}
+	if pending.IndexDirty {
+		if _, err := executor.gitChecked(ctx, progress.Worktree, "reset", "-q"); err != nil {
+			return failed("unstage", err.Error()), true
+		}
+		if pending, err = executor.git.Pending(ctx, progress.Worktree); err != nil || pending.IndexDirty {
+			return decision(domain.CrewDecisionBlocked, "the owner's staged changes could not be unstaged"), true
+		}
+	}
+	known := progress.CandidateCommit
+	if known == "" {
+		known = progress.BaseCommit
+	}
+	committed := pending.Head != known
+	if committed {
+		descends, err := executor.isAncestor(ctx, progress.Worktree, known, pending.Head)
+		if err != nil || !descends {
+			return decision(domain.CrewDecisionBlocked, "the task branch no longer descends from its last known commit "+short(known)), true
+		}
+		paths, err := executor.git.CommitPaths(ctx, executor.root, known, pending.Head)
+		if err != nil {
+			return failed("owner-commit-paths", err.Error()), true
+		}
+		for _, relative := range paths {
+			if !domain.ScopeContains(task.AllowedPaths, relative) || protected(relative) {
+				return decision(domain.CrewDecisionScopeExpanded, "an owner commit changes "+relative+", which is outside the approved scope or protected"), true
+			}
+		}
+	}
+	for _, relative := range pending.Paths {
+		if !domain.ScopeContains(task.AllowedPaths, relative) || protected(relative) {
+			return decision(domain.CrewDecisionScopeExpanded, "the owner changed "+relative+", which is outside the approved scope or protected"), true
+		}
+	}
+	if !committed && len(pending.Paths) == 0 {
+		switch {
+		case progress.CandidateCommit != "" && progress.ReviewedCommit == progress.CandidateCommit:
+			progress.Stage = stageReviewed
+		case progress.CandidateCommit != "":
+			progress.Stage = stageCommitted
+		case progress.Feedback != "":
+			progress.Stage = stageRepairing
+		default:
+			progress.Stage = stageStart
+		}
+		return executor.continueWith(plan, progress)
+	}
+	checks, tail, verifyErr := executor.verify(ctx, progress.Worktree, crewVerificationCommands(task.Verification))
+	if problem, broken := verificationEnvironmentProblem(checks); broken {
+		return decision(domain.CrewDecisionBlocked, problem), true
+	}
+	if committed {
+		progress.CandidateCommit, progress.ReviewedCommit = pending.Head, ""
+	}
+	progress.RepairRounds = 0
+	if verifyErr == nil && allPassed(checks) {
+		progress.Feedback, progress.Stage = "", stageCommitted
+		if len(pending.Paths) != 0 {
+			progress.Stage = stageVerified
+		}
+		return executor.continueWith(plan, progress)
+	}
+	progress.Stage = stageRepairing
+	progress.Feedback = "After the owner's edits, verification failed.\n" + verificationFeedback(checks, task.Verification, tail, verifyErr)
+	return executor.continueWith(plan, progress)
+}
+
+func (executor CrewExecutor) continueWith(plan domain.CrewPlan, progress *crewProgress) (crew.Outcome, bool) {
+	if err := executor.saveCrewProgress(plan, progress); err != nil {
+		return failed("worker-checkpoint", err.Error()), true
+	}
+	return crew.Outcome{}, false
 }
 
 func (executor CrewExecutor) commitCandidate(ctx context.Context, plan domain.CrewPlan, task domain.CrewTask, progress *crewProgress) (crew.Outcome, bool) {
@@ -290,7 +383,7 @@ func (executor CrewExecutor) review(ctx context.Context, plan domain.CrewPlan, t
 	if runErr != nil {
 		progress.ReviewFailures++
 		_ = executor.saveCrewProgress(plan, progress)
-		return withRoute(failed("review:"+route.ProviderID, "independent review session failed: "+runErr.Error()), route), true
+		return withRoute(failed("review:"+route.ProviderID, "independent review session failed: "+runErr.Error()), progress.ImplementationRoute, progress.ImplementationSession), true
 	}
 	after, err := executor.git.Pending(ctx, progress.Worktree)
 	if err != nil || len(after.Paths) != 0 || after.IndexDirty || after.Head != progress.CandidateCommit {
@@ -464,7 +557,9 @@ func (executor CrewExecutor) scout(ctx context.Context, plan domain.CrewPlan, ta
 	if runErr != nil {
 		progress.ImplementationFailures++
 		_ = executor.saveCrewProgress(plan, &progress)
-		return withRoute(failed("scout:"+route.ProviderID, "scout session failed: "+runErr.Error()), route), nil
+		outcome := withRoute(failed("scout:"+route.ProviderID, "scout session failed: "+runErr.Error()), route, progress.ImplementationSession)
+		outcome.Worktree = worktree
+		return outcome, nil
 	}
 	after, err := executor.git.Pending(ctx, worktree)
 	if err != nil || len(after.Paths) != 0 || after.IndexDirty || after.Head != target && after.Head != progress.BaseCommit {
@@ -542,6 +637,9 @@ func (executor CrewExecutor) isAncestor(ctx context.Context, directory, ancestor
 // returns the conflicting paths; nothing resolves conflicts automatically.
 func (executor CrewExecutor) rebase(ctx context.Context, worktree, target string) (string, []string, error) {
 	environment := append(processadapter.MinimalEnvironment(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_EDITOR=true")
+	// A crash during an earlier rebase leaves it in progress; abort it so the
+	// branch returns to the reviewed candidate before rebasing again.
+	_, _ = executor.gitResult(ctx, worktree, environment, "rebase", "--abort")
 	result, err := executor.gitResult(ctx, worktree, environment, "-c", "core.fsmonitor=false", "rebase", "--no-autostash", target)
 	if err != nil {
 		return "", nil, err
@@ -798,8 +896,10 @@ func containsString(values []string, value string) bool {
 	return false
 }
 
-func withRoute(outcome crew.Outcome, route domain.RouteDecision) crew.Outcome {
-	outcome.ProviderID, outcome.ModelID = route.ProviderID, route.ModelID
+// withRoute names the implementation session a failure belongs to, so status
+// and owner takeover point at the session the owner would resume.
+func withRoute(outcome crew.Outcome, route domain.RouteDecision, session string) crew.Outcome {
+	outcome.ProviderID, outcome.ModelID, outcome.SessionID = route.ProviderID, route.ModelID, session
 	return outcome
 }
 

@@ -64,7 +64,9 @@ func Run(ctx context.Context, assignment Assignment) (Result, error) {
 	if err != nil || executable.Path != assignment.Executable {
 		return Result{}, errors.New("Codex executable identity is unavailable")
 	}
-	command := exec.CommandContext(ctx, executable.Path, "app-server")
+	// The process is not bound to ctx: cancellation must first reach the
+	// server as turn/interrupt, because a Codex turn can outlive this client.
+	command := exec.Command(executable.Path, "app-server")
 	command.Dir = physical
 	command.Env = processadapter.MinimalEnvironment()
 	command.WaitDelay = time.Second
@@ -104,35 +106,32 @@ func Run(ctx context.Context, assignment Assignment) (Result, error) {
 		}
 	}()
 	encoder := json.NewEncoder(stdin)
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 64<<10), maxProtocolLine)
-	total := 0
 	send := func(value any) error {
 		if err := encoder.Encode(value); err != nil {
 			return errors.New("write Codex app-server request")
 		}
 		return nil
 	}
-	read := func() (message, error) {
-		if !scanner.Scan() {
-			if scanner.Err() != nil {
-				return message{}, errors.New("Codex app-server framing exceeded limits")
+	finished := make(chan struct{})
+	defer close(finished)
+	incoming, readFailure := readMessages(stdout, finished)
+	var streamErr error
+	next := func(ctx context.Context) (message, error) {
+		if streamErr != nil {
+			return message{}, streamErr
+		}
+		select {
+		case value, ok := <-incoming:
+			if !ok {
+				streamErr = <-readFailure
+				return message{}, streamErr
 			}
-			return message{}, errors.New("Codex app-server closed before completion")
+			return value, nil
+		case <-ctx.Done():
+			return message{}, ctx.Err()
 		}
-		total += len(scanner.Bytes())
-		if total > maxProtocolData {
-			return message{}, errors.New("Codex app-server output exceeded bounds")
-		}
-		var value message
-		if json.Unmarshal(scanner.Bytes(), &value) != nil {
-			return message{}, errors.New("Codex app-server emitted malformed JSON")
-		}
-		if len(value.ID) > 0 && value.Method != "" {
-			return message{}, errors.New("Codex app-server requested unsupported host authority")
-		}
-		return value, nil
 	}
+	read := func() (message, error) { return next(ctx) }
 	waitID := func(id string) (message, error) {
 		for {
 			value, readErr := read()
@@ -186,6 +185,10 @@ func Run(ctx context.Context, assignment Assignment) (Result, error) {
 		return Result{}, err
 	}
 	turnResponse, err := waitID("3")
+	if err != nil && ctx.Err() != nil {
+		turnID := awaitTurnID(next)
+		return Result{SessionID: threadID, TurnID: turnID, Status: interruptTurn(send, next, threadID, turnID)}, ctx.Err()
+	}
 	if err != nil {
 		return Result{SessionID: threadID}, err
 	}
@@ -194,6 +197,10 @@ func Run(ctx context.Context, assignment Assignment) (Result, error) {
 	result := Result{SessionID: threadID, TurnID: turnID, Status: "inProgress"}
 	for {
 		value, readErr := read()
+		if readErr != nil && ctx.Err() != nil {
+			result.Status = interruptTurn(send, next, threadID, turnID)
+			return result, ctx.Err()
+		}
 		if readErr != nil {
 			return result, readErr
 		}
@@ -312,6 +319,86 @@ func codexFailureCode(value map[string]any) string {
 		return "quota"
 	}
 	return "provider"
+}
+
+const interruptGrace = 10 * time.Second
+
+// readMessages decodes bounded app-server lines until the stream ends or
+// finished closes. The failure channel explains why incoming closed.
+func readMessages(stdout io.Reader, finished <-chan struct{}) (<-chan message, <-chan error) {
+	incoming, failure := make(chan message, 64), make(chan error, 1)
+	go func() {
+		defer close(incoming)
+		scanner := bufio.NewScanner(stdout)
+		scanner.Buffer(make([]byte, 64<<10), maxProtocolLine)
+		total := 0
+		for scanner.Scan() {
+			total += len(scanner.Bytes())
+			var value message
+			switch {
+			case total > maxProtocolData:
+				failure <- errors.New("Codex app-server output exceeded bounds")
+				return
+			case json.Unmarshal(scanner.Bytes(), &value) != nil:
+				failure <- errors.New("Codex app-server emitted malformed JSON")
+				return
+			case len(value.ID) > 0 && value.Method != "":
+				failure <- errors.New("Codex app-server requested unsupported host authority")
+				return
+			}
+			select {
+			case incoming <- value:
+			case <-finished:
+				failure <- errors.New("Codex app-server session ended")
+				return
+			}
+		}
+		if scanner.Err() != nil {
+			failure <- errors.New("Codex app-server framing exceeded limits")
+			return
+		}
+		failure <- errors.New("Codex app-server closed before completion")
+	}()
+	return incoming, failure
+}
+
+// awaitTurnID waits a bounded time for the turn/start response, so a turn
+// that started as the caller cancelled can still be interrupted.
+func awaitTurnID(next func(context.Context) (message, error)) string {
+	grace, cancel := context.WithTimeout(context.Background(), interruptGrace)
+	defer cancel()
+	for {
+		value, err := next(grace)
+		if err != nil {
+			return ""
+		}
+		if string(value.ID) == "3" {
+			turn, _ := value.Result["turn"].(map[string]any)
+			turnID, _ := turn["id"].(string)
+			return turnID
+		}
+	}
+}
+
+// interruptTurn asks the server to stop the turn and waits a bounded time for
+// it to report the turn's final status.
+func interruptTurn(send func(any) error, next func(context.Context) (message, error), threadID, turnID string) string {
+	if turnID == "" || send(map[string]any{"method": "turn/interrupt", "id": 5, "params": map[string]any{"threadId": threadID, "turnId": turnID}}) != nil {
+		return "unknown"
+	}
+	grace, cancel := context.WithTimeout(context.Background(), interruptGrace)
+	defer cancel()
+	for {
+		value, err := next(grace)
+		if err != nil {
+			return "unknown"
+		}
+		if value.Method == "turn/completed" {
+			completed, _ := value.Params["turn"].(map[string]any)
+			status, _ := completed["status"].(string)
+			return status
+		}
+	}
 }
 
 func rateLimitReset(send func(any) error, read func() (message, error)) (string, error) {

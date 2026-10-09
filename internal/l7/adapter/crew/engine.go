@@ -54,6 +54,9 @@ type Executor interface {
 // errNotQueued skips an admission whose task changed state after scheduling.
 var errNotQueued = errors.New("crew task is no longer queued")
 
+// errUnchanged lets an update leave a checkpoint as it is.
+var errUnchanged = errors.New("crew checkpoint unchanged")
+
 type Engine struct {
 	now             func() time.Time
 	wait            func(context.Context, time.Time) error
@@ -92,7 +95,12 @@ func (engine Engine) Run(ctx context.Context, store Store, plan domain.CrewPlan,
 		return err
 	}
 	for id, checkpoint := range checkpoints {
-		if checkpoint.State.Active() || checkpoint.State == domain.CrewPaused {
+		switch {
+		case checkpoint.State.Active() && checkpoint.AttachRequested:
+			if _, err := store.Update(plan, id, engine.now(), attachTo(id)); err != nil {
+				return err
+			}
+		case checkpoint.State.Active() || checkpoint.State == domain.CrewPaused:
 			if _, err := store.Update(plan, id, engine.now(), func(next *domain.CrewCheckpoint) error {
 				next.State, next.Message, next.Next = domain.CrewQueued, "recovered after an interrupted supervisor", "resume from the recorded checkpoint"
 				return nil
@@ -103,7 +111,7 @@ func (engine Engine) Run(ctx context.Context, store Store, plan domain.CrewPlan,
 	}
 	var merge sync.Mutex
 	finished := make(chan string)
-	running := make(map[string]bool)
+	running := make(map[string]context.CancelFunc)
 	ticker := time.NewTicker(engine.poll)
 	defer ticker.Stop()
 	var loopErr error
@@ -119,10 +127,13 @@ func (engine Engine) Run(ctx context.Context, store Store, plan domain.CrewPlan,
 		}
 		select {
 		case id := <-finished:
+			running[id]()
 			delete(running, id)
 		case <-ctx.Done():
 			for len(running) > 0 {
-				delete(running, <-finished)
+				id := <-finished
+				running[id]()
+				delete(running, id)
 			}
 			return ctx.Err()
 		case <-ticker.C:
@@ -130,7 +141,7 @@ func (engine Engine) Run(ctx context.Context, store Store, plan domain.CrewPlan,
 	}
 }
 
-func (engine Engine) admit(ctx context.Context, store Store, plan domain.CrewPlan, executor Executor, merge *sync.Mutex, running map[string]bool, finished chan<- string) error {
+func (engine Engine) admit(ctx context.Context, store Store, plan domain.CrewPlan, executor Executor, merge *sync.Mutex, running map[string]context.CancelFunc, finished chan<- string) error {
 	checkpoints, err := store.Checkpoints(plan)
 	if err != nil {
 		return err
@@ -138,7 +149,14 @@ func (engine Engine) admit(ctx context.Context, store Store, plan domain.CrewPla
 	states := make(map[string]domain.CrewState, len(checkpoints))
 	for id, checkpoint := range checkpoints {
 		states[id] = checkpoint.State
-		if checkpoint.State.Active() && !running[id] {
+		cancel, isRunning := running[id]
+		switch {
+		case isRunning && checkpoint.AttachRequested && checkpoint.State != domain.CrewMerging:
+			cancel()
+		case checkpoint.State.Active() && !isRunning && checkpoint.AttachRequested:
+			states[id] = domain.CrewAttached
+			_, _ = store.Update(plan, id, engine.now(), attachTo(id))
+		case checkpoint.State.Active() && !isRunning:
 			states[id] = domain.CrewPaused
 			_, _ = store.Update(plan, id, engine.now(), func(next *domain.CrewCheckpoint) error {
 				next.State, next.Message, next.Next = domain.CrewPaused, "worker exited without recording a final state", "run l7 crew resume"
@@ -159,20 +177,23 @@ func (engine Engine) admit(ctx context.Context, store Store, plan domain.CrewPla
 		} else if err != nil {
 			return err
 		}
-		running[id] = true
+		taskContext, cancel := context.WithCancel(ctx)
+		running[id] = cancel
 		go func(task domain.CrewTask) {
-			engine.runTask(ctx, store, plan, task, executor, merge)
+			engine.runTask(taskContext, store, plan, task, executor, merge)
 			finished <- task.ID
 		}(task)
 	}
 	return nil
 }
 
+// runTask drives one task until it finishes, needs the owner, or its context
+// ends. The context ends when the supervisor stops or the owner attaches.
 func (engine Engine) runTask(ctx context.Context, store Store, plan domain.CrewPlan, task domain.CrewTask, executor Executor, merge *sync.Mutex) {
 	failures, rebuilds := 0, 0
 	for {
 		if ctx.Err() != nil {
-			engine.pause(store, plan, task.ID, "supervisor stopped; resume continues from the checkpoint")
+			engine.halt(store, plan, task.ID, Outcome{})
 			return
 		}
 		checkpoint, err := store.Checkpoint(plan, task.ID)
@@ -182,7 +203,7 @@ func (engine Engine) runTask(ctx context.Context, store Store, plan domain.CrewP
 		outcome, buildErr := executor.Build(ctx, plan, task, checkpoint)
 		outcome = normalizeOutcome(outcome, buildErr)
 		if ctx.Err() != nil {
-			engine.record(store, plan, task.ID, outcome, domain.CrewPaused, "supervisor stopped; resume continues from the checkpoint")
+			engine.halt(store, plan, task.ID, outcome)
 			return
 		}
 		switch {
@@ -199,8 +220,10 @@ func (engine Engine) runTask(ctx context.Context, store Store, plan domain.CrewP
 				engine.pause(store, plan, task.ID, "could not record the built candidate before merging")
 				return
 			}
+			// A started merge step runs to completion so that stopping the
+			// supervisor or attaching never leaves a half-applied rebase.
 			merge.Lock()
-			integrated, integrateErr := executor.Integrate(ctx, plan, task, checkpoint)
+			integrated, integrateErr := executor.Integrate(context.WithoutCancel(ctx), plan, task, checkpoint)
 			merge.Unlock()
 			outcome = normalizeOutcome(integrated, integrateErr)
 			switch outcome.Kind {
@@ -242,7 +265,7 @@ func (engine Engine) handle(ctx context.Context, store Store, plan domain.CrewPl
 		outcome.QuotaResetAtUTC = reset.UTC().Format(time.RFC3339)
 		engine.record(store, plan, task.ID, outcome, domain.CrewWaitingQuota, "wait for the natural provider reset")
 		if err := engine.wait(ctx, reset); err != nil {
-			engine.pause(store, plan, task.ID, "supervisor stopped while waiting for a quota reset")
+			engine.halt(store, plan, task.ID, Outcome{})
 			return false
 		}
 		engine.record(store, plan, task.ID, Outcome{Message: "quota reset reached"}, domain.CrewRunning, "resume the task")
@@ -273,13 +296,10 @@ func (engine Engine) handle(ctx context.Context, store Store, plan domain.CrewPl
 // counted here so the breaker survives restarts.
 func (engine Engine) record(store Store, plan domain.CrewPlan, taskID string, outcome Outcome, state domain.CrewState, next string) domain.CrewCheckpoint {
 	checkpoint, err := store.Update(plan, taskID, engine.now(), func(checkpoint *domain.CrewCheckpoint) error {
-		for target, value := range map[*string]string{
-			&checkpoint.ProviderID: outcome.ProviderID, &checkpoint.ModelID: outcome.ModelID, &checkpoint.SessionID: outcome.SessionID,
-			&checkpoint.Worktree: outcome.Worktree, &checkpoint.CandidateCommit: outcome.CandidateCommit, &checkpoint.Verification: outcome.Verification,
-		} {
-			if value != "" {
-				*target = value
-			}
+		applyOutcome(checkpoint, outcome)
+		checkpoint.OwnerEdited = false
+		if state.Terminal() {
+			checkpoint.AttachRequested = false
 		}
 		if outcome.Kind == OutcomeFailed {
 			if checkpoint.FailureSignature == outcome.FailureSignature {
@@ -305,12 +325,48 @@ func (engine Engine) record(store Store, plan domain.CrewPlan, taskID string, ou
 
 func (engine Engine) pause(store Store, plan domain.CrewPlan, taskID, message string) {
 	_, _ = store.Update(plan, taskID, engine.now(), func(checkpoint *domain.CrewCheckpoint) error {
-		if checkpoint.State.Terminal() || checkpoint.State == domain.CrewNeedsDecision {
-			return nil
+		if checkpoint.State.Terminal() || checkpoint.State == domain.CrewNeedsDecision || checkpoint.State == domain.CrewAttached {
+			return errUnchanged
 		}
 		checkpoint.State, checkpoint.Message, checkpoint.Next = domain.CrewPaused, message, "run l7 crew resume"
 		return nil
 	})
+}
+
+// halt records a task whose context ended. An owner takeover request
+// attaches it; otherwise the supervisor stopped and the task pauses for
+// resume. Finished, decided, and attached tasks keep their state.
+func (engine Engine) halt(store Store, plan domain.CrewPlan, taskID string, outcome Outcome) {
+	_, _ = store.Update(plan, taskID, engine.now(), func(checkpoint *domain.CrewCheckpoint) error {
+		if checkpoint.State.Terminal() || checkpoint.State == domain.CrewNeedsDecision || checkpoint.State == domain.CrewAttached {
+			return errUnchanged
+		}
+		applyOutcome(checkpoint, outcome)
+		if checkpoint.AttachRequested {
+			return attachTo(taskID)(checkpoint)
+		}
+		checkpoint.State, checkpoint.Message, checkpoint.Next = domain.CrewPaused, "supervisor stopped; resume continues from the checkpoint", "run l7 crew resume"
+		return nil
+	})
+}
+
+func attachTo(taskID string) func(*domain.CrewCheckpoint) error {
+	return func(checkpoint *domain.CrewCheckpoint) error {
+		checkpoint.State, checkpoint.AttachRequested = domain.CrewAttached, false
+		checkpoint.Message, checkpoint.Next = "held by the owner", "work in the task worktree, then run l7 crew release --task "+taskID
+		return nil
+	}
+}
+
+func applyOutcome(checkpoint *domain.CrewCheckpoint, outcome Outcome) {
+	for target, value := range map[*string]string{
+		&checkpoint.ProviderID: outcome.ProviderID, &checkpoint.ModelID: outcome.ModelID, &checkpoint.SessionID: outcome.SessionID,
+		&checkpoint.Worktree: outcome.Worktree, &checkpoint.CandidateCommit: outcome.CandidateCommit, &checkpoint.Verification: outcome.Verification,
+	} {
+		if value != "" {
+			*target = value
+		}
+	}
 }
 
 func (engine Engine) decide(store Store, plan domain.CrewPlan, taskID string, kind domain.CrewDecisionKind, question string) {

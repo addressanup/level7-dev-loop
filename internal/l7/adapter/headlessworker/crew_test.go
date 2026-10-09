@@ -237,6 +237,97 @@ func TestCrewReviewExcludesEveryModelThatImplementedTheAttempt(t *testing.T) {
 	}
 }
 
+func passingWhenFixed(t *testing.T) func(context.Context, string, []domain.VerificationCommand) ([]domain.CheckResult, string, error) {
+	return func(_ context.Context, worktree string, _ []domain.VerificationCommand) ([]domain.CheckResult, string, error) {
+		data, _ := os.ReadFile(filepath.Join(worktree, "api", "handler.go"))
+		if !strings.Contains(string(data), "fixed") {
+			return []domain.CheckResult{{Name: "crew-01", ExitCode: 1, Code: "L7-VERIFY-001"}}, "stdout:\nstill broken\n", context.DeadlineExceeded
+		}
+		return []domain.CheckResult{{Name: "crew-01", Passed: true}}, "", nil
+	}
+}
+
+func TestCrewReleasedOwnerFixIsVerifiedCommittedAndReviewed(t *testing.T) {
+	executor, plan, _, _ := crewFixture(t, shipObjective)
+	task := plan.Tasks[0]
+	implementerCalls := 0
+	executor.provider = func(_ context.Context, worktree string, _ domain.RouteDecision, _, _ string, reviewer bool, _ []string, _ [][]string) (providerResult, error) {
+		if reviewer {
+			return providerResult{SessionID: "review", Summary: "owner fix meets the criteria", Decision: domain.DecisionGO}, nil
+		}
+		implementerCalls++
+		writeWorktreeFile(t, worktree, "api/handler.go", "package api // bug\n")
+		return providerResult{SessionID: "session-1", Summary: "tried"}, nil
+	}
+	executor.verify = passingWhenFixed(t)
+	failedBuild, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{})
+	if err != nil || failedBuild.Kind != crew.OutcomeFailed || failedBuild.SessionID != "session-1" || implementerCalls != 3 {
+		t.Fatalf("unrepaired build = %+v calls=%d err=%v", failedBuild, implementerCalls, err)
+	}
+	progress, err := executor.loadCrewProgress(plan, task, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeWorktreeFile(t, progress.Worktree, "api/handler.go", "package api // fixed by the owner\n")
+	workerGit(t, progress.Worktree, "add", "api/handler.go")
+	built, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{OwnerEdited: true})
+	if err != nil || built.Kind != crew.OutcomeBuilt || implementerCalls != 3 {
+		t.Fatalf("owner fix must be verified and reviewed without the implementer: %+v calls=%d err=%v", built, implementerCalls, err)
+	}
+	if content := workerGit(t, progress.Worktree, "show", built.CandidateCommit+":api/handler.go"); !strings.Contains(content, "fixed by the owner") {
+		t.Fatalf("candidate does not contain the owner fix: %q", content)
+	}
+	if status := workerGit(t, progress.Worktree, "status", "--porcelain"); strings.TrimSpace(status) != "" {
+		t.Fatalf("owner changes were not committed cleanly: %q", status)
+	}
+}
+
+func TestCrewReleasedOwnerCommitOutsideScopeIsRefused(t *testing.T) {
+	executor, plan, _, _ := crewFixture(t, shipObjective)
+	task := plan.Tasks[0]
+	executor.provider = func(_ context.Context, worktree string, _ domain.RouteDecision, _, _ string, reviewer bool, _ []string, _ [][]string) (providerResult, error) {
+		if reviewer {
+			return providerResult{SessionID: "review", Summary: "ok", Decision: domain.DecisionGO}, nil
+		}
+		writeWorktreeFile(t, worktree, "api/handler.go", "package api // fixed\n")
+		return providerResult{SessionID: "session-1", Summary: "fixed"}, nil
+	}
+	executor.verify = passingWhenFixed(t)
+	built, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{})
+	if err != nil || built.Kind != crew.OutcomeBuilt {
+		t.Fatalf("build = %+v err=%v", built, err)
+	}
+	untouched, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{OwnerEdited: true})
+	if err != nil || untouched.Kind != crew.OutcomeBuilt || untouched.CandidateCommit != built.CandidateCommit {
+		t.Fatalf("an untouched release must resume as built: %+v err=%v", untouched, err)
+	}
+	writeWorktreeFile(t, built.Worktree, "README.md", "owner rewrite\n")
+	workerGit(t, built.Worktree, "commit", "-q", "-am", "docs: owner rewrite")
+	outcome, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{OwnerEdited: true})
+	if err != nil || outcome.Kind != crew.OutcomeDecision || outcome.Decision != domain.CrewDecisionScopeExpanded || !strings.Contains(outcome.Message, "README.md") {
+		t.Fatalf("an owner commit outside scope was accepted: %+v err=%v", outcome, err)
+	}
+}
+
+func TestCrewInterruptedAttemptNamesItsRouteSessionAndWorktree(t *testing.T) {
+	executor, plan, _, _ := crewFixture(t, shipObjective)
+	task := plan.Tasks[0]
+	recorded := ""
+	executor.provider = func(context.Context, string, domain.RouteDecision, string, string, bool, []string, [][]string) (providerResult, error) {
+		if progress, err := executor.loadCrewProgress(plan, task, 0); err == nil {
+			recorded = strings.Join(progress.Contributors, ",")
+		}
+		return providerResult{SessionID: "thread-1"}, context.Canceled
+	}
+	outcome, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{})
+	if err != nil || outcome.Kind != crew.OutcomeFailed || recorded != "codex-local/implementer" {
+		t.Fatalf("the implementer must be durable before it runs: recorded=%q outcome=%+v err=%v", recorded, outcome, err)
+	}
+	if outcome.ProviderID != "codex-local" || outcome.SessionID != "thread-1" || !strings.HasSuffix(outcome.Worktree, task.ID+"-a0") {
+		t.Fatalf("an interrupted attempt must name what the owner would resume: %+v", outcome)
+	}
+}
+
 func TestCrewScopeProtectedRejectsControlPaths(t *testing.T) {
 	for _, pattern := range []string{".github/**", ".github/workflows/ci.yml", ".l7/**", ".l7/orchestration.json", "AGENTS.md", "CLAUDE.md", ".git/**", "config/.env", "secrets/credentials.json"} {
 		if _, found := CrewScopeProtected([]string{"docs/**", pattern}); !found {

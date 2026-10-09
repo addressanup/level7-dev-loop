@@ -66,6 +66,10 @@ func TestNextCrewAdmissionsRespectsWorkersAndScopes(t *testing.T) {
 	if got := NextCrewAdmissions(tasks, queued, 0); len(got) != 0 {
 		t.Fatalf("admissions with no workers = %v", got)
 	}
+	attached := map[string]CrewState{"t1": CrewAttached, "t2": CrewQueued, "t3": CrewQueued, "t4": CrewQueued, "t5": CrewQueued}
+	if got := NextCrewAdmissions(tasks, attached, 3); !reflect.DeepEqual(got, []string{"t3", "t4", "t5"}) {
+		t.Fatalf("admissions = %v; an attached task keeps its scope but not a worker slot", got)
+	}
 }
 
 func TestCrewStateClassification(t *testing.T) {
@@ -84,6 +88,12 @@ func TestCrewStateClassification(t *testing.T) {
 	}
 	if CrewState("unknown").Valid() || CrewQueued.Active() {
 		t.Fatal("unknown state accepted or queued task counted as active")
+	}
+	if !CrewAttached.Valid() || CrewAttached.Active() || CrewAttached.Terminal() || CrewAttached.NeedsAttention() || !CrewAttached.HoldsScope() {
+		t.Fatal("an attached task must hold its scope without being active, terminal, or a reason to wake the liaison")
+	}
+	if CrewPaused.HoldsScope() || CrewQueued.HoldsScope() || !CrewRunning.HoldsScope() {
+		t.Fatal("scope holding must follow active and attached states")
 	}
 }
 

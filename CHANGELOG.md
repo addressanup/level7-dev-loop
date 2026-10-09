@@ -27,6 +27,11 @@ here. Host observations and support claims remain scoped by
 - Send the thread sandbox modes codex-cli 0.162 accepts. Every Codex session,
   Headless included, failed at `thread/start`; request failures now keep the
   server's bounded error message.
+- Show the crew live with `l7 crew watch`, or in tmux with `l7 crew view`.
+  `l7 crew attach` stops one worker and hands its session to the owner through
+  the provider's own resume command. `l7 crew release` returns the task, and
+  owner changes face the same scope, verification, and review gates. Level 7
+  stores no transcript.
 
 ## 1.0.0
 

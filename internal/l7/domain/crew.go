@@ -30,13 +30,14 @@ const (
 	CrewWaitingQuota  CrewState = "waiting-quota"
 	CrewNeedsDecision CrewState = "needs-decision"
 	CrewPaused        CrewState = "paused"
+	CrewAttached      CrewState = "attached"
 	CrewDone          CrewState = "done"
 	CrewCancelled     CrewState = "cancelled"
 )
 
 func (state CrewState) Valid() bool {
 	switch state {
-	case CrewQueued, CrewRunning, CrewMerging, CrewWaitingQuota, CrewNeedsDecision, CrewPaused, CrewDone, CrewCancelled:
+	case CrewQueued, CrewRunning, CrewMerging, CrewWaitingQuota, CrewNeedsDecision, CrewPaused, CrewAttached, CrewDone, CrewCancelled:
 		return true
 	default:
 		return false
@@ -47,6 +48,11 @@ func (state CrewState) Valid() bool {
 func (state CrewState) Active() bool {
 	return state == CrewRunning || state == CrewMerging || state == CrewWaitingQuota
 }
+
+// HoldsScope reports whether a ship task in this state owns its write scope.
+// An attached task is being edited by its owner, so it keeps the scope
+// without using a worker slot.
+func (state CrewState) HoldsScope() bool { return state.Active() || state == CrewAttached }
 
 func (state CrewState) Terminal() bool { return state == CrewDone || state == CrewCancelled }
 
@@ -102,6 +108,12 @@ type CrewCheckpoint struct {
 	Message          string    `json:"message"`
 	UpdatedAtUTC     string    `json:"updated_at_utc"`
 	Next             string    `json:"next"`
+	// AttachRequested asks the supervisor to stop the running worker so the
+	// owner can take the task over.
+	AttachRequested bool `json:"attach_requested,omitempty"`
+	// OwnerEdited tells the next build that the owner may have changed the
+	// worktree while the task was attached.
+	OwnerEdited bool `json:"owner_edited,omitempty"`
 }
 
 type CrewDecisionKind string
@@ -296,11 +308,11 @@ func NextCrewAdmissions(tasks []CrewTask, states map[string]CrewState, maxWorker
 	occupied := []string{}
 	slots := maxWorkers
 	for _, task := range tasks {
-		if !states[task.ID].Active() {
-			continue
+		state := states[task.ID]
+		if state.Active() {
+			slots--
 		}
-		slots--
-		if task.Shape == CrewShip {
+		if task.Shape == CrewShip && state.HoldsScope() {
 			occupied = append(occupied, task.AllowedPaths...)
 		}
 	}

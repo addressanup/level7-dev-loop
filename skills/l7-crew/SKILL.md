@@ -45,6 +45,17 @@ Prefer local MCP `l7_v1_crew`; fall back to the plugin-relative
 - On `timeout`, wait again with the new token. On `idle` with queued or
   paused tasks, run `resume`.
 
+## Watch and take over
+
+- Offer the owner `l7 crew watch`, a live board for their own terminal, or
+  `l7 crew view`, which opens the board in tmux with a shell in each
+  unfinished task's worktree. Do not run either inside your own session.
+- When the owner wants to step into a task, run `attach` for it and give them
+  the returned resume command. It opens the provider's own session in the
+  task worktree while the rest of the crew keeps running.
+- When the owner says they are done, run `release`. Their changes pass the
+  same scope, verification, and review gates before anything merges.
+
 ## Decisions
 
 - Present open decisions one at a time, highest impact first: the question,
@@ -66,6 +77,8 @@ Prefer local MCP `l7_v1_crew`; fall back to the plugin-relative
   `AGENTS.md`, `CLAUDE.md`, `.l7/`, credentials, `.env`) are refused; route
   Tier 3 work through `l7-next`.
 - The crew never pushes, opens pull requests, releases, or deploys.
+- Level 7 stores no transcript or model output; full sessions stay in the
+  provider's own store.
 - Report truthfully: "verified" means the declared checks passed and
   "reviewed" means a different model returned GO. Never call your own summary
   an independent review.

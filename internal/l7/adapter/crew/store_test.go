@@ -186,6 +186,60 @@ func TestStoreDecisionsOpenOrderAndAnswer(t *testing.T) {
 	}
 }
 
+func TestAttachAndReleaseLifecycle(t *testing.T) {
+	store, plan := newTestStore(t)
+	ship, scout := plan.Tasks[0].ID, plan.Tasks[1].ID
+	attached, err := store.RequestAttach(plan, ship, false, testNow)
+	if err != nil || attached.State != domain.CrewAttached || attached.AttachRequested {
+		t.Fatalf("queued task must attach at once: %+v err=%v", attached, err)
+	}
+	again, err := store.RequestAttach(plan, ship, true, testNow)
+	if err != nil || again.Sequence != attached.Sequence {
+		t.Fatalf("attaching twice must not change the task: %+v err=%v", again, err)
+	}
+	if _, err := store.Update(plan, scout, testNow, func(checkpoint *domain.CrewCheckpoint) error {
+		checkpoint.State, checkpoint.Next = domain.CrewRunning, "investigate"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	requested, err := store.RequestAttach(plan, scout, true, testNow)
+	if err != nil || requested.State != domain.CrewRunning || !requested.AttachRequested {
+		t.Fatalf("a supervised running task must only be marked: %+v err=%v", requested, err)
+	}
+	unsupervised, err := store.RequestAttach(plan, scout, false, testNow)
+	if err != nil || unsupervised.State != domain.CrewAttached || unsupervised.AttachRequested {
+		t.Fatalf("a running task without a supervisor must attach at once: %+v err=%v", unsupervised, err)
+	}
+	released, err := store.Release(plan, ship, testNow)
+	if err != nil || released.State != domain.CrewQueued || !released.OwnerEdited || released.AttachRequested {
+		t.Fatalf("release = %+v err=%v", released, err)
+	}
+	if _, err := store.Release(plan, ship, testNow); err == nil {
+		t.Fatal("a task that is not attached was released")
+	}
+	decision, err := store.OpenDecision(plan, ship, domain.CrewDecisionNoProgress, "three identical failures", testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if held, err := store.RequestAttach(plan, ship, true, testNow); err != nil || held.State != domain.CrewAttached {
+		t.Fatalf("a decision-blocked task must attach at once: %+v err=%v", held, err)
+	}
+	decisions, err := store.Decisions(plan.ID)
+	if err != nil || len(decisions) != 1 || decisions[0].ID != decision.ID || decisions[0].Answer != "attach" {
+		t.Fatalf("attaching must close the open decision: %+v err=%v", decisions, err)
+	}
+	if _, err := store.Update(plan, scout, testNow, func(checkpoint *domain.CrewCheckpoint) error {
+		checkpoint.State, checkpoint.Next = domain.CrewDone, "done"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RequestAttach(plan, scout, true, testNow); err == nil {
+		t.Fatal("a finished task was attached")
+	}
+}
+
 func TestTokenChangesWithProgress(t *testing.T) {
 	store, plan := newTestStore(t)
 	before, err := store.Checkpoints(plan)

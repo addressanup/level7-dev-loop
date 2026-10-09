@@ -50,7 +50,7 @@ l7 sync --incremental|--rebuild|--query <text>
 l7 cyber [--active] [--export markdown|json]
 l7 cyber remediate --report <id>
 l7 headless plan|start|status|resume|cancel
-l7 crew plan|start|status|wait|decisions|answer|resume|cancel
+l7 crew plan|start|status|wait|watch|view|decisions|answer|attach|release|resume|cancel
 l7 mcp
 ```
 
@@ -88,7 +88,12 @@ local target branch happen one at a time, rebasing and re-checking when the
 target has moved. Rebase conflicts and other blockers become decisions for
 you. `l7 crew start` launches one background supervisor process per
 repository; it exits when no task can progress, and `l7 crew cancel` stops it.
-The crew never pushes, opens pull requests, releases, or deploys.
+`l7 crew watch` shows a live board, and `l7 crew view` opens it in tmux with
+a shell in each task's worktree. `l7 crew attach --task <id>` stops one worker
+and gives you the provider's own resume command for its session; `l7 crew
+release` hands the task back, and your changes face the same checks and
+review. Level 7 stores no transcript of its own. The crew never pushes, opens
+pull requests, releases, or deploys.
 
 ## Quick start
 

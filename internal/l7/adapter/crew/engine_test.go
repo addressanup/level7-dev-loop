@@ -287,6 +287,79 @@ func TestEngineRebuildsWhenIntegrationNeedsAnotherReview(t *testing.T) {
 	}
 }
 
+func TestEngineAttachStopsOnlyThatTaskAndReleaseResumesIt(t *testing.T) {
+	store, plan := approvedCrew(t, parallelObjective, 3)
+	held := plan.Tasks[0].ID
+	started := make(chan struct{})
+	var startOnce sync.Once
+	executor := &fakeExecutor{}
+	executor.build = func(ctx context.Context, task domain.CrewTask, _ domain.CrewCheckpoint) (Outcome, error) {
+		if task.ID == held {
+			startOnce.Do(func() { close(started) })
+			<-ctx.Done()
+			return Outcome{SessionID: "session-held", Worktree: "/w/held"}, ctx.Err()
+		}
+		if task.Shape == domain.CrewScout {
+			return Outcome{Kind: OutcomeReported, Report: "# CI\n"}, nil
+		}
+		return Outcome{Kind: OutcomeBuilt, CandidateCommit: strings.Repeat("e", 40), Verification: "passed"}, nil
+	}
+	done := make(chan error, 1)
+	go func() { done <- testEngine(nil).Run(context.Background(), store, plan, executor) }()
+	<-started
+	if _, err := store.RequestAttach(plan, held, true, testNow); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("run = %v", err)
+	}
+	checkpoints := states(t, store, plan)
+	if checkpoints[held].State != domain.CrewAttached || checkpoints[held].SessionID != "session-held" || checkpoints[held].AttachRequested {
+		t.Fatalf("attached task = %+v", checkpoints[held])
+	}
+	for _, task := range plan.Tasks[1:] {
+		if checkpoints[task.ID].State != domain.CrewDone {
+			t.Fatalf("%s must finish while %s is attached: %s", task.ID, held, checkpoints[task.ID].State)
+		}
+	}
+	if _, err := store.Release(plan, held, testNow); err != nil {
+		t.Fatal(err)
+	}
+	var sawOwnerEdits atomic.Bool
+	executor.build = func(_ context.Context, _ domain.CrewTask, checkpoint domain.CrewCheckpoint) (Outcome, error) {
+		sawOwnerEdits.Store(checkpoint.OwnerEdited)
+		return Outcome{Kind: OutcomeBuilt, CandidateCommit: strings.Repeat("f", 40), Verification: "passed"}, nil
+	}
+	if err := testEngine(nil).Run(context.Background(), store, plan, executor); err != nil {
+		t.Fatal(err)
+	}
+	final := states(t, store, plan)[held]
+	if !sawOwnerEdits.Load() || final.State != domain.CrewDone || final.OwnerEdited {
+		t.Fatalf("released task must build once with owner edits, then clear the flag: saw=%t final=%+v", sawOwnerEdits.Load(), final)
+	}
+}
+
+func TestEngineAttachesTaskRequestedBeforeACrash(t *testing.T) {
+	store, plan := approvedCrew(t, "## Scout: CI\nAcceptance: ok\n", 1)
+	taskID := plan.Tasks[0].ID
+	if _, err := store.Update(plan, taskID, testNow, func(checkpoint *domain.CrewCheckpoint) error {
+		checkpoint.State, checkpoint.AttachRequested, checkpoint.Next = domain.CrewRunning, true, "stop for the owner"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	executor := &fakeExecutor{build: func(context.Context, domain.CrewTask, domain.CrewCheckpoint) (Outcome, error) {
+		t.Error("a task the owner asked to attach was rebuilt")
+		return Outcome{}, nil
+	}}
+	if err := testEngine(nil).Run(context.Background(), store, plan, executor); err != nil {
+		t.Fatal(err)
+	}
+	if checkpoint := states(t, store, plan)[taskID]; checkpoint.State != domain.CrewAttached || checkpoint.AttachRequested {
+		t.Fatalf("recovered task = %+v", checkpoint)
+	}
+}
+
 func TestEngineCancellationPausesAndRunResumes(t *testing.T) {
 	store, plan := approvedCrew(t, "## Scout: CI\nAcceptance: ok\n", 1)
 	ctx, cancel := context.WithCancel(context.Background())

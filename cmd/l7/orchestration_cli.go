@@ -65,6 +65,9 @@ func runOrchestrationCommand(ctx context.Context, arguments []string, cwd string
 		}
 		return true, serveMCP(ctx, cwd, input, stdout, stderr)
 	}
+	if command == "crew" && len(filtered) > 1 && filtered[1] == "watch" {
+		return true, runCrewWatch(ctx, filtered[2:], cwd, stdout, stderr, jsonOutput)
+	}
 	envelope, runErr := executeOrchestration(ctx, command, filtered[1:], cwd)
 	if runErr != nil {
 		envelope = failedEnvelope(command, "L7-ORCH-002", "failed", runErr.Error(), nextForFailure(command))
