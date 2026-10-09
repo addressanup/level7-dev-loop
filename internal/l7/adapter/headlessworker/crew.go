@@ -58,6 +58,7 @@ type crewProgress struct {
 	ImplementationRoute    domain.RouteDecision `json:"implementation_route"`
 	ImplementationSession  string               `json:"implementation_session"`
 	ImplementationFailures int                  `json:"implementation_failures"`
+	Contributors           []string             `json:"contributors,omitempty"`
 	RepairRounds           int                  `json:"repair_rounds"`
 	Feedback               string               `json:"feedback"`
 	CandidateCommit        string               `json:"candidate_commit"`
@@ -160,6 +161,14 @@ func (executor CrewExecutor) implement(ctx context.Context, plan domain.CrewPlan
 		progress.ImplementationRoute = route
 		_ = state.SaveRouteDecision(executor.common, route)
 	}
+	// Record every implementer before it runs, so no model that touched this
+	// attempt's worktree can review it, even after a crash or failover.
+	if contributor := route.ProviderID + "/" + route.ModelID; !containsString(progress.Contributors, contributor) {
+		progress.Contributors = append(progress.Contributors, contributor)
+	}
+	if err := executor.saveCrewProgress(plan, progress); err != nil {
+		return failed("worker-checkpoint", err.Error()), true
+	}
 	prompt := crewImplementationPrompt(task)
 	if progress.Feedback != "" {
 		prompt = crewRepairPrompt(task, progress.Feedback)
@@ -259,9 +268,9 @@ func (executor CrewExecutor) review(ctx context.Context, plan domain.CrewPlan, t
 		ImplementerProvider: progress.ImplementationRoute.ProviderID, ImplementerModel: progress.ImplementationRoute.ModelID,
 		PriorFailures: progress.ReviewFailures,
 	}
-	route := routeForAttempt(profile, snapshots, progress.ReviewFailures)
+	route := routeForAttempt(profile, withoutModels(snapshots, progress.Contributors), progress.ReviewFailures)
 	if route.ProviderID == "" {
-		return decision(domain.CrewDecisionBlocked, "no independent qualified reviewer is available"), true
+		return decision(domain.CrewDecisionBlocked, "no qualified reviewer is independent of every model that implemented this task"), true
 	}
 	if !sameRoute(progress.ReviewRoute, route) {
 		if progress.ReviewRoute.ProviderID != "" {
@@ -762,6 +771,31 @@ func decision(kind domain.CrewDecisionKind, message string) crew.Outcome {
 func failed(stage, message string) crew.Outcome {
 	digest := sha256.Sum256([]byte(stage))
 	return crew.Outcome{Kind: crew.OutcomeFailed, FailureSignature: fmt.Sprintf("sha256:%x", digest), Message: stage + ": " + bounded(message, 1024)}
+}
+
+// withoutModels removes the given provider/model routes from snapshots.
+func withoutModels(snapshots []domain.ProviderSnapshot, excluded []string) []domain.ProviderSnapshot {
+	filtered := make([]domain.ProviderSnapshot, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		copied := snapshot
+		copied.Models = make([]domain.ModelCapability, 0, len(snapshot.Models))
+		for _, model := range snapshot.Models {
+			if !containsString(excluded, snapshot.ID+"/"+model.ID) {
+				copied.Models = append(copied.Models, model)
+			}
+		}
+		filtered = append(filtered, copied)
+	}
+	return filtered
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }
 
 func withRoute(outcome crew.Outcome, route domain.RouteDecision) crew.Outcome {

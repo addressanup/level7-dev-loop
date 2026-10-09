@@ -73,7 +73,8 @@ tasks, obtains one owner approval bound to the plan digest, and supervises:
   no shell; Level 7 runs the exact `Verify:` argv and returns failure output to
   the same session up to `crew.repair_rounds` times (default 2).
 - A ship candidate merges only after a GO from a reviewer model other than
-  the implementer's (Tier 2 allows another model from the same provider).
+  every model that implemented the task (Tier 2 allows another model from the
+  same provider).
   Merges are serialized: a moved target is rebased, re-verified, and
   re-reviewed when the patch changed. Conflicts become owner decisions.
 - The crew keeps the Tier 2 ceiling, refuses protected paths, and only

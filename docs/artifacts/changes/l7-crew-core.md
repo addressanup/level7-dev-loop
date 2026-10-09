@@ -128,9 +128,10 @@ Modify:
 5. A failed verification resumes the same session with bounded failure
    context up to `crew.repair_rounds` times before the task counts a failure
    and fails over to the next qualified provider.
-6. Every ship candidate needs a `GO` from a reviewer route whose model differs
-   from the implementer's before it can merge. At this Tier 2 ceiling the
-   reviewer may come from the same provider, as in Headless routing.
+6. Every ship candidate needs a `GO` from a reviewer whose model differs from
+   every model that implemented the task attempt, including models used
+   before a failover or interruption. At this Tier 2 ceiling the reviewer may
+   come from the same provider, as in Headless routing.
 7. Merges are serialized. A moved target triggers rebase, re-verification at
    the new head, and re-review when the patch changed. Conflicts become open
    decisions. The target branch only advances by compare-and-swap

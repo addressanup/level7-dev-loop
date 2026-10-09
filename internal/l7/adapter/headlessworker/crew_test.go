@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -192,6 +193,47 @@ func TestCrewScoutIsReadOnly(t *testing.T) {
 	outcome, err = executor.Build(context.Background(), plan, plan.Tasks[0], domain.CrewCheckpoint{Attempt: 1})
 	if err != nil || outcome.Kind != crew.OutcomeDecision || outcome.Decision != domain.CrewDecisionScopeExpanded {
 		t.Fatalf("a writing scout was accepted: %+v err=%v", outcome, err)
+	}
+}
+
+func TestCrewReviewExcludesEveryModelThatImplementedTheAttempt(t *testing.T) {
+	executor, plan, _, _ := crewFixture(t, shipObjective)
+	task := plan.Tasks[0]
+	var implementers, reviewers []string
+	executor.provider = func(_ context.Context, worktree string, route domain.RouteDecision, _, _ string, reviewer bool, _ []string, _ [][]string) (providerResult, error) {
+		if reviewer {
+			reviewers = append(reviewers, route.ModelID)
+			return providerResult{SessionID: "review", Summary: "ok", Decision: domain.DecisionGO}, nil
+		}
+		implementers = append(implementers, route.ModelID)
+		content := "package api // partial\n"
+		if route.ModelID == "reviewer" {
+			content = "package api // fixed\n"
+		}
+		writeWorktreeFile(t, worktree, "api/handler.go", content)
+		return providerResult{SessionID: "session-" + route.ModelID, Summary: "worked"}, nil
+	}
+	executor.verify = func(_ context.Context, worktree string, _ []domain.VerificationCommand) ([]domain.CheckResult, string, error) {
+		data, _ := os.ReadFile(filepath.Join(worktree, "api", "handler.go"))
+		if !strings.Contains(string(data), "fixed") {
+			return []domain.CheckResult{{Name: "crew-01", ExitCode: 1, Code: "L7-VERIFY-001"}}, "stdout:\nstill broken\n", context.DeadlineExceeded
+		}
+		return []domain.CheckResult{{Name: "crew-01", Passed: true}}, "", nil
+	}
+	first, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{})
+	if err != nil || first.Kind != crew.OutcomeFailed {
+		t.Fatalf("first implementer must exhaust its repair rounds: %+v err=%v", first, err)
+	}
+	second, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{})
+	if err != nil || second.Kind != crew.OutcomeDecision || second.Decision != domain.CrewDecisionBlocked || !strings.Contains(second.Message, "independent of every model") {
+		t.Fatalf("both models implemented the attempt, so neither may review it: %+v err=%v implementers=%v reviewers=%v", second, err, implementers, reviewers)
+	}
+	if len(reviewers) != 0 || !reflect.DeepEqual(implementers, []string{"implementer", "implementer", "implementer", "reviewer"}) {
+		t.Fatalf("implementers=%v reviewers=%v", implementers, reviewers)
+	}
+	snapshots := withoutModels(crewSnapshots(), []string{"codex-local/implementer"})
+	if len(snapshots[0].Models) != 0 || len(snapshots[1].Models) != 1 || len(crewSnapshots()[0].Models) != 1 {
+		t.Fatalf("withoutModels must filter a copy: %+v", snapshots)
 	}
 }
 
