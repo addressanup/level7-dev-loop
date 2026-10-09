@@ -241,6 +241,13 @@ func (engine Engine) trackPullRequests(ctx context.Context, store Store, plan do
 }
 
 func (engine Engine) applyPullRequest(store Store, plan domain.CrewPlan, taskID string, checkpoint domain.CrewCheckpoint, status PullRequestStatus) {
+	// The forge call took time; act only if the task is still waiting on the
+	// same delivered head, so an attach or merge made meanwhile wins.
+	current, err := store.Checkpoint(plan, taskID)
+	if err != nil || current.State != domain.CrewPROpen || current.CandidateCommit != checkpoint.CandidateCommit {
+		return
+	}
+	checkpoint = current
 	pull := "pull request #" + strconv.Itoa(checkpoint.PullRequest)
 	switch {
 	case status.State == "MERGED":

@@ -440,6 +440,29 @@ func TestEnginePullRequestFailuresNeedTheOwner(t *testing.T) {
 	}
 }
 
+func TestEnginePullRequestStatusNeverOverridesAnAttachedTask(t *testing.T) {
+	store, plan, executor := deliveredCrew(t, "## Ship: API\nPaths: api/**\nVerify: [\"go\",\"test\"]\nAcceptance: ok\n", 1)
+	taskID := plan.Tasks[0].ID
+	var polls atomic.Int32
+	executor.track = func(_ domain.CrewTask, checkpoint domain.CrewCheckpoint) (PullRequestStatus, error) {
+		if polls.Add(1) == 1 {
+			if _, err := store.RequestAttach(plan, taskID, true, testNow); err != nil {
+				t.Error(err)
+			}
+		}
+		return PullRequestStatus{State: "OPEN", Head: checkpoint.CandidateCommit, Checks: "failed: test", Failed: true}, nil
+	}
+	if err := testEngine(nil).Run(context.Background(), store, plan, executor); err != nil {
+		t.Fatal(err)
+	}
+	if checkpoint := states(t, store, plan)[taskID]; checkpoint.State != domain.CrewAttached {
+		t.Fatalf("a status read before the owner attached must not change the task: %+v", checkpoint)
+	}
+	if decisions, _ := store.Decisions(plan.ID); len(decisions) != 0 {
+		t.Fatalf("a stale status opened a decision: %+v", decisions)
+	}
+}
+
 func TestEngineCancellationPausesAndRunResumes(t *testing.T) {
 	store, plan := approvedCrew(t, "## Scout: CI\nAcceptance: ok\n", 1)
 	ctx, cancel := context.WithCancel(context.Background())
