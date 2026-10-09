@@ -43,6 +43,11 @@ into a stuck task without cancelling it and losing the worker's session.
 - CLI and MCP `attach` and `release` actions; `watch` and `view` are terminal
   features. Updates to the `l7-crew` skill, workflow reference, README, and
   changelog.
+- Stopping a Codex worker sends `turn/interrupt` and waits a bounded time for
+  the turn to end. The first live attach showed that killing the local
+  `codex app-server` client does not stop a codex-cli 0.162 turn: its
+  managed daemon finished the turn 28 seconds later. Headless cancellation
+  benefits too.
 
 Level 7 persists no transcript or model output. Watching shows Level 7's own
 state; full transcripts stay in the provider's own session store and are
@@ -58,9 +63,11 @@ Add:
 - `docs/artifacts/changes/l7-crew-watch.md`
 - `cmd/l7/crew_view.go`
 - `cmd/l7/crew_view_test.go`
+- `internal/l7/adapter/codexapp/session_test.go`
 
 Modify:
 
+- `internal/l7/adapter/codexapp/worker.go`
 - `internal/l7/domain/crew.go`
 - `internal/l7/domain/crew_test.go`
 - `internal/l7/adapter/crew/store.go`
@@ -109,9 +116,10 @@ Modify:
 - **Owner edits bypass worker limits:** every owner change is re-checked
   against scope, protected paths, verification, and independent review before
   it can merge.
-- **Cancelling an in-flight worker:** the process adapter stops the provider's
-  process group. Partial edits stay in the worktree, where the owner sees them
-  and `release` re-checks them.
+- **Cancelling an in-flight worker:** Codex turns are interrupted through the
+  protocol, and other providers' processes are stopped by the process
+  adapter. Partial edits stay in the worktree, where the owner sees them and
+  `release` re-checks them.
 - **tmux missing or different:** tmux is optional; without it Level 7 prints
   the commands.
 - **Resuming a non-interactive session:** Level 7 only prints the provider's
