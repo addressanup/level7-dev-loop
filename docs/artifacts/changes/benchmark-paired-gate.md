@@ -21,7 +21,7 @@ failed six times. Each time, the benchmarked package
 a re-run passed. On a local machine the same two builds measured 73–104%
 slower in one round and 5–6% faster in the next.
 
-## Decision
+## Scope
 
 This deliberately changes the decision rule, not just the sample count. The
 threshold stays at 10%.
