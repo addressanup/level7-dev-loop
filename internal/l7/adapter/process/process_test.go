@@ -51,6 +51,45 @@ func TestRunnerCancelsCompleteInheritedProcessGroup(t *testing.T) {
 	t.Fatalf("child process %d survived process-group cancellation", childPID)
 }
 
+func TestStartDetachedLogsOutputAndTerminateStopsIt(t *testing.T) {
+	directory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(directory, "detached.log")
+	pid, exited, err := StartDetached("/bin/sh", []string{"-c", "echo started; exec sleep 30"}, directory, logPath)
+	if err != nil || pid < 2 {
+		t.Fatalf("pid=%d err=%v", pid, err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		data, _ := os.ReadFile(logPath)
+		if strings.TrimSpace(string(data)) == "started" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("detached process did not log its output: %q", data)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := Terminate(pid); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("detached process ignored termination")
+	}
+	for _, invalid := range [][]string{{"sh", directory, logPath}, {"/bin/sh", "relative", logPath}, {"/bin/sh", directory, "relative.log"}} {
+		if _, _, err := StartDetached(invalid[0], nil, invalid[1], invalid[2]); err == nil {
+			t.Fatalf("relative path accepted: %v", invalid)
+		}
+	}
+	if err := Terminate(1); err == nil {
+		t.Fatal("Terminate accepted init")
+	}
+}
+
 func TestRunnerStopsOutputFloodAtAggregateLimit(t *testing.T) {
 	request := helperRequest(t, "flood")
 	request.MaxOutputBytes = 4096
