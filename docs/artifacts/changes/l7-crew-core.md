@@ -58,10 +58,15 @@ reports results and open decisions.
   passes, with no model calls.
 - A new `l7-crew` skill for the liaison, plus `AGENTS.md`, workflow, README, and
   changelog updates.
+- A fix to the shared Codex app-server adapter found by the first live crew
+  run: codex-cli 0.162 rejects camelCase `thread/start` and `thread/resume`
+  sandbox modes, so every Codex session failed (Headless included). Send the
+  kebab-case modes the server requires and keep its bounded error message.
 
 Out of scope for this phase: tmux views and session takeover, pushing, pull
 requests, any remote or forge operation, automatic merging on a forge, hooks,
-away mode, and remote hosts. Headless behavior does not change. The frozen
+away mode, and remote hosts. Headless behavior does not change apart from the
+shared Codex adapter fix above. The frozen
 v0.1.1 payload under `plugins/` and `distribution/package.json` do not change.
 
 ## Exact implementation file set
@@ -88,6 +93,8 @@ Add:
 
 Modify:
 
+- `internal/l7/adapter/codexapp/worker.go`
+- `internal/l7/adapter/codexapp/worker_test.go`
 - `internal/l7/adapter/process/process_unix.go`
 - `internal/l7/adapter/process/process_test.go`
 - `internal/l7/adapter/verify/runner.go`
