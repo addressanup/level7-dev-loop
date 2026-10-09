@@ -412,9 +412,10 @@ func crewStatus(store crew.Store) (crewStatusView, error) {
 }
 
 func crewOverallState(view crewStatusView) string {
-	finished := true
+	finished, held := true, false
 	for _, task := range view.Tasks {
 		finished = finished && task.State.Terminal()
+		held = held || task.State == domain.CrewAttached
 	}
 	switch {
 	case finished:
@@ -423,6 +424,8 @@ func crewOverallState(view crewStatusView) string {
 		return "needs-decision"
 	case view.Supervisor:
 		return "running"
+	case held:
+		return "held"
 	default:
 		return "stopped"
 	}
@@ -436,6 +439,13 @@ func crewNext(view crewStatusView) string {
 	switch crewOverallState(view) {
 	case "finished":
 		return "review the merged work, then fast-forward your branch: git merge --ff-only " + view.TargetBranch
+	case "held":
+		for _, task := range view.Tasks {
+			if task.State == domain.CrewAttached {
+				return "the owner holds " + task.ID + "; when done, run l7 crew release --task " + task.ID
+			}
+		}
+		return "run l7 crew status"
 	case "stopped":
 		return "run l7 crew resume"
 	default:

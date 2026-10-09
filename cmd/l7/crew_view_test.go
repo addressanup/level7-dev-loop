@@ -58,6 +58,10 @@ func TestRenderCrewBoardShowsTasksDecisionsAndNext(t *testing.T) {
 	if long := boardText(strings.Repeat("é", 100), 51); len(long) > 54 || !strings.HasSuffix(long, "...") {
 		t.Fatalf("board text is not bounded: %q", long)
 	}
+	held := crewStatusView{PlanID: view.PlanID, Tasks: []crewTaskView{view.Tasks[0], {ID: "crew-0123456789ab-t02", State: domain.CrewQueued}}}
+	if crewOverallState(held) != "held" || crewNext(held) != "the owner holds crew-0123456789ab-t01; when done, run l7 crew release --task crew-0123456789ab-t01" {
+		t.Fatalf("a held crew must point at release, not resume: %s / %s", crewOverallState(held), crewNext(held))
+	}
 }
 
 func approvedCLICrew(t *testing.T) (domain.RepositoryLocation, crew.Store, domain.CrewPlan) {
