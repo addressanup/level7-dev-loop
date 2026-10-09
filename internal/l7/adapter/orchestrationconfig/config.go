@@ -36,13 +36,17 @@ type File struct {
 	Memory    Memory     `json:"memory"`
 	Cyber     Cyber      `json:"cyber"`
 	Headless  Headless   `json:"headless"`
+	Crew      Crew       `json:"crew,omitzero"`
 }
 
+// Crew-related fields are omitted while unset so that binaries without crew
+// support still decode the strict policy file after a rollback.
 type Features struct {
 	Orchestration bool `json:"orchestration"`
 	Sync          bool `json:"sync"`
 	CyberActive   bool `json:"cyber_active"`
 	Headless      bool `json:"headless"`
+	Crew          bool `json:"crew,omitempty"`
 }
 
 type Provider struct {
@@ -108,6 +112,23 @@ type Headless struct {
 	LocalMerge      bool `json:"local_merge"`
 	RiskCeiling     int  `json:"risk_ceiling"`
 	NoProgressLimit int  `json:"no_progress_limit"`
+}
+
+// Crew is optional; an omitted section uses DefaultCrew.
+type Crew struct {
+	MaxWorkers   int `json:"max_workers"`
+	RepairRounds int `json:"repair_rounds"`
+}
+
+func DefaultCrew() Crew { return Crew{MaxWorkers: 3, RepairRounds: 2} }
+
+// EffectiveCrew returns the configured crew limits or the defaults when the
+// section is omitted.
+func (configuration File) EffectiveCrew() Crew {
+	if configuration.Crew == (Crew{}) {
+		return DefaultCrew()
+	}
+	return configuration.Crew
 }
 
 func Default() File {
@@ -274,6 +295,10 @@ func (configuration File) Validate() error {
 	}
 	if configuration.Headless.RiskCeiling != 2 || configuration.Headless.NoProgressLimit != 3 {
 		return errors.New("Headless safety policy must keep the Tier 2 ceiling and three-failure pause")
+	}
+	if crew := configuration.EffectiveCrew(); crew.MaxWorkers < 1 || crew.MaxWorkers > domain.CrewMaxWorkers ||
+		crew.RepairRounds < 0 || crew.RepairRounds > domain.CrewMaxRepairRounds {
+		return fmt.Errorf("crew policy must keep 1-%d workers and 0-%d repair rounds", domain.CrewMaxWorkers, domain.CrewMaxRepairRounds)
 	}
 	return nil
 }
