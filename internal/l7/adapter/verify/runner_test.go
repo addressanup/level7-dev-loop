@@ -35,6 +35,35 @@ func TestRunnerUsesExactArgvAndStopsAtFirstFailure(t *testing.T) {
 	}
 }
 
+func TestRunnerReturnsBoundedFailureTailForRepair(t *testing.T) {
+	stdout := strings.Repeat("noise line\n", 1000) + "--- FAIL: TestLogin (0.01s)\n\x1b[31mexpected 200, got 500\x1b[0m\r\n"
+	runner := New(
+		func(name string) (processadapter.Executable, error) { return fakeExecutable(name, ""), nil },
+		func(context.Context, processadapter.Request) (processadapter.Result, error) {
+			return processadapter.Result{ExitCode: 1, Stdout: []byte(stdout), Stderr: []byte("exit status 1\xff")}, nil
+		},
+	)
+	checks, tail, err := runner.RunWithFailureTail(context.Background(), "/repo", []domain.VerificationCommand{{Name: "test", Argv: []string{"go", "test"}}}, 1<<20, 30)
+	if err == nil || len(checks) != 1 || checks[0].Passed {
+		t.Fatalf("failure not reported: checks=%+v err=%v", checks, err)
+	}
+	if !strings.Contains(tail, "--- FAIL: TestLogin") || !strings.Contains(tail, "expected 200, got 500") || !strings.Contains(tail, "stderr:\nexit status 1") {
+		t.Fatalf("tail lost the failure detail: %q", tail)
+	}
+	if strings.ContainsAny(tail, "\x1b\r\xff") || len(tail) > 2*FailureTailBytes+64 {
+		t.Fatalf("tail is unsanitized or unbounded (%d bytes)", len(tail))
+	}
+	passing := New(
+		func(name string) (processadapter.Executable, error) { return fakeExecutable(name, ""), nil },
+		func(context.Context, processadapter.Request) (processadapter.Result, error) {
+			return processadapter.Result{ExitCode: 0, Stdout: []byte("ok")}, nil
+		},
+	)
+	if _, tail, err := passing.RunWithFailureTail(context.Background(), "/repo", []domain.VerificationCommand{{Name: "test", Argv: []string{"go", "test"}}}, 1<<20, 30); err != nil || tail != "" {
+		t.Fatalf("passing run returned tail=%q err=%v", tail, err)
+	}
+}
+
 func TestRunnerFailsClosedOnResolutionAndCancellation(t *testing.T) {
 	runner := New(func(string) (processadapter.Executable, error) {
 		return processadapter.Executable{}, errors.New("missing")
