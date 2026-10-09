@@ -14,22 +14,28 @@ import (
 )
 
 const (
-	defaultThresholdPercent = 10.0
-	defaultMinimumSamples   = 5
-	maxBenchmarkBytes       = 8 << 20
-	maxBenchmarkNames       = 128
-	maxSamplesPerBenchmark  = 100
+	defaultThresholdPercent   = 10.0
+	defaultMinimumSamples     = 9
+	defaultMinimumSlowerPairs = 8
+	maxBenchmarkBytes         = 8 << 20
+	maxBenchmarkNames         = 128
+	maxSamplesPerBenchmark    = 100
 )
 
 type benchmarkSamples map[string][]float64
 
+// benchmarkComparison pairs sample i of the base with sample i of the
+// candidate. The checker script runs each pair back to back, so a pair sees
+// the same machine state and its ratio cancels drift between pairs.
 type benchmarkComparison struct {
-	name             string
-	baseSamples      []float64
-	candidateSamples []float64
-	baseMedian       float64
-	candidateMedian  float64
-	changePercent    float64
+	name                string
+	baseSamples         []float64
+	candidateSamples    []float64
+	baseMedian          float64
+	candidateMedian     float64
+	medianChangePercent float64
+	medianRatio         float64
+	slowerPairs         int
 }
 
 func main() {
@@ -39,13 +45,14 @@ func main() {
 func run(arguments []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("benchgate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	threshold := flags.Float64("threshold-percent", defaultThresholdPercent, "maximum allowed median regression percentage")
+	threshold := flags.Float64("threshold-percent", defaultThresholdPercent, "maximum allowed median paired regression percentage")
 	minimumSamples := flags.Int("minimum-samples", defaultMinimumSamples, "minimum paired samples required per benchmark")
+	minimumSlowerPairs := flags.Int("minimum-slower-pairs", defaultMinimumSlowerPairs, "slower pairs required, with the threshold, to block")
 	if err := flags.Parse(arguments); err != nil {
 		return 1
 	}
 	if flags.NArg() != 2 {
-		fmt.Fprintln(stderr, "benchgate: usage: benchgate [--threshold-percent 10] [--minimum-samples 5] BASE.txt CANDIDATE.txt")
+		fmt.Fprintln(stderr, "benchgate: usage: benchgate [--threshold-percent 10] [--minimum-samples 9] [--minimum-slower-pairs 8] BASE.txt CANDIDATE.txt")
 		return 1
 	}
 	if math.IsNaN(*threshold) || math.IsInf(*threshold, 0) || *threshold < 0 || *threshold > 1000 {
@@ -54,6 +61,10 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	if *minimumSamples < 1 || *minimumSamples > maxSamplesPerBenchmark {
 		fmt.Fprintf(stderr, "benchgate: minimum-samples must be between 1 and %d\n", maxSamplesPerBenchmark)
+		return 1
+	}
+	if *minimumSlowerPairs < 1 || *minimumSlowerPairs > *minimumSamples {
+		fmt.Fprintln(stderr, "benchgate: minimum-slower-pairs must be between 1 and minimum-samples")
 		return 1
 	}
 
@@ -76,28 +87,31 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	blocked := false
 	for _, comparison := range comparisons {
 		result := "PASS"
-		if comparison.candidateMedian > comparison.baseMedian*(1+*threshold/100) {
+		if comparison.medianRatio > 1+*threshold/100 && comparison.slowerPairs >= *minimumSlowerPairs {
 			result = "BLOCKED"
 			blocked = true
 		}
 		fmt.Fprintf(
 			stdout,
-			"benchmark=%s samples=%d base_samples_ns_op=%s candidate_samples_ns_op=%s base_median_ns_op=%.3f candidate_median_ns_op=%.3f change_percent=%+.2f result=%s\n",
+			"benchmark=%s samples=%d base_samples_ns_op=%s candidate_samples_ns_op=%s base_median_ns_op=%.3f candidate_median_ns_op=%.3f median_change_percent=%+.2f paired_change_percent=%+.2f slower_pairs=%d/%d result=%s\n",
 			comparison.name,
 			len(comparison.baseSamples),
 			formatSamples(comparison.baseSamples),
 			formatSamples(comparison.candidateSamples),
 			comparison.baseMedian,
 			comparison.candidateMedian,
-			comparison.changePercent,
+			comparison.medianChangePercent,
+			(comparison.medianRatio-1)*100,
+			comparison.slowerPairs,
+			len(comparison.baseSamples),
 			result,
 		)
 	}
 	if blocked {
-		fmt.Fprintf(stderr, "benchgate: BLOCKED threshold_percent=%.2f benchmark_count=%d; explicit accountable-owner acceptance must occur outside candidate-controlled inputs\n", *threshold, len(comparisons))
+		fmt.Fprintf(stderr, "benchgate: BLOCKED threshold_percent=%.2f minimum_slower_pairs=%d benchmark_count=%d; explicit accountable-owner acceptance must occur outside candidate-controlled inputs\n", *threshold, *minimumSlowerPairs, len(comparisons))
 		return 2
 	}
-	fmt.Fprintf(stdout, "benchgate: PASS threshold_percent=%.2f benchmark_count=%d\n", *threshold, len(comparisons))
+	fmt.Fprintf(stdout, "benchgate: PASS threshold_percent=%.2f minimum_slower_pairs=%d benchmark_count=%d\n", *threshold, *minimumSlowerPairs, len(comparisons))
 	return 0
 }
 
@@ -224,9 +238,18 @@ func compareBenchmarks(base, candidate benchmarkSamples, minimumSamples int) ([]
 	for _, name := range names {
 		baseMedian := median(base[name])
 		candidateMedian := median(candidate[name])
+		ratios := make([]float64, len(base[name]))
+		slower := 0
+		for index, baseValue := range base[name] {
+			ratios[index] = candidate[name][index] / baseValue
+			if ratios[index] > 1 {
+				slower++
+			}
+		}
 		comparisons = append(comparisons, benchmarkComparison{
 			name: name, baseSamples: append([]float64(nil), base[name]...), candidateSamples: append([]float64(nil), candidate[name]...),
-			baseMedian: baseMedian, candidateMedian: candidateMedian, changePercent: ((candidateMedian / baseMedian) - 1) * 100,
+			baseMedian: baseMedian, candidateMedian: candidateMedian, medianChangePercent: ((candidateMedian / baseMedian) - 1) * 100,
+			medianRatio: median(ratios), slowerPairs: slower,
 		})
 	}
 	return comparisons, nil
