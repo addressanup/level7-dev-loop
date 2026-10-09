@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	processadapter "github.com/addressanup/level7-dev-loop/internal/l7/adapter/process"
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
@@ -142,7 +143,7 @@ func Run(ctx context.Context, assignment Assignment) (Result, error) {
 				continue
 			}
 			if value.Error != nil {
-				return value, fmt.Errorf("Codex app-server request %s failed", id)
+				return value, fmt.Errorf("Codex app-server request %s failed: %s", id, requestError(value.Error))
 			}
 			return value, nil
 		}
@@ -268,9 +269,30 @@ func parseTerminal(value string, reviewer bool) (terminalResult, error) {
 
 func sandboxName(reviewer bool) string {
 	if reviewer {
-		return "readOnly"
+		return "read-only"
 	}
-	return "workspaceWrite"
+	return "workspace-write"
+}
+
+func requestError(value map[string]any) string {
+	message, _ := value["message"].(string)
+	message = strings.Map(func(character rune) rune {
+		if character < 0x20 || character == 0x7f {
+			return ' '
+		}
+		return character
+	}, strings.ToValidUTF8(message, ""))
+	if len(message) > 512 {
+		cut := 512
+		for cut > 0 && !utf8.RuneStart(message[cut]) {
+			cut--
+		}
+		message = message[:cut]
+	}
+	if strings.TrimSpace(message) == "" {
+		return "no error message"
+	}
+	return message
 }
 
 func sandboxPolicy(root string, reviewer bool) map[string]any {

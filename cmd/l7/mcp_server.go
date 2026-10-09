@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
 
 const mcpProtocolVersion = "2025-11-25"
@@ -147,6 +149,7 @@ func mcpTools() []mcpTool {
 		{Name: "l7_v1_memory", Description: "Incrementally synchronize, rebuild, or query private Git-bound codebase memory.", InputSchema: object(map[string]any{"action": enum("incremental", "rebuild", "query"), "query": text()}, "action")},
 		{Name: "l7_v1_cyber", Description: "Run read-only Cyber audit, explicitly isolated active confirmation, or produce a separate remediation brief.", InputSchema: object(map[string]any{"action": enum("audit", "remediate"), "active": map[string]any{"type": "boolean"}, "export": enum("markdown", "json"), "report": text()}, "action")},
 		{Name: "l7_v1_headless", Description: "Plan and operate a durable, approved Headless feature-wave lifecycle that stops before deployment.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "resume", "cancel"), "objective": text(), "target": text(), "allow_paths": map[string]any{"type": "array", "items": text(), "maxItems": 256}, "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "local_merge": map[string]any{"type": "boolean"}, "run": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}}, "action")},
+		{Name: "l7_v1_crew", Description: "Plan, approve, supervise, and steer parallel local crew tasks that merge only into a local branch.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "wait", "decisions", "answer", "resume", "cancel"), "objective": text(), "target": text(), "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "plan": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}, "since": text(), "timeout": map[string]any{"type": "integer", "minimum": 0, "maximum": 3600}, "decision": text(), "choice": enum(domain.CrewAnswerRetry, domain.CrewAnswerRestart, domain.CrewAnswerCancel)}, "action")},
 	}
 }
 
@@ -283,6 +286,45 @@ func mcpToolArguments(name string, values map[string]any) (string, []string, err
 			return "headless", arguments, nil
 		}
 		return "", nil, errors.New("Headless action is invalid")
+	case "l7_v1_crew":
+		if err := allowed("action", "objective", "target", "commands", "plan", "digest", "owner", "role", "confirm", "since", "timeout", "decision", "choice"); err != nil {
+			return "", nil, err
+		}
+		switch action := stringValue("action"); action {
+		case "status", "decisions", "resume", "cancel":
+			return "crew", []string{action}, nil
+		case "plan":
+			arguments := []string{"plan", "--objective", stringValue("objective")}
+			if target := stringValue("target"); target != "" {
+				arguments = append(arguments, "--target", target)
+			}
+			if commands, ok := values["commands"].([]any); ok {
+				for _, raw := range commands {
+					encoded, _ := json.Marshal(raw)
+					arguments = append(arguments, "--command-json", string(encoded))
+				}
+			}
+			return "crew", arguments, nil
+		case "start":
+			arguments := []string{"start", "--plan", stringValue("plan"), "--digest", stringValue("digest"), "--owner", stringValue("owner"), "--role", stringValue("role")}
+			if boolValue("confirm") {
+				arguments = append(arguments, "--confirm")
+			}
+			return "crew", arguments, nil
+		case "wait":
+			arguments := []string{"wait"}
+			if since := stringValue("since"); since != "" {
+				arguments = append(arguments, "--since", since)
+			}
+			if timeout, ok := values["timeout"].(float64); ok {
+				arguments = append(arguments, "--timeout", fmt.Sprintf("%.0f", timeout))
+			}
+			return "crew", arguments, nil
+		case "answer":
+			return "crew", []string{"answer", "--decision", stringValue("decision"), "--choice", stringValue("choice")}, nil
+		default:
+			return "", nil, errors.New("crew action is invalid")
+		}
 	default:
 		return "", nil, errors.New("unknown Level 7 v1 tool")
 	}

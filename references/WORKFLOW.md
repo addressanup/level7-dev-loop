@@ -59,6 +59,28 @@ Team Tier 3 compatibility path:
 New implementation commits invalidate exact-head verification and review. Every
 accepted state reports a concrete next action.
 
+## Crew
+
+`l7-crew` is an opt-in parallel path, default OFF behind `features.crew`. The
+liaison never edits the checkout. It plans independent `ship` and `scout`
+tasks, obtains one owner approval bound to the plan digest, and supervises:
+
+`plan → approve → run in parallel → verify and repair → independent review → serialized local merge → digest`
+
+- At most `crew.max_workers` tasks run at once (default 3, range 1–4). Ship
+  tasks whose paths may overlap never run at the same time.
+- Each task has its own worktree under `.git/l7/crew/worktrees/`. Workers have
+  no shell; Level 7 runs the exact `Verify:` argv and returns failure output to
+  the same session up to `crew.repair_rounds` times (default 2).
+- A ship candidate merges only after a GO from a reviewer model other than
+  every model that implemented the task (Tier 2 allows another model from the
+  same provider).
+  Merges are serialized: a moved target is rebased, re-verified, and
+  re-reviewed when the patch changed. Conflicts become owner decisions.
+- The crew keeps the Tier 2 ceiling, refuses protected paths, and only
+  fast-forwards a local branch that no worktree has checked out (default
+  `l7/crew`). It never pushes, opens pull requests, releases, or deploys.
+
 ## Hosted policy
 
 Risk comes from exactly one maintainer-controlled `l7-risk-tier-1/2/3` label.

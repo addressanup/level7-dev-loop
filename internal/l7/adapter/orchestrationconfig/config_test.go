@@ -18,7 +18,7 @@ func TestDefaultIsValidAndEffectsAreOff(t *testing.T) {
 	if err := configuration.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if configuration.Features.Orchestration || configuration.Features.Sync || configuration.Features.CyberActive || configuration.Features.Headless {
+	if configuration.Features.Orchestration || configuration.Features.Sync || configuration.Features.CyberActive || configuration.Features.Headless || configuration.Features.Crew {
 		t.Fatal("default orchestration configuration enabled an effect")
 	}
 	if len(configuration.Providers) != 2 || configuration.Providers[0].Kind != domain.ProviderKindCodexAppServer || configuration.Providers[1].Kind != domain.ProviderKindClaudeCLI {
@@ -160,6 +160,47 @@ func TestGatewayAndCatalogUseTheSameURLPolicy(t *testing.T) {
 			if err := configuration.Validate(); err == nil {
 				t.Errorf("unsafe %s URL accepted: %q", field, value)
 			}
+		}
+	}
+}
+
+func TestCrewPolicyIsOmittedWhileUnset(t *testing.T) {
+	data, err := localfile.EncodeJSON(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(`"crew"`)) {
+		t.Fatalf("unset crew policy was written and would break older strict decoders: %s", data)
+	}
+	enabled := Default()
+	enabled.Features.Crew = true
+	enabled.Crew = Crew{MaxWorkers: 2, RepairRounds: 1}
+	data, err = localfile.EncodeJSON(enabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded File
+	if err := localfile.DecodeJSON(data, &decoded); err != nil || !decoded.Features.Crew || decoded.Crew != enabled.Crew {
+		t.Fatalf("crew policy did not round-trip: %+v err=%v", decoded, err)
+	}
+}
+
+func TestCrewPolicyDefaultsAndBounds(t *testing.T) {
+	if got := Default().EffectiveCrew(); got != DefaultCrew() || got.MaxWorkers != 3 || got.RepairRounds != 2 {
+		t.Fatalf("default crew policy = %+v", got)
+	}
+	for _, crew := range []Crew{{MaxWorkers: 1, RepairRounds: 0}, {MaxWorkers: 4, RepairRounds: 4}} {
+		configuration := Default()
+		configuration.Crew = crew
+		if err := configuration.Validate(); err != nil {
+			t.Fatalf("valid crew policy %+v rejected: %v", crew, err)
+		}
+	}
+	for _, crew := range []Crew{{MaxWorkers: 0, RepairRounds: 1}, {MaxWorkers: 5, RepairRounds: 1}, {MaxWorkers: 2, RepairRounds: 5}, {MaxWorkers: 2, RepairRounds: -1}} {
+		configuration := Default()
+		configuration.Crew = crew
+		if configuration.Validate() == nil {
+			t.Fatalf("unbounded crew policy %+v accepted", crew)
 		}
 	}
 }

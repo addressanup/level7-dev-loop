@@ -2,7 +2,9 @@ package codexapp
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/addressanup/level7-dev-loop/internal/l7/domain"
 )
@@ -37,6 +39,25 @@ func TestRateLimitResetUsesReportedWindowWithoutConsumingCredit(t *testing.T) {
 	})
 	if err != nil || reset == "" || sent["method"] != "account/rateLimits/read" {
 		t.Fatalf("reset=%q sent=%v err=%v", reset, sent, err)
+	}
+}
+
+func TestThreadSandboxModesUseAppServerThreadSchema(t *testing.T) {
+	if sandboxName(false) != "workspace-write" || sandboxName(true) != "read-only" {
+		t.Fatalf("thread sandbox modes = %q, %q", sandboxName(false), sandboxName(true))
+	}
+}
+
+func TestRequestErrorKeepsBoundedServerMessage(t *testing.T) {
+	message := requestError(map[string]any{"code": -32600, "message": "Invalid request: unknown variant `workspaceWrite`\nexpected `workspace-write`"})
+	if message != "Invalid request: unknown variant `workspaceWrite` expected `workspace-write`" {
+		t.Fatalf("message = %q", message)
+	}
+	if long := requestError(map[string]any{"message": strings.Repeat("é", 400)}); len(long) > 512 || !utf8.ValidString(long) {
+		t.Fatalf("message is unbounded or invalid UTF-8: %d bytes", len(long))
+	}
+	if requestError(map[string]any{"code": 1}) != "no error message" {
+		t.Fatal("missing message was not reported")
 	}
 }
 
