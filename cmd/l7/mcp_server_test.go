@@ -90,6 +90,8 @@ func TestMCPCrewToolMapsToExactCLIArguments(t *testing.T) {
 		{map[string]any{"action": "start", "plan": "crew-0123456789ab", "digest": "sha256:x", "owner": "Anup", "role": "owner", "confirm": true}, "start|--plan|crew-0123456789ab|--digest|sha256:x|--owner|Anup|--role|owner|--confirm"},
 		{map[string]any{"action": "wait", "since": "1.2", "timeout": float64(30)}, "wait|--since|1.2|--timeout|30"},
 		{map[string]any{"action": "answer", "decision": "crew-0123456789ab-t01-d01", "choice": "retry"}, "answer|--decision|crew-0123456789ab-t01-d01|--choice|retry"},
+		{map[string]any{"action": "attach", "task": "crew-0123456789ab-t01"}, "attach|--task|crew-0123456789ab-t01"},
+		{map[string]any{"action": "release", "task": "crew-0123456789ab-t01"}, "release|--task|crew-0123456789ab-t01"},
 	}
 	for _, test := range cases {
 		command, arguments, err := mcpToolArguments("l7_v1_crew", test.values)
@@ -97,7 +99,7 @@ func TestMCPCrewToolMapsToExactCLIArguments(t *testing.T) {
 			t.Fatalf("values=%v command=%q arguments=%q err=%v", test.values, command, arguments, err)
 		}
 	}
-	for _, values := range []map[string]any{{"action": "supervise"}, {"action": "deploy"}, {"action": "status", "push": true}} {
+	for _, values := range []map[string]any{{"action": "supervise"}, {"action": "watch"}, {"action": "view"}, {"action": "deploy"}, {"action": "status", "push": true}} {
 		if _, _, err := mcpToolArguments("l7_v1_crew", values); err == nil {
 			t.Fatalf("crew tool accepted %v", values)
 		}

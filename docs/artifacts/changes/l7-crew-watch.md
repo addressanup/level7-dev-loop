@@ -70,7 +70,7 @@ Modify:
 - `internal/l7/adapter/headlessworker/crew.go`
 - `internal/l7/adapter/headlessworker/crew_test.go`
 - `cmd/l7/crew_cli.go`
-- `cmd/l7/crew_cli_test.go`
+- `cmd/l7/orchestration_cli.go`
 - `cmd/l7/mcp_server.go`
 - `cmd/l7/mcp_server_test.go`
 - `skills/l7-crew/SKILL.md`

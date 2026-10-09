@@ -149,7 +149,7 @@ func mcpTools() []mcpTool {
 		{Name: "l7_v1_memory", Description: "Incrementally synchronize, rebuild, or query private Git-bound codebase memory.", InputSchema: object(map[string]any{"action": enum("incremental", "rebuild", "query"), "query": text()}, "action")},
 		{Name: "l7_v1_cyber", Description: "Run read-only Cyber audit, explicitly isolated active confirmation, or produce a separate remediation brief.", InputSchema: object(map[string]any{"action": enum("audit", "remediate"), "active": map[string]any{"type": "boolean"}, "export": enum("markdown", "json"), "report": text()}, "action")},
 		{Name: "l7_v1_headless", Description: "Plan and operate a durable, approved Headless feature-wave lifecycle that stops before deployment.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "resume", "cancel"), "objective": text(), "target": text(), "allow_paths": map[string]any{"type": "array", "items": text(), "maxItems": 256}, "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "local_merge": map[string]any{"type": "boolean"}, "run": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}}, "action")},
-		{Name: "l7_v1_crew", Description: "Plan, approve, supervise, and steer parallel local crew tasks that merge only into a local branch.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "wait", "decisions", "answer", "resume", "cancel"), "objective": text(), "target": text(), "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "plan": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}, "since": text(), "timeout": map[string]any{"type": "integer", "minimum": 0, "maximum": 3600}, "decision": text(), "choice": enum(domain.CrewAnswerRetry, domain.CrewAnswerRestart, domain.CrewAnswerCancel)}, "action")},
+		{Name: "l7_v1_crew", Description: "Plan, approve, supervise, and steer parallel local crew tasks that merge only into a local branch; attach hands one task to its owner and release returns it.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "wait", "decisions", "answer", "attach", "release", "resume", "cancel"), "objective": text(), "target": text(), "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "plan": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}, "since": text(), "timeout": map[string]any{"type": "integer", "minimum": 0, "maximum": 3600}, "decision": text(), "choice": enum(domain.CrewAnswerRetry, domain.CrewAnswerRestart, domain.CrewAnswerCancel), "task": text()}, "action")},
 	}
 }
 
@@ -287,12 +287,14 @@ func mcpToolArguments(name string, values map[string]any) (string, []string, err
 		}
 		return "", nil, errors.New("Headless action is invalid")
 	case "l7_v1_crew":
-		if err := allowed("action", "objective", "target", "commands", "plan", "digest", "owner", "role", "confirm", "since", "timeout", "decision", "choice"); err != nil {
+		if err := allowed("action", "objective", "target", "commands", "plan", "digest", "owner", "role", "confirm", "since", "timeout", "decision", "choice", "task"); err != nil {
 			return "", nil, err
 		}
 		switch action := stringValue("action"); action {
 		case "status", "decisions", "resume", "cancel":
 			return "crew", []string{action}, nil
+		case "attach", "release":
+			return "crew", []string{action, "--task", stringValue("task")}, nil
 		case "plan":
 			arguments := []string{"plan", "--objective", stringValue("objective")}
 			if target := stringValue("target"); target != "" {

@@ -77,6 +77,12 @@ tasks, obtains one owner approval bound to the plan digest, and supervises:
   same provider).
   Merges are serialized: a moved target is rebased, re-verified, and
   re-reviewed when the patch changed. Conflicts become owner decisions.
+- `watch` and `view` show the crew live from Level 7's own state. `attach`
+  holds one task for its owner: the running worker stops, the task keeps its
+  worktree and write scope but frees its worker slot, and the provider's
+  native resume command continues the session. `release` returns the task,
+  and owner changes pass the same scope, verification, and review gates.
+  Level 7 stores no transcript or model output.
 - The crew keeps the Tier 2 ceiling, refuses protected paths, and only
   fast-forwards a local branch that no worktree has checked out (default
   `l7/crew`). It never pushes, opens pull requests, releases, or deploys.

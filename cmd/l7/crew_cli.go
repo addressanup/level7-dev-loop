@@ -58,7 +58,7 @@ type crewStatusView struct {
 
 func crewCommand(ctx context.Context, location domain.RepositoryLocation, arguments []string) (orchestrationEnvelope, error) {
 	if len(arguments) == 0 {
-		return orchestrationEnvelope{}, errors.New("crew requires plan, start, status, wait, decisions, answer, resume, or cancel")
+		return orchestrationEnvelope{}, errors.New(crewUsage)
 	}
 	configuration, err := requireOrchestration(location.Root)
 	if err != nil {
@@ -70,12 +70,18 @@ func crewCommand(ctx context.Context, location domain.RepositoryLocation, argume
 	}
 	action, options := arguments[0], arguments[1:]
 	switch action {
-	case "plan", "start", "answer", "resume", "supervise":
+	case "plan", "start", "answer", "resume", "supervise", "attach", "release":
 		if !configuration.Features.Crew {
 			return orchestrationEnvelope{}, errors.New("crew is default OFF; set features.crew to true in .l7/orchestration.json")
 		}
 	}
 	switch action {
+	case "attach":
+		return crewAttach(ctx, configuration, store, options)
+	case "release":
+		return crewRelease(location, store, options)
+	case "view":
+		return crewView(ctx, location, store, options)
 	case "plan":
 		return crewPlan(location, configuration, store, options)
 	case "start":
@@ -127,7 +133,7 @@ func crewCommand(ctx context.Context, location domain.RepositoryLocation, argume
 		if _, err := store.LoadApproval(plan); err != nil {
 			return orchestrationEnvelope{}, fmt.Errorf("crew plan lacks current owner approval: %w", err)
 		}
-		pid, err := startCrewSupervisor(store, location.Root)
+		pid, err := launchCrewSupervisor(store, location.Root)
 		if errors.Is(err, crew.ErrSupervisorRunning) {
 			return passEnvelope("crew resume", "L7-CREW-000", "running", "the crew supervisor is already running", "run l7 crew wait", nil), nil
 		}
@@ -166,9 +172,11 @@ func crewCommand(ctx context.Context, location domain.RepositoryLocation, argume
 		}
 		return passEnvelope("crew supervise", "L7-CREW-000", "stopped", "crew supervisor finished "+plan.ID, "run l7 crew status", nil), nil
 	default:
-		return orchestrationEnvelope{}, errors.New("crew requires plan, start, status, wait, decisions, answer, resume, or cancel")
+		return orchestrationEnvelope{}, errors.New(crewUsage)
 	}
 }
+
+const crewUsage = "crew requires plan, start, status, wait, watch, view, decisions, answer, attach, release, resume, or cancel"
 
 func crewPlan(location domain.RepositoryLocation, configuration orchestrationconfig.File, store crew.Store, arguments []string) (orchestrationEnvelope, error) {
 	limits := configuration.EffectiveCrew()
@@ -281,7 +289,7 @@ func crewStart(ctx context.Context, location domain.RepositoryLocation, store cr
 	if err := store.Activate(plan); err != nil {
 		return orchestrationEnvelope{}, err
 	}
-	pid, err := startCrewSupervisor(store, location.Root)
+	pid, err := launchCrewSupervisor(store, location.Root)
 	if err != nil && !errors.Is(err, crew.ErrSupervisorRunning) {
 		return orchestrationEnvelope{}, err
 	}
@@ -350,7 +358,7 @@ func crewAnswer(location domain.RepositoryLocation, store crew.Store, arguments 
 	}
 	message := "decision " + decision.ID + " answered: " + decision.Answer
 	if checkpoint.State == domain.CrewQueued {
-		pid, startErr := startCrewSupervisor(store, location.Root)
+		pid, startErr := launchCrewSupervisor(store, location.Root)
 		switch {
 		case errors.Is(startErr, crew.ErrSupervisorRunning):
 			message += "; the running supervisor will pick the task up"
