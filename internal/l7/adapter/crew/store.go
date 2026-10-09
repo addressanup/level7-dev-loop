@@ -206,27 +206,112 @@ func (store Store) Update(plan domain.CrewPlan, taskID string, now time.Time, ch
 			return err
 		}
 		next := current
-		if err := change(&next); err != nil {
+		if err := change(&next); errors.Is(err, errUnchanged) {
+			updated = current
+			return nil
+		} else if err != nil {
 			return err
 		}
-		next.Schema, next.PlanID, next.PlanDigest, next.TaskID = domain.CrewSchema, plan.ID, plan.Digest, taskID
-		next.Sequence = current.Sequence + 1
-		next.Message = bounded(next.Message, 2048)
-		next.UpdatedAtUTC = now.UTC().Format(time.RFC3339)
-		if problem := checkpointProblem(plan, next); problem != "" {
-			return errors.New(problem)
-		}
-		if err := store.write(store.taskPath(plan.ID, taskID, "checkpoint.json"), next, true); err != nil {
-			return err
-		}
-		event := store.taskPath(plan.ID, taskID, fmt.Sprintf("events/%08d.json", next.Sequence))
-		if err := store.write(event, next, false); err != nil && !errors.Is(err, os.ErrExist) {
-			return err
-		}
-		updated = next
-		return nil
+		updated, err = store.saveCheckpoint(plan, taskID, current, next, now)
+		return err
 	})
 	return updated, err
+}
+
+// saveCheckpoint writes next as the successor of current and appends its
+// event. The caller holds the state lock.
+func (store Store) saveCheckpoint(plan domain.CrewPlan, taskID string, current, next domain.CrewCheckpoint, now time.Time) (domain.CrewCheckpoint, error) {
+	next.Schema, next.PlanID, next.PlanDigest, next.TaskID = domain.CrewSchema, plan.ID, plan.Digest, taskID
+	next.Sequence = current.Sequence + 1
+	next.Message = bounded(next.Message, 2048)
+	next.UpdatedAtUTC = now.UTC().Format(time.RFC3339)
+	if problem := checkpointProblem(plan, next); problem != "" {
+		return domain.CrewCheckpoint{}, errors.New(problem)
+	}
+	if err := store.write(store.taskPath(plan.ID, taskID, "checkpoint.json"), next, true); err != nil {
+		return domain.CrewCheckpoint{}, err
+	}
+	event := store.taskPath(plan.ID, taskID, fmt.Sprintf("events/%08d.json", next.Sequence))
+	if err := store.write(event, next, false); err != nil && !errors.Is(err, os.ErrExist) {
+		return domain.CrewCheckpoint{}, err
+	}
+	return next, nil
+}
+
+// RequestAttach takes one task out of automation for its owner. While a
+// supervisor runs an active task, it is only marked so the supervisor stops
+// the worker; any other unfinished task is attached at once and its open
+// decisions are closed.
+func (store Store) RequestAttach(plan domain.CrewPlan, taskID string, supervised bool, now time.Time) (domain.CrewCheckpoint, error) {
+	var result domain.CrewCheckpoint
+	err := store.withStateLock(func() error {
+		current, err := store.loadCheckpoint(plan, taskID)
+		if err != nil {
+			return err
+		}
+		if current.State.Terminal() {
+			return fmt.Errorf("task %s has finished and cannot be attached", taskID)
+		}
+		if current.State == domain.CrewAttached || current.State.Active() && supervised && current.AttachRequested {
+			result = current
+			return nil
+		}
+		next := current
+		if current.State.Active() && supervised {
+			next.AttachRequested = true
+			next.Message, next.Next = "owner takeover requested", "wait for the supervisor to stop the worker"
+		} else {
+			if err := store.closeOpenDecisions(plan.ID, taskID, "attach", now); err != nil {
+				return err
+			}
+			next.State, next.AttachRequested = domain.CrewAttached, false
+			next.Message, next.Next = "held by the owner", "work in the task worktree, then run l7 crew release --task "+taskID
+		}
+		result, err = store.saveCheckpoint(plan, taskID, current, next, now)
+		return err
+	})
+	return result, err
+}
+
+// Release hands an attached task back to automation. The next build treats
+// the worktree as possibly edited by the owner.
+func (store Store) Release(plan domain.CrewPlan, taskID string, now time.Time) (domain.CrewCheckpoint, error) {
+	var result domain.CrewCheckpoint
+	err := store.withStateLock(func() error {
+		current, err := store.loadCheckpoint(plan, taskID)
+		if err != nil {
+			return err
+		}
+		if current.State != domain.CrewAttached {
+			return fmt.Errorf("task %s is not attached", taskID)
+		}
+		next := current
+		next.State, next.OwnerEdited, next.AttachRequested = domain.CrewQueued, true, false
+		next.FailureSignature, next.RepeatedFailures = "", 0
+		next.Message, next.Next = "released by the owner", "check, verify, and review the owner's changes"
+		result, err = store.saveCheckpoint(plan, taskID, current, next, now)
+		return err
+	})
+	return result, err
+}
+
+// closeOpenDecisions records how an owner action resolved a task's open
+// decisions. The caller holds the state lock.
+func (store Store) closeOpenDecisions(planID, taskID, resolution string, now time.Time) error {
+	decisions, err := store.loadDecisions(planID)
+	if err != nil {
+		return err
+	}
+	for _, decision := range decisions {
+		if decision.TaskID != taskID || decision.Answer != "" {
+			continue
+		}
+		decision.Answer, decision.AnsweredAtUTC = resolution, now.UTC().Format(time.RFC3339)
+		if err := store.write(store.planPath(planID, "decisions/"+decision.ID+".json"), decision, true); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // OpenDecision records a new decision for a task and moves the task to
@@ -309,20 +394,10 @@ func (store Store) Answer(plan domain.CrewPlan, decisionID, answer string, now t
 		case domain.CrewAnswerCancel:
 			next.State, next.Next = domain.CrewCancelled, "inspect the retained worktree; the task will not run again"
 		}
-		next.Schema, next.PlanID, next.PlanDigest, next.TaskID = domain.CrewSchema, plan.ID, plan.Digest, decision.TaskID
-		next.Sequence = current.Sequence + 1
 		next.Message = "decision " + decision.ID + " answered: " + answer
 		next.FailureSignature, next.RepeatedFailures = "", 0
-		next.UpdatedAtUTC = now.UTC().Format(time.RFC3339)
-		if err := store.write(store.taskPath(plan.ID, decision.TaskID, "checkpoint.json"), next, true); err != nil {
-			return err
-		}
-		event := store.taskPath(plan.ID, decision.TaskID, fmt.Sprintf("events/%08d.json", next.Sequence))
-		if err := store.write(event, next, false); err != nil && !errors.Is(err, os.ErrExist) {
-			return err
-		}
-		checkpoint = next
-		return nil
+		checkpoint, err = store.saveCheckpoint(plan, decision.TaskID, current, next, now)
+		return err
 	})
 	return decision, checkpoint, err
 }
