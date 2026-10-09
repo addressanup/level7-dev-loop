@@ -56,6 +56,7 @@ Add:
 - `docs/foundation/requirements-amendment-crew-delivery.md`
 - `internal/l7/adapter/forge/forge.go`
 - `internal/l7/adapter/forge/forge_test.go`
+- `internal/l7/adapter/forge/forgetest/forgetest.go`
 - `internal/l7/adapter/headlessworker/crew_deliver.go`
 - `internal/l7/adapter/headlessworker/crew_deliver_test.go`
 - `cmd/l7/crew_deliver.go`
