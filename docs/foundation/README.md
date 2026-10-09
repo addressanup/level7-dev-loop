@@ -34,9 +34,11 @@ Gaps: none against the criteria.
 
 Currency: the requirements predate the shipped v1 orchestration engine and the
 solo-assurance cutover. §11 lists any Level 7-executed external mutation as a
-v1.0 non-goal and §13 assumes one worktree at a time. Work that pushes,
-publishes pull requests, or merges on a forge needs a recorded requirements
-amendment in this directory before it starts.
+v1.0 non-goal and §13 assumes one worktree at a time. For the opt-in crew,
+`requirements-amendment-crew-delivery.md` amends both: parallel worktrees,
+pull-request delivery, and owner-confirmed merge, each with its limits. Any
+other work that pushes, publishes pull requests, or merges on a forge still
+needs its own recorded amendment here before it starts.
 
 ## 2. Feature backlog
 
