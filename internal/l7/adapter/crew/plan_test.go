@@ -83,6 +83,44 @@ func TestPlanIdentityBindsBaseAndTarget(t *testing.T) {
 	}
 }
 
+func TestPullRequestPlanBindsDeliveryAndRemote(t *testing.T) {
+	local, err := fixedPlanner().Plan(sampleRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := sampleRequest()
+	request.TargetBranch, request.Delivery, request.Remote = "main", domain.CrewDeliveryPR, "origin"
+	pullRequests, err := fixedPlanner().Plan(request)
+	if err != nil || pullRequests.Delivery != domain.CrewDeliveryPR || pullRequests.Remote != "origin" || pullRequests.LocalOnly || ValidatePlan(pullRequests) != nil {
+		t.Fatalf("pull-request plan = %+v err=%v", pullRequests, err)
+	}
+	request.Remote = "upstream"
+	other, err := fixedPlanner().Plan(request)
+	if err != nil || other.ID == pullRequests.ID || other.Digest == pullRequests.Digest {
+		t.Fatalf("a different remote must change the plan identity: %s %s", other.ID, pullRequests.ID)
+	}
+	request.Delivery, request.Remote = domain.CrewDeliveryLocal, ""
+	sameBranchLocal, err := fixedPlanner().Plan(request)
+	if err != nil || sameBranchLocal.ID == pullRequests.ID {
+		t.Fatalf("delivery mode must change the plan identity: %s %s err=%v", sameBranchLocal.ID, pullRequests.ID, err)
+	}
+	if local.Delivery != "" || local.Remote != "" || !local.LocalOnly {
+		t.Fatalf("local plans keep their Phase 1 shape: %+v", local)
+	}
+	tampered := pullRequests
+	tampered.Remote = "upstream"
+	if ValidatePlan(tampered) == nil {
+		t.Fatal("a changed remote kept a valid digest")
+	}
+	for _, bad := range []PlanRequest{{Delivery: "deploy"}, {Delivery: domain.CrewDeliveryLocal, Remote: "origin"}, {Delivery: domain.CrewDeliveryPR, Remote: "-x"}} {
+		invalid := sampleRequest()
+		invalid.Delivery, invalid.Remote = bad.Delivery, bad.Remote
+		if _, err := fixedPlanner().Plan(invalid); err == nil {
+			t.Fatalf("delivery %+v accepted", bad)
+		}
+	}
+}
+
 func TestPlanUsesDefaultVerificationForShipTasks(t *testing.T) {
 	request := sampleRequest()
 	request.Objective = []byte("## Ship: Add docs\nPaths: docs/**\nAcceptance: docs build\n")

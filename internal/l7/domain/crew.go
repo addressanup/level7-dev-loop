@@ -31,13 +31,21 @@ const (
 	CrewNeedsDecision CrewState = "needs-decision"
 	CrewPaused        CrewState = "paused"
 	CrewAttached      CrewState = "attached"
+	CrewPROpen        CrewState = "pr-open"
 	CrewDone          CrewState = "done"
 	CrewCancelled     CrewState = "cancelled"
 )
 
+// Crew delivery modes. Local delivery fast-forwards a local branch; PR
+// delivery pushes task branches and opens pull requests.
+const (
+	CrewDeliveryLocal = "local"
+	CrewDeliveryPR    = "pr"
+)
+
 func (state CrewState) Valid() bool {
 	switch state {
-	case CrewQueued, CrewRunning, CrewMerging, CrewWaitingQuota, CrewNeedsDecision, CrewPaused, CrewAttached, CrewDone, CrewCancelled:
+	case CrewQueued, CrewRunning, CrewMerging, CrewWaitingQuota, CrewNeedsDecision, CrewPaused, CrewAttached, CrewPROpen, CrewDone, CrewCancelled:
 		return true
 	default:
 		return false
@@ -50,15 +58,17 @@ func (state CrewState) Active() bool {
 }
 
 // HoldsScope reports whether a ship task in this state owns its write scope.
-// An attached task is being edited by its owner, so it keeps the scope
-// without using a worker slot.
-func (state CrewState) HoldsScope() bool { return state.Active() || state == CrewAttached }
+// An attached task is being edited by its owner, and an open pull request is
+// not yet in the base branch, so both keep the scope without a worker slot.
+func (state CrewState) HoldsScope() bool {
+	return state.Active() || state == CrewAttached || state == CrewPROpen
+}
 
 func (state CrewState) Terminal() bool { return state == CrewDone || state == CrewCancelled }
 
 // NeedsAttention marks the states that end a liaison wait.
 func (state CrewState) NeedsAttention() bool {
-	return state == CrewNeedsDecision || state == CrewPaused || state == CrewDone
+	return state == CrewNeedsDecision || state == CrewPaused || state == CrewPROpen || state == CrewDone
 }
 
 type CrewTask struct {
@@ -82,6 +92,8 @@ type CrewPlan struct {
 	MaxWorkers      int        `json:"max_workers"`
 	RepairRounds    int        `json:"repair_rounds"`
 	LocalOnly       bool       `json:"local_only"`
+	Delivery        string     `json:"delivery,omitempty"`
+	Remote          string     `json:"remote,omitempty"`
 	Tasks           []CrewTask `json:"tasks"`
 	Digest          string     `json:"digest"`
 	CreatedAtUTC    string     `json:"created_at_utc"`
@@ -113,7 +125,12 @@ type CrewCheckpoint struct {
 	AttachRequested bool `json:"attach_requested,omitempty"`
 	// OwnerEdited tells the next build that the owner may have changed the
 	// worktree while the task was attached.
-	OwnerEdited bool `json:"owner_edited,omitempty"`
+	OwnerEdited    bool   `json:"owner_edited,omitempty"`
+	PullRequest    int    `json:"pull_request,omitempty"`
+	PullRequestURL string `json:"pull_request_url,omitempty"`
+	// Checks summarizes forge checks at the delivered head, such as
+	// "passed: 4" or "failed: test".
+	Checks string `json:"checks,omitempty"`
 }
 
 type CrewDecisionKind string
@@ -124,6 +141,7 @@ const (
 	CrewDecisionTierThree     CrewDecisionKind = "tier3"
 	CrewDecisionNoProgress    CrewDecisionKind = "no-progress"
 	CrewDecisionBlocked       CrewDecisionKind = "blocked"
+	CrewDecisionCIFailed      CrewDecisionKind = "ci-failed"
 )
 
 const (
@@ -161,6 +179,8 @@ func CrewDecisionFor(kind CrewDecisionKind) ([]string, int, bool) {
 		return []string{CrewAnswerRetry, CrewAnswerRestart, CrewAnswerCancel}, 1, true
 	case CrewDecisionBlocked:
 		return []string{CrewAnswerRetry, CrewAnswerCancel}, 1, true
+	case CrewDecisionCIFailed:
+		return []string{CrewAnswerRetry, CrewAnswerCancel}, 2, true
 	default:
 		return nil, 0, false
 	}
@@ -186,8 +206,18 @@ func CrewPlanProblem(plan CrewPlan) string {
 		return "crew worker limit is out of range"
 	case plan.RepairRounds < 0 || plan.RepairRounds > CrewMaxRepairRounds:
 		return "crew repair rounds are out of range"
-	case !plan.LocalOnly:
-		return "crew delivery is local-only in this version"
+	case plan.Delivery == "" || plan.Delivery == CrewDeliveryLocal:
+		if !plan.LocalOnly || plan.Remote != "" {
+			return "local crew delivery must stay local-only"
+		}
+	case plan.Delivery == CrewDeliveryPR:
+		if plan.LocalOnly || !CrewRemoteValid(plan.Remote) {
+			return "pull-request delivery needs a valid remote"
+		}
+	default:
+		return "crew delivery must be local or pr"
+	}
+	switch {
 	case len(plan.Tasks) == 0 || len(plan.Tasks) > CrewMaxTasks:
 		return "crew plan must contain 1 to 32 tasks"
 	}
@@ -338,6 +368,19 @@ func NextCrewAdmissions(tasks []CrewTask, states map[string]CrewState, maxWorker
 
 func CrewPlanIDValid(value string) bool {
 	return hasPrefix(value, "crew-") && len(value) == 17 && crewIdentifier(value) && crewHex(value[5:])
+}
+
+// CrewRemoteValid accepts a plain Git remote name such as "origin".
+func CrewRemoteValid(value string) bool {
+	if value == "" || len(value) > 64 || hasPrefix(value, "-") || hasPrefix(value, ".") {
+		return false
+	}
+	for _, character := range value {
+		if (character < 'a' || character > 'z') && (character < 'A' || character > 'Z') && (character < '0' || character > '9') && character != '-' && character != '_' && character != '.' {
+			return false
+		}
+	}
+	return true
 }
 
 func CrewBranchValid(value string) bool {

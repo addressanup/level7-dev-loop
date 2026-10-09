@@ -24,6 +24,10 @@ type PlanRequest struct {
 	MaxWorkers          int
 	RepairRounds        int
 	DefaultVerification [][]string
+	// Delivery is "" or "local" for a local target branch, or "pr" to push
+	// task branches to Remote and open pull requests against TargetBranch.
+	Delivery string
+	Remote   string
 }
 
 type Planner struct{ now func() time.Time }
@@ -50,14 +54,27 @@ func (planner Planner) Plan(request PlanRequest) (domain.CrewPlan, error) {
 		return domain.CrewPlan{}, errors.New("crew objective path is unsafe")
 	}
 	objectiveDigest := fmt.Sprintf("sha256:%x", sha256.Sum256(request.Objective))
-	identity := sha256.Sum256([]byte(objectiveDigest + "\x00" + request.BaseCommit + "\x00" + request.TargetBranch))
+	key := objectiveDigest + "\x00" + request.BaseCommit + "\x00" + request.TargetBranch
 	plan := domain.CrewPlan{
-		Schema: domain.CrewSchema, ID: fmt.Sprintf("crew-%x", identity[:6]), ObjectivePath: request.ObjectivePath,
+		Schema: domain.CrewSchema, ObjectivePath: request.ObjectivePath,
 		ObjectiveDigest: objectiveDigest, BaseCommit: request.BaseCommit, TargetBranch: request.TargetBranch,
 		RiskCeiling: domain.TierProduct, MaxWorkers: request.MaxWorkers, RepairRounds: request.RepairRounds, LocalOnly: true,
 		CreatedAtUTC: planner.now().UTC().Format(time.RFC3339),
 		Next:         "review every task scope, then approve this exact plan digest",
 	}
+	switch request.Delivery {
+	case "", domain.CrewDeliveryLocal:
+		if request.Remote != "" {
+			return domain.CrewPlan{}, errors.New("local crew delivery takes no remote")
+		}
+	case domain.CrewDeliveryPR:
+		plan.Delivery, plan.Remote, plan.LocalOnly = domain.CrewDeliveryPR, request.Remote, false
+		key += "\x00" + domain.CrewDeliveryPR + "\x00" + request.Remote
+	default:
+		return domain.CrewPlan{}, errors.New("crew delivery must be local or pr")
+	}
+	identity := sha256.Sum256([]byte(key))
+	plan.ID = fmt.Sprintf("crew-%x", identity[:6])
 	tasks, err := parseTasks(plan.ID, string(request.Objective), request.DefaultVerification)
 	if err != nil {
 		return domain.CrewPlan{}, err

@@ -47,6 +47,7 @@ type Features struct {
 	CyberActive   bool `json:"cyber_active"`
 	Headless      bool `json:"headless"`
 	Crew          bool `json:"crew,omitempty"`
+	CrewPR        bool `json:"crew_pr,omitempty"`
 }
 
 type Provider struct {
@@ -114,21 +115,34 @@ type Headless struct {
 	NoProgressLimit int  `json:"no_progress_limit"`
 }
 
-// Crew is optional; an omitted section uses DefaultCrew.
+// Crew is optional; an omitted section uses DefaultCrew. Remote and
+// MergeMethod apply only to pull-request delivery.
 type Crew struct {
-	MaxWorkers   int `json:"max_workers"`
-	RepairRounds int `json:"repair_rounds"`
+	MaxWorkers   int    `json:"max_workers"`
+	RepairRounds int    `json:"repair_rounds"`
+	Remote       string `json:"remote,omitempty"`
+	MergeMethod  string `json:"merge_method,omitempty"`
 }
 
-func DefaultCrew() Crew { return Crew{MaxWorkers: 3, RepairRounds: 2} }
+func DefaultCrew() Crew {
+	return Crew{MaxWorkers: 3, RepairRounds: 2, Remote: "origin", MergeMethod: "squash"}
+}
 
-// EffectiveCrew returns the configured crew limits or the defaults when the
-// section is omitted.
+// EffectiveCrew returns the configured crew policy with defaults for unset
+// fields. Worker and repair limits default together, because zero repair
+// rounds is a valid setting.
 func (configuration File) EffectiveCrew() Crew {
-	if configuration.Crew == (Crew{}) {
-		return DefaultCrew()
+	crew, defaults := configuration.Crew, DefaultCrew()
+	if crew.MaxWorkers == 0 && crew.RepairRounds == 0 {
+		crew.MaxWorkers, crew.RepairRounds = defaults.MaxWorkers, defaults.RepairRounds
 	}
-	return configuration.Crew
+	if crew.Remote == "" {
+		crew.Remote = defaults.Remote
+	}
+	if crew.MergeMethod == "" {
+		crew.MergeMethod = defaults.MergeMethod
+	}
+	return crew
 }
 
 func Default() File {
@@ -296,9 +310,15 @@ func (configuration File) Validate() error {
 	if configuration.Headless.RiskCeiling != 2 || configuration.Headless.NoProgressLimit != 3 {
 		return errors.New("Headless safety policy must keep the Tier 2 ceiling and three-failure pause")
 	}
-	if crew := configuration.EffectiveCrew(); crew.MaxWorkers < 1 || crew.MaxWorkers > domain.CrewMaxWorkers ||
-		crew.RepairRounds < 0 || crew.RepairRounds > domain.CrewMaxRepairRounds {
+	crew := configuration.EffectiveCrew()
+	if crew.MaxWorkers < 1 || crew.MaxWorkers > domain.CrewMaxWorkers || crew.RepairRounds < 0 || crew.RepairRounds > domain.CrewMaxRepairRounds {
 		return fmt.Errorf("crew policy must keep 1-%d workers and 0-%d repair rounds", domain.CrewMaxWorkers, domain.CrewMaxRepairRounds)
+	}
+	if !domain.CrewRemoteValid(crew.Remote) || (crew.MergeMethod != "merge" && crew.MergeMethod != "squash" && crew.MergeMethod != "rebase") {
+		return errors.New("crew pull-request policy needs a plain remote name and a merge, squash, or rebase merge method")
+	}
+	if configuration.Features.CrewPR && !configuration.Features.Crew {
+		return errors.New("features.crew_pr requires features.crew")
 	}
 	return nil
 }

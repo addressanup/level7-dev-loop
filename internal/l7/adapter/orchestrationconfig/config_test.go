@@ -205,6 +205,37 @@ func TestCrewPolicyDefaultsAndBounds(t *testing.T) {
 	}
 }
 
+func TestCrewPullRequestPolicy(t *testing.T) {
+	defaults := Default().EffectiveCrew()
+	if defaults.Remote != "origin" || defaults.MergeMethod != "squash" || Default().Features.CrewPR {
+		t.Fatalf("pull-request defaults = %+v crew_pr=%t", defaults, Default().Features.CrewPR)
+	}
+	configuration := Default()
+	configuration.Crew = Crew{Remote: "upstream", MergeMethod: "rebase"}
+	if got := configuration.EffectiveCrew(); got.MaxWorkers != 3 || got.RepairRounds != 2 || got.Remote != "upstream" || got.MergeMethod != "rebase" {
+		t.Fatalf("partial crew policy must keep default limits: %+v", got)
+	}
+	if err := configuration.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, crew := range []Crew{{Remote: "-oProxyCommand=x"}, {Remote: "https://example.com/r.git"}, {MergeMethod: "admin"}} {
+		invalid := Default()
+		invalid.Crew = crew
+		if invalid.Validate() == nil {
+			t.Fatalf("invalid pull-request policy %+v accepted", crew)
+		}
+	}
+	unpaired := Default()
+	unpaired.Features.CrewPR = true
+	if unpaired.Validate() == nil {
+		t.Fatal("features.crew_pr was accepted without features.crew")
+	}
+	data, err := localfile.EncodeJSON(Default())
+	if err != nil || bytes.Contains(data, []byte("crew_pr")) || bytes.Contains(data, []byte("merge_method")) {
+		t.Fatalf("unset pull-request policy was written: %s err=%v", data, err)
+	}
+}
+
 func TestStrictLoadRejectsUnknownAndDuplicateFields(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
