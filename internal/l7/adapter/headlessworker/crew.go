@@ -146,6 +146,9 @@ func (executor CrewExecutor) Build(ctx context.Context, plan domain.CrewPlan, ta
 			return decision(domain.CrewDecisionBlocked, "crew worker checkpoint has an unknown stage"), nil
 		}
 		if stop {
+			if outcome.Worktree == "" {
+				outcome.Worktree = progress.Worktree
+			}
 			return outcome, nil
 		}
 	}
@@ -554,7 +557,9 @@ func (executor CrewExecutor) scout(ctx context.Context, plan domain.CrewPlan, ta
 	if runErr != nil {
 		progress.ImplementationFailures++
 		_ = executor.saveCrewProgress(plan, &progress)
-		return withRoute(failed("scout:"+route.ProviderID, "scout session failed: "+runErr.Error()), route, progress.ImplementationSession), nil
+		outcome := withRoute(failed("scout:"+route.ProviderID, "scout session failed: "+runErr.Error()), route, progress.ImplementationSession)
+		outcome.Worktree = worktree
+		return outcome, nil
 	}
 	after, err := executor.git.Pending(ctx, worktree)
 	if err != nil || len(after.Paths) != 0 || after.IndexDirty || after.Head != target && after.Head != progress.BaseCommit {

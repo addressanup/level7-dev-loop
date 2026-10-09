@@ -309,6 +309,25 @@ func TestCrewReleasedOwnerCommitOutsideScopeIsRefused(t *testing.T) {
 	}
 }
 
+func TestCrewInterruptedAttemptNamesItsRouteSessionAndWorktree(t *testing.T) {
+	executor, plan, _, _ := crewFixture(t, shipObjective)
+	task := plan.Tasks[0]
+	recorded := ""
+	executor.provider = func(context.Context, string, domain.RouteDecision, string, string, bool, []string, [][]string) (providerResult, error) {
+		if progress, err := executor.loadCrewProgress(plan, task, 0); err == nil {
+			recorded = strings.Join(progress.Contributors, ",")
+		}
+		return providerResult{SessionID: "thread-1"}, context.Canceled
+	}
+	outcome, err := executor.Build(context.Background(), plan, task, domain.CrewCheckpoint{})
+	if err != nil || outcome.Kind != crew.OutcomeFailed || recorded != "codex-local/implementer" {
+		t.Fatalf("the implementer must be durable before it runs: recorded=%q outcome=%+v err=%v", recorded, outcome, err)
+	}
+	if outcome.ProviderID != "codex-local" || outcome.SessionID != "thread-1" || !strings.HasSuffix(outcome.Worktree, task.ID+"-a0") {
+		t.Fatalf("an interrupted attempt must name what the owner would resume: %+v", outcome)
+	}
+}
+
 func TestCrewScopeProtectedRejectsControlPaths(t *testing.T) {
 	for _, pattern := range []string{".github/**", ".github/workflows/ci.yml", ".l7/**", ".l7/orchestration.json", "AGENTS.md", "CLAUDE.md", ".git/**", "config/.env", "secrets/credentials.json"} {
 		if _, found := CrewScopeProtected([]string{"docs/**", pattern}); !found {
