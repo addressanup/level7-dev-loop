@@ -32,6 +32,12 @@ here. Host observations and support claims remain scoped by
   the provider's own resume command. `l7 crew release` returns the task, and
   owner changes face the same scope, verification, and review gates. Level 7
   stores no transcript.
+- Deliver crew tasks as pull requests with `l7 crew plan --deliver pr`,
+  default OFF behind `features.crew_pr`. Each reviewed task is pushed to its
+  own `l7/tasks/*` branch, fast-forward only, with one labelled pull request
+  carrying the handoff. Checks are tracked, failed checks can be repaired in
+  place, and `l7 crew merge` merges only at the exact head once every check
+  has passed. The requirements amendment records the limits.
 
 ## 1.0.0
 

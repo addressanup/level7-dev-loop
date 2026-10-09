@@ -3,6 +3,7 @@ package crew
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +16,7 @@ import (
 type fakeExecutor struct {
 	build     func(context.Context, domain.CrewTask, domain.CrewCheckpoint) (Outcome, error)
 	integrate func(context.Context, domain.CrewTask, domain.CrewCheckpoint) (Outcome, error)
+	track     func(domain.CrewTask, domain.CrewCheckpoint) (PullRequestStatus, error)
 
 	mu                  sync.Mutex
 	builds, integrates  map[string]int
@@ -34,6 +36,13 @@ func (executor *fakeExecutor) Build(ctx context.Context, _ domain.CrewPlan, task
 		return Outcome{Kind: OutcomeReported, Report: "# " + task.Title + "\n", ProviderID: "claude-local", ModelID: "m"}, nil
 	}
 	return Outcome{Kind: OutcomeBuilt, Worktree: "/w/" + task.ID, CandidateCommit: strings.Repeat("e", 40), Verification: "passed"}, nil
+}
+
+func (executor *fakeExecutor) Track(_ context.Context, _ domain.CrewPlan, task domain.CrewTask, checkpoint domain.CrewCheckpoint) (PullRequestStatus, error) {
+	if executor.track == nil {
+		return PullRequestStatus{}, errors.New("no pull request")
+	}
+	return executor.track(task, checkpoint)
 }
 
 func (executor *fakeExecutor) Integrate(ctx context.Context, _ domain.CrewPlan, task domain.CrewTask, checkpoint domain.CrewCheckpoint) (Outcome, error) {
@@ -73,7 +82,7 @@ func raise(maximum *atomic.Int32, value int32) {
 
 func testEngine(wait func(context.Context, time.Time) error) Engine {
 	engine := NewEngineWith(func() time.Time { return testNow }, wait)
-	engine.poll = 5 * time.Millisecond
+	engine.poll, engine.track = 5*time.Millisecond, 5*time.Millisecond
 	return engine
 }
 
@@ -357,6 +366,100 @@ func TestEngineAttachesTaskRequestedBeforeACrash(t *testing.T) {
 	}
 	if checkpoint := states(t, store, plan)[taskID]; checkpoint.State != domain.CrewAttached || checkpoint.AttachRequested {
 		t.Fatalf("recovered task = %+v", checkpoint)
+	}
+}
+
+func deliveredCrew(t *testing.T, objective string, workers int) (Store, domain.CrewPlan, *fakeExecutor) {
+	t.Helper()
+	store, plan := approvedCrew(t, objective, workers)
+	executor := &fakeExecutor{}
+	executor.integrate = func(_ context.Context, task domain.CrewTask, checkpoint domain.CrewCheckpoint) (Outcome, error) {
+		number := int(task.ID[len(task.ID)-1] - '0')
+		return Outcome{Kind: OutcomeDelivered, PullRequest: number, PullRequestURL: fmt.Sprintf("https://github.com/o/r/pull/%d", number), CandidateCommit: checkpoint.CandidateCommit, Message: "opened pull request"}, nil
+	}
+	return store, plan, executor
+}
+
+func TestEngineTracksAPullRequestUntilItMerges(t *testing.T) {
+	store, plan, executor := deliveredCrew(t, "## Ship: API\nPaths: api/**\nVerify: [\"go\",\"test\"]\nAcceptance: ok\n", 1)
+	var polls atomic.Int32
+	executor.track = func(_ domain.CrewTask, checkpoint domain.CrewCheckpoint) (PullRequestStatus, error) {
+		switch polls.Add(1) {
+		case 1:
+			return PullRequestStatus{State: "OPEN", Head: checkpoint.CandidateCommit, Checks: "pending"}, nil
+		case 2:
+			return PullRequestStatus{State: "OPEN", Head: checkpoint.CandidateCommit, Checks: "passed: 2"}, nil
+		default:
+			return PullRequestStatus{State: "MERGED", Head: checkpoint.CandidateCommit, Checks: "passed: 2"}, nil
+		}
+	}
+	if err := testEngine(nil).Run(context.Background(), store, plan, executor); err != nil {
+		t.Fatal(err)
+	}
+	final := states(t, store, plan)[plan.Tasks[0].ID]
+	if final.State != domain.CrewDone || final.PullRequest != 1 || final.PullRequestURL != "https://github.com/o/r/pull/1" || final.Checks != "passed: 2" || !strings.Contains(final.Message, "merged") || polls.Load() < 3 {
+		t.Fatalf("tracked task = %+v polls=%d", final, polls.Load())
+	}
+}
+
+func TestEnginePullRequestFailuresNeedTheOwner(t *testing.T) {
+	store, plan, executor := deliveredCrew(t, "## Ship: API\nPaths: api/**\nVerify: [\"go\",\"test\"]\nAcceptance: ok\n\n## Ship: Web\nPaths: web/**\nVerify: [\"go\",\"test\"]\nAcceptance: ok\n\n## Ship: Docs\nPaths: docs/**\nVerify: [\"go\",\"test\"]\nAcceptance: ok\n", 3)
+	executor.track = func(task domain.CrewTask, checkpoint domain.CrewCheckpoint) (PullRequestStatus, error) {
+		switch task.ID {
+		case plan.Tasks[0].ID:
+			return PullRequestStatus{State: "OPEN", Head: checkpoint.CandidateCommit, Checks: "failed: test", Failed: true}, nil
+		case plan.Tasks[1].ID:
+			return PullRequestStatus{State: "CLOSED", Head: checkpoint.CandidateCommit}, nil
+		default:
+			return PullRequestStatus{State: "OPEN", Head: strings.Repeat("9", 40), Checks: "pending"}, nil
+		}
+	}
+	if err := testEngine(nil).Run(context.Background(), store, plan, executor); err != nil {
+		t.Fatal(err)
+	}
+	checkpoints := states(t, store, plan)
+	if failed := checkpoints[plan.Tasks[0].ID]; failed.State != domain.CrewNeedsDecision || failed.Checks != "failed: test" {
+		t.Fatalf("a failed check must open a decision: %+v", failed)
+	}
+	if closed := checkpoints[plan.Tasks[1].ID]; closed.State != domain.CrewCancelled || !strings.Contains(closed.Message, "closed without merging") {
+		t.Fatalf("a closed pull request must cancel its task: %+v", closed)
+	}
+	if moved := checkpoints[plan.Tasks[2].ID]; moved.State != domain.CrewNeedsDecision {
+		t.Fatalf("a head moved outside Level 7 must stop the task: %+v", moved)
+	}
+	decisions, err := store.Decisions(plan.ID)
+	if err != nil || len(decisions) != 2 {
+		t.Fatalf("decisions = %+v err=%v", decisions, err)
+	}
+	kinds := map[domain.CrewDecisionKind]bool{}
+	for _, decision := range decisions {
+		kinds[decision.Kind] = true
+	}
+	if !kinds[domain.CrewDecisionCIFailed] || !kinds[domain.CrewDecisionBlocked] {
+		t.Fatalf("decision kinds = %v", kinds)
+	}
+}
+
+func TestEnginePullRequestStatusNeverOverridesAnAttachedTask(t *testing.T) {
+	store, plan, executor := deliveredCrew(t, "## Ship: API\nPaths: api/**\nVerify: [\"go\",\"test\"]\nAcceptance: ok\n", 1)
+	taskID := plan.Tasks[0].ID
+	var polls atomic.Int32
+	executor.track = func(_ domain.CrewTask, checkpoint domain.CrewCheckpoint) (PullRequestStatus, error) {
+		if polls.Add(1) == 1 {
+			if _, err := store.RequestAttach(plan, taskID, true, testNow); err != nil {
+				t.Error(err)
+			}
+		}
+		return PullRequestStatus{State: "OPEN", Head: checkpoint.CandidateCommit, Checks: "failed: test", Failed: true}, nil
+	}
+	if err := testEngine(nil).Run(context.Background(), store, plan, executor); err != nil {
+		t.Fatal(err)
+	}
+	if checkpoint := states(t, store, plan)[taskID]; checkpoint.State != domain.CrewAttached {
+		t.Fatalf("a status read before the owner attached must not change the task: %+v", checkpoint)
+	}
+	if decisions, _ := store.Decisions(plan.ID); len(decisions) != 0 {
+		t.Fatalf("a stale status opened a decision: %+v", decisions)
 	}
 }
 

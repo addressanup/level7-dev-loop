@@ -92,6 +92,9 @@ func TestMCPCrewToolMapsToExactCLIArguments(t *testing.T) {
 		{map[string]any{"action": "answer", "decision": "crew-0123456789ab-t01-d01", "choice": "retry"}, "answer|--decision|crew-0123456789ab-t01-d01|--choice|retry"},
 		{map[string]any{"action": "attach", "task": "crew-0123456789ab-t01"}, "attach|--task|crew-0123456789ab-t01"},
 		{map[string]any{"action": "release", "task": "crew-0123456789ab-t01"}, "release|--task|crew-0123456789ab-t01"},
+		{map[string]any{"action": "plan", "objective": "crew.md", "deliver": "pr"}, "plan|--objective|crew.md|--deliver|pr"},
+		{map[string]any{"action": "merge", "task": "crew-0123456789ab-t01", "head": strings.Repeat("c", 40), "confirm": true}, "merge|--task|crew-0123456789ab-t01|--head|" + strings.Repeat("c", 40) + "|--confirm"},
+		{map[string]any{"action": "merge", "task": "crew-0123456789ab-t01", "head": strings.Repeat("c", 40)}, "merge|--task|crew-0123456789ab-t01|--head|" + strings.Repeat("c", 40)},
 	}
 	for _, test := range cases {
 		command, arguments, err := mcpToolArguments("l7_v1_crew", test.values)

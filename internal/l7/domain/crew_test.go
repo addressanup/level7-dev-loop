@@ -119,15 +119,22 @@ func TestCrewPlanProblemFailsClosed(t *testing.T) {
 		t.Fatalf("valid plan rejected: %s", problem)
 	}
 	mutations := map[string]func(*CrewPlan){
-		"schema":           func(plan *CrewPlan) { plan.Schema = 2 },
-		"plan id":          func(plan *CrewPlan) { plan.ID = "crew-XYZ" },
-		"digest":           func(plan *CrewPlan) { plan.ObjectiveDigest = "md5:abc" },
-		"base":             func(plan *CrewPlan) { plan.BaseCommit = "HEAD" },
-		"branch":           func(plan *CrewPlan) { plan.TargetBranch = "refs/heads/main" },
-		"tier":             func(plan *CrewPlan) { plan.RiskCeiling = TierHighRisk },
-		"workers":          func(plan *CrewPlan) { plan.MaxWorkers = 5 },
-		"repair":           func(plan *CrewPlan) { plan.RepairRounds = -1 },
-		"remote delivery":  func(plan *CrewPlan) { plan.LocalOnly = false },
+		"schema":          func(plan *CrewPlan) { plan.Schema = 2 },
+		"plan id":         func(plan *CrewPlan) { plan.ID = "crew-XYZ" },
+		"digest":          func(plan *CrewPlan) { plan.ObjectiveDigest = "md5:abc" },
+		"base":            func(plan *CrewPlan) { plan.BaseCommit = "HEAD" },
+		"branch":          func(plan *CrewPlan) { plan.TargetBranch = "refs/heads/main" },
+		"tier":            func(plan *CrewPlan) { plan.RiskCeiling = TierHighRisk },
+		"workers":         func(plan *CrewPlan) { plan.MaxWorkers = 5 },
+		"repair":          func(plan *CrewPlan) { plan.RepairRounds = -1 },
+		"remote delivery": func(plan *CrewPlan) { plan.LocalOnly = false },
+		"local remote":    func(plan *CrewPlan) { plan.Remote = "origin" },
+		"pr no remote":    func(plan *CrewPlan) { plan.Delivery, plan.LocalOnly = CrewDeliveryPR, false },
+		"pr local only":   func(plan *CrewPlan) { plan.Delivery, plan.Remote = CrewDeliveryPR, "origin" },
+		"pr bad remote": func(plan *CrewPlan) {
+			plan.Delivery, plan.LocalOnly, plan.Remote = CrewDeliveryPR, false, "-upload-pack=x"
+		},
+		"delivery":         func(plan *CrewPlan) { plan.Delivery = "deploy" },
 		"no tasks":         func(plan *CrewPlan) { plan.Tasks = nil },
 		"duplicate task":   func(plan *CrewPlan) { plan.Tasks[1].ID = plan.Tasks[0].ID },
 		"foreign task id":  func(plan *CrewPlan) { plan.Tasks[0].ID = "crew-000000000000-t01" },
@@ -147,6 +154,35 @@ func TestCrewPlanProblemFailsClosed(t *testing.T) {
 		if CrewPlanProblem(plan) == "" {
 			t.Fatalf("%s mutation was accepted", name)
 		}
+	}
+	pullRequests := validCrewPlan()
+	pullRequests.Delivery, pullRequests.LocalOnly, pullRequests.Remote = CrewDeliveryPR, false, "origin"
+	if problem := CrewPlanProblem(pullRequests); problem != "" {
+		t.Fatalf("valid pull-request plan rejected: %s", problem)
+	}
+	for _, remote := range []string{"origin", "upstream", "my-fork_2", "a.b"} {
+		if !CrewRemoteValid(remote) {
+			t.Fatalf("remote %q rejected", remote)
+		}
+	}
+	for _, remote := range []string{"", "-x", ".hidden", "a b", "a/b", "https://example.com/r.git", strings.Repeat("r", 65)} {
+		if CrewRemoteValid(remote) {
+			t.Fatalf("remote %q accepted", remote)
+		}
+	}
+}
+
+func TestCrewPullRequestStateAndDecision(t *testing.T) {
+	if !CrewPROpen.Valid() || CrewPROpen.Active() || CrewPROpen.Terminal() || !CrewPROpen.HoldsScope() || !CrewPROpen.NeedsAttention() {
+		t.Fatal("an open pull request holds its scope and wakes the liaison without using a worker slot")
+	}
+	options, impact, ok := CrewDecisionFor(CrewDecisionCIFailed)
+	if !ok || impact != 2 || !reflect.DeepEqual(options, []string{CrewAnswerRetry, CrewAnswerCancel}) {
+		t.Fatalf("ci-failed decision = %v %d %v", options, impact, ok)
+	}
+	tasks := []CrewTask{{ID: "t1", Shape: CrewShip, AllowedPaths: []string{"api/**"}}, {ID: "t2", Shape: CrewShip, AllowedPaths: []string{"api/handler.go"}}}
+	if got := NextCrewAdmissions(tasks, map[string]CrewState{"t1": CrewPROpen, "t2": CrewQueued}, 2); len(got) != 0 {
+		t.Fatalf("an overlapping task started while a pull request was open: %v", got)
 	}
 }
 

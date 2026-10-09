@@ -222,8 +222,14 @@ func renderCrewBoard(view crewStatusView) string {
 		if task.Verification != "" {
 			check = task.Verification
 		}
+		if task.Checks != "" {
+			check = "pr " + task.Checks
+		}
 		if latest == "" {
 			latest = task.Next
+		}
+		if task.PullRequest != "" && task.State == domain.CrewPROpen {
+			latest = task.PullRequest
 		}
 		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", strings.TrimPrefix(task.ID, view.PlanID+"-"), task.Shape, task.State, route, check, boardText(latest, 72))
 	}

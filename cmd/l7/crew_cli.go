@@ -39,6 +39,8 @@ type crewTaskView struct {
 	Candidate    string           `json:"candidate"`
 	Verification string           `json:"verification"`
 	Report       string           `json:"report,omitempty"`
+	PullRequest  string           `json:"pull_request,omitempty"`
+	Checks       string           `json:"checks,omitempty"`
 	Message      string           `json:"message"`
 	Next         string           `json:"next"`
 }
@@ -70,12 +72,14 @@ func crewCommand(ctx context.Context, location domain.RepositoryLocation, argume
 	}
 	action, options := arguments[0], arguments[1:]
 	switch action {
-	case "plan", "start", "answer", "resume", "supervise", "attach", "release":
+	case "plan", "start", "answer", "resume", "supervise", "attach", "release", "merge":
 		if !configuration.Features.Crew {
 			return orchestrationEnvelope{}, errors.New("crew is default OFF; set features.crew to true in .l7/orchestration.json")
 		}
 	}
 	switch action {
+	case "merge":
+		return crewMerge(ctx, location, configuration, store, options)
 	case "attach":
 		return crewAttach(ctx, configuration, store, options)
 	case "release":
@@ -83,9 +87,9 @@ func crewCommand(ctx context.Context, location domain.RepositoryLocation, argume
 	case "view":
 		return crewView(ctx, location, store, options)
 	case "plan":
-		return crewPlan(location, configuration, store, options)
+		return crewPlan(ctx, location, configuration, store, options)
 	case "start":
-		return crewStart(ctx, location, store, options)
+		return crewStart(ctx, location, configuration, store, options)
 	case "status":
 		if len(options) != 0 {
 			return orchestrationEnvelope{}, errors.New("crew status accepts no options")
@@ -176,9 +180,9 @@ func crewCommand(ctx context.Context, location domain.RepositoryLocation, argume
 	}
 }
 
-const crewUsage = "crew requires plan, start, status, wait, watch, view, decisions, answer, attach, release, resume, or cancel"
+const crewUsage = "crew requires plan, start, status, wait, watch, view, decisions, answer, attach, release, merge, resume, or cancel"
 
-func crewPlan(location domain.RepositoryLocation, configuration orchestrationconfig.File, store crew.Store, arguments []string) (orchestrationEnvelope, error) {
+func crewPlan(ctx context.Context, location domain.RepositoryLocation, configuration orchestrationconfig.File, store crew.Store, arguments []string) (orchestrationEnvelope, error) {
 	limits := configuration.EffectiveCrew()
 	request := crew.PlanRequest{BaseCommit: location.Head, TargetBranch: defaultCrewTarget, MaxWorkers: limits.MaxWorkers, RepairRounds: limits.RepairRounds}
 	seen := map[string]bool{}
@@ -197,6 +201,11 @@ func crewPlan(location domain.RepositoryLocation, configuration orchestrationcon
 			request.ObjectivePath = filepath.ToSlash(value)
 		case "--target":
 			request.TargetBranch = value
+		case "--deliver":
+			if value != domain.CrewDeliveryLocal && value != domain.CrewDeliveryPR {
+				return orchestrationEnvelope{}, errors.New("--deliver must be local or pr")
+			}
+			request.Delivery = value
 		case "--command-json":
 			var argv []string
 			if json.Unmarshal([]byte(value), &argv) != nil || len(argv) == 0 {
@@ -209,6 +218,16 @@ func crewPlan(location domain.RepositoryLocation, configuration orchestrationcon
 	}
 	if request.ObjectivePath == "" {
 		return orchestrationEnvelope{}, errors.New("crew plan requires --objective <file>")
+	}
+	if request.Delivery == domain.CrewDeliveryPR {
+		if seen["--target"] {
+			return orchestrationEnvelope{}, errors.New("pull requests target the branch checked out now; switch to that branch instead of passing --target")
+		}
+		branch, err := pullRequestBase(ctx, location.Root, configuration)
+		if err != nil {
+			return orchestrationEnvelope{}, err
+		}
+		request.TargetBranch, request.Remote = branch, limits.Remote
 	}
 	objectivePath := filepath.Join(location.Root, filepath.FromSlash(request.ObjectivePath))
 	if filepath.IsAbs(request.ObjectivePath) {
@@ -243,11 +262,15 @@ func crewPlan(location domain.RepositoryLocation, configuration orchestrationcon
 		return orchestrationEnvelope{}, err
 	}
 	warning := fmt.Sprintf("WARNING: approval starts up to %d autonomous workers in parallel. Each ship task runs in its own worktree, is verified and independently reviewed, then fast-forwards local branch %s. Nothing is pushed, published, released, or deployed.", plan.MaxWorkers, plan.TargetBranch)
+	if plan.Delivery == domain.CrewDeliveryPR {
+		warning = fmt.Sprintf("WARNING: approval starts up to %d autonomous workers in parallel. Each ship task starts from the latest %s/%s in its own worktree, is verified and independently reviewed, then is pushed to %s as an l7/tasks/* branch with a pull request into %s labelled %s. Nothing merges until you run l7 crew merge; nothing is released or deployed.",
+			plan.MaxWorkers, plan.Remote, plan.TargetBranch, plan.Remote, plan.TargetBranch, "l7-risk-tier-2")
+	}
 	next := "run l7 crew start --plan " + plan.ID + " --digest " + plan.Digest + " --owner <name> --role <role> --confirm"
 	return passEnvelope("crew plan", "L7-CREW-000", "planned", warning, next, plan), nil
 }
 
-func crewStart(ctx context.Context, location domain.RepositoryLocation, store crew.Store, arguments []string) (orchestrationEnvelope, error) {
+func crewStart(ctx context.Context, location domain.RepositoryLocation, configuration orchestrationconfig.File, store crew.Store, arguments []string) (orchestrationEnvelope, error) {
 	values := map[string]string{}
 	confirmed := false
 	for index := 0; index < len(arguments); index++ {
@@ -276,7 +299,11 @@ func crewStart(ctx context.Context, location domain.RepositoryLocation, store cr
 	if plan.BaseCommit != location.Head {
 		return orchestrationEnvelope{}, errors.New("crew plan base is stale; re-plan against the exact current head")
 	}
-	if err := ensureCrewTarget(ctx, location.Root, plan.TargetBranch, plan.BaseCommit); err != nil {
+	if plan.Delivery == domain.CrewDeliveryPR {
+		if err := checkPullRequestDelivery(ctx, location.Root, configuration, plan); err != nil {
+			return orchestrationEnvelope{}, err
+		}
+	} else if err := ensureCrewTarget(ctx, location.Root, plan.TargetBranch, plan.BaseCommit); err != nil {
 		return orchestrationEnvelope{}, err
 	}
 	if _, err := store.Approve(plan, values["--digest"], values["--owner"], values["--role"], time.Now()); errors.Is(err, os.ErrExist) {
@@ -396,7 +423,8 @@ func crewStatus(store crew.Store) (crewStatusView, error) {
 		item := crewTaskView{
 			ID: task.ID, Shape: task.Shape, Title: task.Title, State: checkpoint.State, Attempt: checkpoint.Attempt,
 			Provider: checkpoint.ProviderID, Model: checkpoint.ModelID, Worktree: checkpoint.Worktree, Candidate: checkpoint.CandidateCommit,
-			Verification: checkpoint.Verification, Message: checkpoint.Message, Next: checkpoint.Next,
+			Verification: checkpoint.Verification, PullRequest: checkpoint.PullRequestURL, Checks: checkpoint.Checks,
+			Message: checkpoint.Message, Next: checkpoint.Next,
 		}
 		if task.Shape == domain.CrewScout && checkpoint.State == domain.CrewDone {
 			item.Report = store.ReportPath(plan.ID, task.ID)
@@ -435,6 +463,11 @@ func crewNext(view crewStatusView) string {
 	if len(view.OpenDecisions) != 0 {
 		decision := view.OpenDecisions[0]
 		return fmt.Sprintf("ask the owner, then run l7 crew answer --decision %s --choice <%s>: %s", decision.ID, strings.Join(decision.Options, "|"), decision.Question)
+	}
+	for _, task := range view.Tasks {
+		if task.State == domain.CrewPROpen && strings.HasPrefix(task.Checks, "passed") {
+			return task.Next
+		}
 	}
 	switch crewOverallState(view) {
 	case "finished":
