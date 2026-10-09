@@ -25,7 +25,7 @@ func pullRequestLocation(t *testing.T) (domain.RepositoryLocation, orchestration
 	cliGit(t, location.Root, "init", "-q", "-b", "main")
 	cliGit(t, location.Root, "add", "crew.md")
 	cliGit(t, location.Root, "-c", "user.name=Level Seven", "-c", "user.email=l7@example.invalid", "commit", "-q", "-m", "initial")
-	cliGit(t, location.Root, "remote", "add", "origin", filepath.Join(t.TempDir(), "remote.git"))
+	cliGit(t, location.Root, "remote", "add", "origin", "https://github.com/owner/repo.git")
 	location.Head = strings.TrimSpace(cliGit(t, location.Root, "rev-parse", "HEAD"))
 	configuration.Features.CrewPR = true
 	return location, configuration
@@ -63,6 +63,12 @@ func TestCrewPullRequestPlanIsGatedAndTargetsTheCheckedOutBranch(t *testing.T) {
 	if _, err := crewPlan(context.Background(), location, missing, store, []string{"--objective", "crew.md", "--deliver", "pr"}); err == nil || !strings.Contains(err.Error(), "upstream") {
 		t.Fatalf("a plan for a missing remote was accepted: %v", err)
 	}
+	cliGit(t, location.Root, "remote", "add", "local", filepath.Join(t.TempDir(), "remote.git"))
+	local := configuration
+	local.Crew.Remote = "local"
+	if _, err := crewPlan(context.Background(), location, local, store, []string{"--objective", "crew.md", "--deliver", "pr"}); err == nil || !strings.Contains(err.Error(), "forge URL") {
+		t.Fatalf("a remote that is not a forge URL was planned for pull requests: %v", err)
+	}
 	cliGit(t, location.Root, "checkout", "-q", "--detach")
 	if _, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", "crew.md", "--deliver", "pr"}); err == nil || !strings.Contains(err.Error(), "detached") {
 		t.Fatalf("a detached HEAD was planned for pull requests: %v", err)
@@ -81,15 +87,19 @@ func TestCrewPullRequestStartRefusesWithoutGh(t *testing.T) {
 	}
 	plan := planned.Data.(domain.CrewPlan)
 	original := discoverForge
-	discoverForge = func(string) (forge.Client, error) { return forge.Client{}, errors.New("the gh CLI is not installed") }
+	discovered := ""
+	discoverForge = func(_, repository string) (forge.Client, error) {
+		discovered = repository
+		return forge.Client{}, errors.New("the gh CLI is not installed")
+	}
 	t.Cleanup(func() { discoverForge = original })
 	launched := false
 	originalLaunch := launchCrewSupervisor
 	launchCrewSupervisor = func(crew.Store, string) (int, error) { launched = true; return 1, nil }
 	t.Cleanup(func() { launchCrewSupervisor = originalLaunch })
 	arguments := []string{"--plan", plan.ID, "--digest", plan.Digest, "--owner", "Anup", "--role", "owner", "--confirm"}
-	if _, err := crewStart(context.Background(), location, configuration, store, arguments); err == nil || !strings.Contains(err.Error(), "gh") {
-		t.Fatalf("a pull-request crew started without gh: %v", err)
+	if _, err := crewStart(context.Background(), location, configuration, store, arguments); err == nil || !strings.Contains(err.Error(), "gh") || discovered != "github.com/owner/repo" {
+		t.Fatalf("a pull-request crew started without gh: %v (repository %q)", err, discovered)
 	}
 	if _, err := store.LoadApproval(plan); err == nil || launched {
 		t.Fatal("a refused start still recorded approval or launched the supervisor")

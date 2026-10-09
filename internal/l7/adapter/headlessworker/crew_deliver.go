@@ -62,7 +62,7 @@ func (executor CrewExecutor) deliver(ctx context.Context, plan domain.CrewPlan, 
 			return decision(domain.CrewDecisionScopeExpanded, "the candidate changes "+relative+", which is outside the approved scope or protected"), nil
 		}
 	}
-	client, err := executor.forge()
+	client, err := executor.forge(ctx, plan.Remote)
 	if err != nil {
 		return decision(domain.CrewDecisionBlocked, err.Error()), nil
 	}
@@ -128,7 +128,7 @@ func delivered(progress crewProgress, message string) crew.Outcome {
 // implementer, including the end of up to two failed job logs.
 func (executor CrewExecutor) ciRepair(ctx context.Context, plan domain.CrewPlan, progress *crewProgress, checks string) (crew.Outcome, bool) {
 	feedback := fmt.Sprintf("Checks failed on pull request #%d at %s: %s", progress.PullRequest, short(progress.CandidateCommit), strings.TrimPrefix(checks, "failed: "))
-	if client, err := executor.forge(); err == nil {
+	if client, err := executor.forge(ctx, plan.Remote); err == nil {
 		if pull, err := client.View(ctx, progress.PullRequest); err == nil {
 			added := 0
 			for _, check := range pull.Checks {
@@ -150,11 +150,11 @@ func (executor CrewExecutor) ciRepair(ctx context.Context, plan domain.CrewPlan,
 }
 
 // Track reads the pull request of a delivered task.
-func (executor CrewExecutor) Track(ctx context.Context, _ domain.CrewPlan, _ domain.CrewTask, checkpoint domain.CrewCheckpoint) (crew.PullRequestStatus, error) {
+func (executor CrewExecutor) Track(ctx context.Context, plan domain.CrewPlan, _ domain.CrewTask, checkpoint domain.CrewCheckpoint) (crew.PullRequestStatus, error) {
 	if checkpoint.PullRequest < 1 {
 		return crew.PullRequestStatus{}, errors.New("the task has no pull request")
 	}
-	client, err := executor.forge()
+	client, err := executor.forge(ctx, plan.Remote)
 	if err != nil {
 		return crew.PullRequestStatus{}, err
 	}
@@ -178,7 +178,7 @@ func (executor CrewExecutor) MergePullRequest(ctx context.Context, plan domain.C
 	case head != checkpoint.CandidateCommit:
 		return crew.Outcome{}, fmt.Errorf("head %s is not the delivered candidate %s", short(head), short(checkpoint.CandidateCommit))
 	}
-	client, err := executor.forge()
+	client, err := executor.forge(ctx, plan.Remote)
 	if err != nil {
 		return crew.Outcome{}, err
 	}

@@ -60,7 +60,9 @@ func newDeliveryFixture(t *testing.T) *deliveryFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	executor.forge = func() (forge.Client, error) { return forge.New(gh, root) }
+	executor.forge = func(context.Context, string) (forge.Client, error) {
+		return forge.New(gh, root, "github.com/owner/repo")
+	}
 	executor.verify = func(_ context.Context, worktree string, _ []domain.VerificationCommand) ([]domain.CheckResult, string, error) {
 		if data, _ := os.ReadFile(filepath.Join(worktree, "api", "handler.go")); !strings.Contains(string(data), "fixed") {
 			return []domain.CheckResult{{Name: "crew-01", ExitCode: 1, Code: "L7-VERIFY-001"}}, "stdout:\nbroken\n", context.DeadlineExceeded

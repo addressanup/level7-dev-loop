@@ -30,11 +30,15 @@ var (
 	objectID   = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	jobURL     = regexp.MustCompile(`/actions/runs/[0-9]+/job/([0-9]+)`)
 	pullNumber = regexp.MustCompile(`/pull/([0-9]+)$`)
+	segment    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
 )
 
+// Client acts on one repository, named explicitly so gh never guesses
+// between remotes.
 type Client struct {
 	executable string
 	root       string
+	repository string
 }
 
 type Check struct {
@@ -56,24 +60,58 @@ type PullRequest struct {
 	Checks      []Check `json:"checks"`
 }
 
-// Discover finds gh on PATH for the repository at root.
-func Discover(root string) (Client, error) {
+// Discover finds gh on PATH for repository, given as HOST/OWNER/REPO.
+func Discover(root, repository string) (Client, error) {
 	executable, err := processadapter.Resolve("gh")
 	if err != nil {
 		return Client{}, errors.New("the gh CLI is not installed; pull-request delivery needs it")
 	}
-	return New(executable.Path, root)
+	return New(executable.Path, root, repository)
 }
 
-func New(executable, root string) (Client, error) {
+func New(executable, root, repository string) (Client, error) {
 	if !filepath.IsAbs(executable) || !filepath.IsAbs(root) {
 		return Client{}, errors.New("gh executable and repository root must be absolute")
+	}
+	if parts := strings.Split(repository, "/"); len(parts) != 3 || !segment.MatchString(parts[0]) || !segment.MatchString(parts[1]) || !segment.MatchString(parts[2]) {
+		return Client{}, errors.New("forge repository must be HOST/OWNER/REPO")
 	}
 	resolved, err := processadapter.Resolve(executable)
 	if err != nil || resolved.Path != executable {
 		return Client{}, errors.New("gh executable identity is unavailable")
 	}
-	return Client{executable: executable, root: root}, nil
+	return Client{executable: executable, root: root, repository: repository}, nil
+}
+
+// RepositoryFromURL turns a remote URL such as https://github.com/o/r.git,
+// git@github.com:o/r.git, or ssh://git@github.com/o/r into github.com/o/r.
+func RepositoryFromURL(value string) (string, error) {
+	path := ""
+	switch {
+	case strings.HasPrefix(value, "https://"):
+		path = strings.TrimPrefix(value, "https://")
+	case strings.HasPrefix(value, "ssh://"):
+		path = strings.TrimPrefix(value, "ssh://")
+	case strings.Contains(value, "@") && strings.Contains(value, ":") && !strings.Contains(value, "://"):
+		path = strings.Replace(value, ":", "/", 1)
+	default:
+		return "", errors.New("the remote is not an https or ssh forge URL")
+	}
+	if _, rest, found := strings.Cut(path, "@"); found {
+		path = rest
+	}
+	parts := strings.Split(strings.TrimSuffix(strings.TrimSuffix(path, "/"), ".git"), "/")
+	if len(parts) != 3 {
+		return "", errors.New("the remote URL does not name one host, owner, and repository")
+	}
+	host, _, _ := strings.Cut(parts[0], ":")
+	repository := host + "/" + parts[1] + "/" + parts[2]
+	for _, part := range []string{host, parts[1], parts[2]} {
+		if !segment.MatchString(part) {
+			return "", errors.New("the remote URL has an unsafe host, owner, or repository name")
+		}
+	}
+	return repository, nil
 }
 
 // Authenticated reports whether gh can act for the owner.
@@ -286,6 +324,9 @@ func (check ghCheck) normalize() Check {
 }
 
 func (client Client) run(ctx context.Context, arguments ...string) ([]byte, error) {
+	if arguments[0] != "auth" {
+		arguments = append(arguments, "--repo", client.repository)
+	}
 	result, err := (processadapter.Runner{}).Run(ctx, processadapter.Request{
 		Executable: client.executable, Arguments: arguments, Directory: client.root,
 		Environment: environment(), MaxOutputBytes: maxOutputBytes, Timeout: commandTimeout,

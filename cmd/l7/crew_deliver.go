@@ -28,11 +28,24 @@ func pullRequestBase(ctx context.Context, root string, configuration orchestrati
 	if err != nil || !domain.CrewBranchValid(branch) {
 		return "", errors.New("pull-request delivery needs a checked-out branch to target; HEAD is detached or the branch name is unsafe")
 	}
-	remote := configuration.EffectiveCrew().Remote
-	if _, err := crewGitLine(ctx, root, "remote", "get-url", remote); err != nil {
-		return "", fmt.Errorf("remote %s is not configured; set crew.remote or add the remote", remote)
+	if _, err := remoteRepository(ctx, root, configuration.EffectiveCrew().Remote); err != nil {
+		return "", err
 	}
 	return branch, nil
+}
+
+// remoteRepository names the forge repository behind remote, so gh acts on
+// the repository Level 7 pushes to.
+func remoteRepository(ctx context.Context, root, remote string) (string, error) {
+	url, err := crewGitLine(ctx, root, "remote", "get-url", remote)
+	if err != nil {
+		return "", fmt.Errorf("remote %s is not configured; set crew.remote or add the remote", remote)
+	}
+	repository, err := forge.RepositoryFromURL(url)
+	if err != nil {
+		return "", fmt.Errorf("remote %s: %w", remote, err)
+	}
+	return repository, nil
 }
 
 // checkPullRequestDelivery confirms, before approval, that the flag is on,
@@ -41,10 +54,11 @@ func checkPullRequestDelivery(ctx context.Context, root string, configuration or
 	if !configuration.Features.CrewPR {
 		return errors.New("pull-request delivery is default OFF; set features.crew_pr to true in .l7/orchestration.json")
 	}
-	if _, err := crewGitLine(ctx, root, "remote", "get-url", plan.Remote); err != nil {
-		return fmt.Errorf("remote %s recorded in the plan is not configured", plan.Remote)
+	repository, err := remoteRepository(ctx, root, plan.Remote)
+	if err != nil {
+		return err
 	}
-	client, err := discoverForge(root)
+	client, err := discoverForge(root, repository)
 	if err != nil {
 		return err
 	}

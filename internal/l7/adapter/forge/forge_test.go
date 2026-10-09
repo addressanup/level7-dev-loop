@@ -34,11 +34,35 @@ func fakeClient(t *testing.T) (Client, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := New(executable, root)
+	client, err := New(executable, root, "github.com/owner/repo")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return client, root
+}
+
+func TestRepositoryComesFromTheRemoteURL(t *testing.T) {
+	for value, want := range map[string]string{
+		"https://github.com/owner/repo.git":         "github.com/owner/repo",
+		"https://github.com/owner/repo":             "github.com/owner/repo",
+		"git@github.com:owner/repo.git":             "github.com/owner/repo",
+		"ssh://git@github.com/owner/repo.git":       "github.com/owner/repo",
+		"ssh://git@ghe.example.com:2222/team/r.git": "ghe.example.com/team/r",
+		"https://token@github.com/owner/repo.git":   "github.com/owner/repo",
+	} {
+		if got, err := RepositoryFromURL(value); err != nil || got != want {
+			t.Fatalf("%s -> %q err=%v, want %q", value, got, err, want)
+		}
+	}
+	for _, value := range []string{"/tmp/remote.git", "file:///tmp/r.git", "https://github.com/owner", "https://github.com/a/b/c", "git@github.com:-x/repo.git", "https://github.com/owner/re po.git"} {
+		if got, err := RepositoryFromURL(value); err == nil {
+			t.Fatalf("%s accepted as %q", value, got)
+		}
+	}
+	executable, _ := os.Executable()
+	if _, err := New(executable, t.TempDir(), "owner/repo"); err == nil {
+		t.Fatal("a repository without a host was accepted")
+	}
 }
 
 func updateState(t *testing.T, root string, change func(*forgetest.State)) {
@@ -100,6 +124,9 @@ func TestPullRequestLifecycleThroughGh(t *testing.T) {
 			if argument == "--admin" || argument == "--auto" {
 				t.Fatalf("gh was asked to bypass protection: %v", call)
 			}
+		}
+		if call[0] != "auth" && strings.Join(call[len(call)-2:], " ") != "--repo github.com/owner/repo" {
+			t.Fatalf("gh call does not name its repository: %v", call)
 		}
 	}
 	merged, err := client.View(context.Background(), 1)

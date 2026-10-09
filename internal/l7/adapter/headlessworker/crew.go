@@ -47,7 +47,7 @@ type CrewExecutor struct {
 	provider  providerFunc
 	snapshots func() ([]domain.ProviderSnapshot, bool, error)
 	verify    func(context.Context, string, []domain.VerificationCommand) ([]domain.CheckResult, string, error)
-	forge     func() (forge.Client, error)
+	forge     func(ctx context.Context, remote string) (forge.Client, error)
 }
 
 type crewProgress struct {
@@ -90,7 +90,17 @@ func NewCrew(root, common string, configuration orchestrationconfig.File) (CrewE
 	executor.verify = func(ctx context.Context, worktree string, commands []domain.VerificationCommand) ([]domain.CheckResult, string, error) {
 		return verifyadapter.New(nil, nil).RunWithFailureTail(ctx, worktree, commands, configuration.Tools.MaxOutputBytes, configuration.Tools.MaxSeconds)
 	}
-	executor.forge = func() (forge.Client, error) { return forge.Discover(root) }
+	executor.forge = func(ctx context.Context, remote string) (forge.Client, error) {
+		url, err := base.gitLine(ctx, root, "remote", "get-url", remote)
+		if err != nil {
+			return forge.Client{}, errors.New("remote " + remote + " is not configured")
+		}
+		repository, err := forge.RepositoryFromURL(url)
+		if err != nil {
+			return forge.Client{}, fmt.Errorf("remote %s: %w", remote, err)
+		}
+		return forge.Discover(root, repository)
+	}
 	return executor, nil
 }
 
