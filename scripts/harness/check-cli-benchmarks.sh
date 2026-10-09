@@ -63,25 +63,27 @@ run_sample()
 	sample_root=$1
 	sample_output=$2
 	run_benchmark "$sample_root" "$sample_output" '^BenchmarkParseStatus10000Paths$' 250x
-	run_benchmark "$sample_root" "$sample_output" '^BenchmarkSnapshot10000Paths$' 10x
+	run_benchmark "$sample_root" "$sample_output" '^BenchmarkSnapshot10000Paths$' 30x
 }
 
-for sample in 1 2 3 4 5; do
+# Each sample is one back-to-back base/candidate pair, alternating which runs
+# first. benchgate pairs sample i of both outputs, so the order must hold.
+for sample in 1 2 3 4 5 6 7 8 9; do
 	case $sample in
-		1|3|5)
+		1|3|5|7|9)
 			run_sample "$base_root" "$base_output"
 			run_sample "$candidate_root" "$candidate_output"
 			;;
-		2|4)
+		2|4|6|8)
 			run_sample "$candidate_root" "$candidate_output"
 			run_sample "$base_root" "$base_output"
 			;;
 	esac
 done
 
-printf 'check-cli-benchmarks: host=%s/%s toolchain=%s samples=5 parse_status_benchtime=250x snapshot_benchtime=10x\n' \
+printf 'check-cli-benchmarks: host=%s/%s toolchain=%s samples=9 parse_status_benchtime=250x snapshot_benchtime=30x\n' \
 	"$("$go_bin" env GOHOSTOS)" "$("$go_bin" env GOHOSTARCH)" "$("$go_bin" env GOVERSION)"
 (
 	cd "$candidate_root"
-	"$go_bin" run -mod=readonly ./internal/harness/benchgate --threshold-percent 10 --minimum-samples 5 "$base_output" "$candidate_output"
+	"$go_bin" run -mod=readonly ./internal/harness/benchgate --threshold-percent 10 --minimum-samples 9 --minimum-slower-pairs 8 "$base_output" "$candidate_output"
 )

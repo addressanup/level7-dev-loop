@@ -38,6 +38,11 @@ here. Host observations and support claims remain scoped by
   carrying the handoff. Checks are tracked, failed checks can be repaired in
   place, and `l7 crew merge` merges only at the exact head once every check
   has passed. The requirements amendment records the limits.
+- Make the paired benchmark gate compare each candidate sample with the base
+  sample run right next to it. It takes nine pairs and blocks only when the
+  median paired slowdown exceeds 10% and at least eight pairs are slower, so
+  runner drift no longer fails pull requests whose benchmarked code is
+  unchanged.
 
 ## 1.0.0
 
