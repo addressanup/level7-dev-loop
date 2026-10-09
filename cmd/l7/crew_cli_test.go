@@ -69,7 +69,7 @@ func TestCrewPlanIsIdempotentAndRejectsProtectedScopes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, err := crewPlan(location, configuration, store, []string{"--objective", "crew.md"})
+	first, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", "crew.md"})
 	if err != nil || first.State != "planned" || !strings.Contains(first.Message, "Nothing is pushed") {
 		t.Fatalf("plan = %+v err=%v", first, err)
 	}
@@ -77,7 +77,7 @@ func TestCrewPlanIsIdempotentAndRejectsProtectedScopes(t *testing.T) {
 	if plan.TargetBranch != defaultCrewTarget || plan.MaxWorkers != 3 || plan.RepairRounds != 2 || !strings.Contains(first.Next, plan.Digest) {
 		t.Fatalf("plan defaults = %+v next=%q", plan, first.Next)
 	}
-	second, err := crewPlan(location, configuration, store, []string{"--objective", filepath.Join(location.Root, "crew.md")})
+	second, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", filepath.Join(location.Root, "crew.md")})
 	if err != nil || second.Data.(domain.CrewPlan).Digest != plan.Digest {
 		t.Fatalf("re-planning the same objective must return the same plan: %+v err=%v", second, err)
 	}
@@ -88,22 +88,22 @@ func TestCrewPlanIsIdempotentAndRejectsProtectedScopes(t *testing.T) {
 	if err := os.WriteFile(private, []byte("Sprint 2\n\n"+cliObjective), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	drafted, err := crewPlan(location, configuration, store, []string{"--objective", private})
+	drafted, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", private})
 	if err != nil || drafted.Data.(domain.CrewPlan).ObjectivePath != "crew-objectives/sprint.md" {
 		t.Fatalf("private objective draft rejected: %+v err=%v", drafted, err)
 	}
-	if _, err := crewPlan(location, configuration, store, []string{"--objective", filepath.Join(t.TempDir(), "elsewhere.md")}); err == nil {
+	if _, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", filepath.Join(t.TempDir(), "elsewhere.md")}); err == nil {
 		t.Fatal("objective outside the repository and the private objective directory was accepted")
 	}
 	protected := strings.Replace(cliObjective, "Paths: auth/**", "Paths: auth/**, .github/**", 1)
 	if err := os.WriteFile(filepath.Join(location.Root, "crew.md"), []byte(protected), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := crewPlan(location, configuration, store, []string{"--objective", "crew.md"}); err == nil || !strings.Contains(err.Error(), "protected") {
+	if _, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", "crew.md"}); err == nil || !strings.Contains(err.Error(), "protected") {
 		t.Fatalf("protected scope accepted: %v", err)
 	}
 	for _, arguments := range [][]string{{}, {"--objective"}, {"--objective", "crew.md", "--objective", "x.md"}, {"--objective", "crew.md", "--push", "origin"}, {"--objective", "crew.md", "--command-json", "go test"}, {"--objective", "../outside.md"}} {
-		if _, err := crewPlan(location, configuration, store, arguments); err == nil {
+		if _, err := crewPlan(context.Background(), location, configuration, store, arguments); err == nil {
 			t.Fatalf("plan accepted %v", arguments)
 		}
 	}
@@ -115,7 +115,7 @@ func TestCrewStatusReportsTasksDecisionsAndNextAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	planned, err := crewPlan(location, configuration, store, []string{"--objective", "crew.md"})
+	planned, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", "crew.md"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestCrewOptionValidation(t *testing.T) {
 		}
 	}
 	for _, arguments := range [][]string{{"--plan", "crew-0123456789ab"}, {"--plan", "p", "--digest", "d", "--owner", "o", "--role", "r"}, {"--plan", "p", "--remote", "origin", "--confirm"}} {
-		if _, err := crewStart(context.Background(), location, store, arguments); err == nil {
+		if _, err := crewStart(context.Background(), location, orchestrationconfig.Default(), store, arguments); err == nil {
 			t.Fatalf("start accepted %v", arguments)
 		}
 	}

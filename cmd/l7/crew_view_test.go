@@ -71,7 +71,7 @@ func approvedCLICrew(t *testing.T) (domain.RepositoryLocation, crew.Store, domai
 	if err != nil {
 		t.Fatal(err)
 	}
-	planned, err := crewPlan(location, configuration, store, []string{"--objective", "crew.md"})
+	planned, err := crewPlan(context.Background(), location, configuration, store, []string{"--objective", "crew.md"})
 	if err != nil {
 		t.Fatal(err)
 	}

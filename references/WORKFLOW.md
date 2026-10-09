@@ -83,9 +83,19 @@ tasks, obtains one owner approval bound to the plan digest, and supervises:
   native resume command continues the session. `release` returns the task,
   and owner changes pass the same scope, verification, and review gates.
   Level 7 stores no transcript or model output.
-- The crew keeps the Tier 2 ceiling, refuses protected paths, and only
-  fast-forwards a local branch that no worktree has checked out (default
-  `l7/crew`). It never pushes, opens pull requests, releases, or deploys.
+- The crew keeps the Tier 2 ceiling and refuses protected paths. Local
+  delivery only fast-forwards a local branch that no worktree has checked out
+  (default `l7/crew`) and never pushes.
+- Pull-request delivery (`plan --deliver pr`, default OFF behind
+  `features.crew_pr`) follows
+  `docs/foundation/requirements-amendment-crew-delivery.md`. Each task starts
+  from the freshly fetched remote base. Level 7 pushes only its own
+  `l7/tasks/*` branch, fast-forward only, opens one pull request with the
+  handoff as its description, labels it `l7-risk-tier-2`, and tracks checks.
+  It merges only on `l7 crew merge` at the exact head, once every check has
+  passed and GitHub reports the pull request clean, and never with `--admin`
+  or auto-merge.
+- The crew never releases or deploys.
 
 ## Hosted policy
 

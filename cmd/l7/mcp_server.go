@@ -149,7 +149,7 @@ func mcpTools() []mcpTool {
 		{Name: "l7_v1_memory", Description: "Incrementally synchronize, rebuild, or query private Git-bound codebase memory.", InputSchema: object(map[string]any{"action": enum("incremental", "rebuild", "query"), "query": text()}, "action")},
 		{Name: "l7_v1_cyber", Description: "Run read-only Cyber audit, explicitly isolated active confirmation, or produce a separate remediation brief.", InputSchema: object(map[string]any{"action": enum("audit", "remediate"), "active": map[string]any{"type": "boolean"}, "export": enum("markdown", "json"), "report": text()}, "action")},
 		{Name: "l7_v1_headless", Description: "Plan and operate a durable, approved Headless feature-wave lifecycle that stops before deployment.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "resume", "cancel"), "objective": text(), "target": text(), "allow_paths": map[string]any{"type": "array", "items": text(), "maxItems": 256}, "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "local_merge": map[string]any{"type": "boolean"}, "run": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}}, "action")},
-		{Name: "l7_v1_crew", Description: "Plan, approve, supervise, and steer parallel local crew tasks that merge only into a local branch; attach hands one task to its owner and release returns it.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "wait", "decisions", "answer", "attach", "release", "resume", "cancel"), "objective": text(), "target": text(), "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "plan": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}, "since": text(), "timeout": map[string]any{"type": "integer", "minimum": 0, "maximum": 3600}, "decision": text(), "choice": enum(domain.CrewAnswerRetry, domain.CrewAnswerRestart, domain.CrewAnswerCancel), "task": text()}, "action")},
+		{Name: "l7_v1_crew", Description: "Plan, approve, supervise, and steer parallel crew tasks that merge into a local branch or, with deliver pr, open pull requests; attach hands one task to its owner, release returns it, and merge merges one pull request at an exact head.", InputSchema: object(map[string]any{"action": enum("plan", "start", "status", "wait", "decisions", "answer", "attach", "release", "merge", "resume", "cancel"), "objective": text(), "target": text(), "deliver": enum(domain.CrewDeliveryLocal, domain.CrewDeliveryPR), "head": text(), "commands": map[string]any{"type": "array", "items": map[string]any{"type": "array", "items": text(), "maxItems": 64}, "maxItems": 64}, "plan": text(), "digest": text(), "owner": text(), "role": text(), "confirm": map[string]any{"type": "boolean"}, "since": text(), "timeout": map[string]any{"type": "integer", "minimum": 0, "maximum": 3600}, "decision": text(), "choice": enum(domain.CrewAnswerRetry, domain.CrewAnswerRestart, domain.CrewAnswerCancel), "task": text()}, "action")},
 	}
 }
 
@@ -287,7 +287,7 @@ func mcpToolArguments(name string, values map[string]any) (string, []string, err
 		}
 		return "", nil, errors.New("Headless action is invalid")
 	case "l7_v1_crew":
-		if err := allowed("action", "objective", "target", "commands", "plan", "digest", "owner", "role", "confirm", "since", "timeout", "decision", "choice", "task"); err != nil {
+		if err := allowed("action", "objective", "target", "deliver", "commands", "plan", "digest", "owner", "role", "confirm", "since", "timeout", "decision", "choice", "task", "head"); err != nil {
 			return "", nil, err
 		}
 		switch action := stringValue("action"); action {
@@ -295,10 +295,19 @@ func mcpToolArguments(name string, values map[string]any) (string, []string, err
 			return "crew", []string{action}, nil
 		case "attach", "release":
 			return "crew", []string{action, "--task", stringValue("task")}, nil
+		case "merge":
+			arguments := []string{"merge", "--task", stringValue("task"), "--head", stringValue("head")}
+			if boolValue("confirm") {
+				arguments = append(arguments, "--confirm")
+			}
+			return "crew", arguments, nil
 		case "plan":
 			arguments := []string{"plan", "--objective", stringValue("objective")}
 			if target := stringValue("target"); target != "" {
 				arguments = append(arguments, "--target", target)
+			}
+			if deliver := stringValue("deliver"); deliver != "" {
+				arguments = append(arguments, "--deliver", deliver)
 			}
 			if commands, ok := values["commands"].([]any); ok {
 				for _, raw := range commands {

@@ -50,7 +50,7 @@ l7 sync --incremental|--rebuild|--query <text>
 l7 cyber [--active] [--export markdown|json]
 l7 cyber remediate --report <id>
 l7 headless plan|start|status|resume|cancel
-l7 crew plan|start|status|wait|watch|view|decisions|answer|attach|release|resume|cancel
+l7 crew plan|start|status|wait|watch|view|decisions|answer|attach|release|merge|resume|cancel
 l7 mcp
 ```
 
@@ -92,8 +92,17 @@ repository; it exits when no task can progress, and `l7 crew cancel` stops it.
 a shell in each task's worktree. `l7 crew attach --task <id>` stops one worker
 and gives you the provider's own resume command for its session; `l7 crew
 release` hands the task back, and your changes face the same checks and
-review. Level 7 stores no transcript of its own. The crew never pushes, opens
-pull requests, releases, or deploys.
+review. Level 7 stores no transcript of its own.
+
+With `features.crew_pr` also on, `l7 crew plan --deliver pr` delivers each
+ship task as a pull request instead. The task starts from the latest remote
+base. After its checks and review, Level 7 pushes its own `l7/tasks/*` branch
+and opens a pull request into the branch you planned from, with the handoff
+as its description. The supervisor tracks the pull request's checks, and a
+failed check becomes a decision whose retry repairs the change and pushes a
+new commit. Nothing merges until you run `l7 crew merge --task <id> --head
+<sha> --confirm`, which refuses unless every check passed at that head. Git
+and `gh` use your own login. The crew never releases or deploys.
 
 ## Quick start
 
@@ -314,7 +323,7 @@ directly for a specialized job.
 | [`l7-sync`](skills/l7-sync/SKILL.md) | Building or querying private, Git-bound codebase memory |
 | [`l7-cyber`](skills/l7-cyber/SKILL.md) | Running a read-only security audit or explicitly isolated active confirmation |
 | [`l7-headless`](skills/l7-headless/SKILL.md) | Planning and executing durable, approved feature waves before the release boundary |
-| [`l7-crew`](skills/l7-crew/SKILL.md) | Running independent tasks in parallel through one liaison, with serialized local merges (opt-in) |
+| [`l7-crew`](skills/l7-crew/SKILL.md) | Running independent tasks in parallel through one liaison, with serialized local merges or pull requests (opt-in) |
 | [`l7-build`](skills/l7-build/SKILL.md) | Implementing one bounded feature or fix |
 | [`l7-change`](skills/l7-change/SKILL.md) | Changing a live product while preserving contracts, data, and SLOs |
 | [`l7-review`](skills/l7-review/SKILL.md) | Reviewing an existing implementation with targeted checks |
