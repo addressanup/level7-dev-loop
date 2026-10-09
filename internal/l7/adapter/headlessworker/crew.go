@@ -175,7 +175,7 @@ func (executor CrewExecutor) implement(ctx context.Context, plan domain.CrewPlan
 	if runErr != nil {
 		progress.ImplementationFailures++
 		_ = executor.saveCrewProgress(plan, progress)
-		return failed("implementation:"+route.ProviderID, "implementation session failed: "+runErr.Error()), true
+		return withRoute(failed("implementation:"+route.ProviderID, "implementation session failed: "+runErr.Error()), route), true
 	}
 	pending, err := executor.git.Pending(ctx, progress.Worktree)
 	if err != nil {
@@ -281,7 +281,7 @@ func (executor CrewExecutor) review(ctx context.Context, plan domain.CrewPlan, t
 	if runErr != nil {
 		progress.ReviewFailures++
 		_ = executor.saveCrewProgress(plan, progress)
-		return failed("review:"+route.ProviderID, "independent review session failed: "+runErr.Error()), true
+		return withRoute(failed("review:"+route.ProviderID, "independent review session failed: "+runErr.Error()), route), true
 	}
 	after, err := executor.git.Pending(ctx, progress.Worktree)
 	if err != nil || len(after.Paths) != 0 || after.IndexDirty || after.Head != progress.CandidateCommit {
@@ -455,7 +455,7 @@ func (executor CrewExecutor) scout(ctx context.Context, plan domain.CrewPlan, ta
 	if runErr != nil {
 		progress.ImplementationFailures++
 		_ = executor.saveCrewProgress(plan, &progress)
-		return failed("scout:"+route.ProviderID, "scout session failed: "+runErr.Error()), nil
+		return withRoute(failed("scout:"+route.ProviderID, "scout session failed: "+runErr.Error()), route), nil
 	}
 	after, err := executor.git.Pending(ctx, worktree)
 	if err != nil || len(after.Paths) != 0 || after.IndexDirty || after.Head != target && after.Head != progress.BaseCommit {
@@ -762,6 +762,11 @@ func decision(kind domain.CrewDecisionKind, message string) crew.Outcome {
 func failed(stage, message string) crew.Outcome {
 	digest := sha256.Sum256([]byte(stage))
 	return crew.Outcome{Kind: crew.OutcomeFailed, FailureSignature: fmt.Sprintf("sha256:%x", digest), Message: stage + ": " + bounded(message, 1024)}
+}
+
+func withRoute(outcome crew.Outcome, route domain.RouteDecision) crew.Outcome {
+	outcome.ProviderID, outcome.ModelID = route.ProviderID, route.ModelID
+	return outcome
 }
 
 func short(commit string) string {
