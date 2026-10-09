@@ -5,7 +5,7 @@
 | Change ID | `l7-crew-deliver` |
 | Risk tier | `3` — external effects (push, pull request, merge) and a workflow-contract change |
 | Status | `approved` by the active user; amendment `docs/foundation/requirements-amendment-crew-delivery.md` |
-| Base commit | `7b3f926a71db6f2f75ca78a6ae641701d6d9c24a` |
+| Base commit | `a2988f47c1e93b75eaacfeadd30a22d62ccdda4d` |
 | Accountable owner | Active user; authority is recorded outside candidate-controlled repository text |
 | Implementer | `devin` |
 | Assurance | `solo` — self-review only; no independent audit is claimed |
