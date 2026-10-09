@@ -22,7 +22,7 @@ that genuinely needs you.
 [Install stable v1.0.0](#install-v100) ·
 [Evaluate unsigned v1.0.0-dev](#evaluate-v100-dev-unsigned-and-unnotarized) ·
 [See how it works](#how-level-7-works) ·
-[Explore the skills](#the-16-level-7-skills) ·
+[Explore the skills](#the-17-level-7-skills) ·
 [Read the FAQ](#frequently-asked-questions)
 
 <p align="center">
@@ -50,6 +50,7 @@ l7 sync --incremental|--rebuild|--query <text>
 l7 cyber [--active] [--export markdown|json]
 l7 cyber remediate --report <id>
 l7 headless plan|start|status|resume|cancel
+l7 crew plan|start|status|wait|decisions|answer|resume|cancel
 l7 mcp
 ```
 
@@ -65,6 +66,8 @@ Private derived state stays Git-bound and uncommitted by default:
 - `.git/l7/memory` holds content-addressed graph segments and derived indexes;
 - `.git/l7/security` holds complete Cyber evidence;
 - `.git/l7/headless` holds manifests, events, checkpoints, and handoffs;
+- `.git/l7/crew` holds crew plans, task checkpoints, decisions, scout reports,
+  and task worktrees;
 - `.git/l7/orchestration` holds provider snapshots and explainable routes.
 
 `l7 headless start` is intentionally consequential. It requires a finalized
@@ -74,6 +77,18 @@ independently review, and locally merge every approved Tier 1/2 wave without
 another prompt. It pauses on scope expansion, Tier 3 work, protected paths,
 secrets, destructive actions, branch divergence, or repeated no-progress, and
 always stops before push, release, or deployment.
+
+`l7 crew` runs independent tasks in parallel and is default OFF behind
+`features.crew`. You talk to one liaison (`l7-crew`), which plans `ship` and
+`scout` tasks and asks for one approval of the exact plan digest. Up to four
+workers then run at once, each in its own worktree. Level 7 runs every ship
+task's checks and returns failures to the same worker session for repair. A
+different model must return GO before a candidate merges, and merges into the
+local target branch happen one at a time, rebasing and re-checking when the
+target has moved. Rebase conflicts and other blockers become decisions for
+you. `l7 crew start` launches one background supervisor process per
+repository; it exits when no task can progress, and `l7 crew cancel` stops it.
+The crew never pushes, opens pull requests, releases, or deploys.
 
 ## Quick start
 
@@ -281,7 +296,7 @@ Solo assurance is the default. A repository can explicitly select team
 assurance when it has genuinely distinct owner and reviewer identities. Level 7
 never labels a self-review as independent.
 
-## The 16 Level 7 skills
+## The 17 Level 7 skills
 
 Most users start—and finish—with `l7-next`. The other skills are focused
 execution lenses that the conductor can use internally or that you can invoke
@@ -294,6 +309,7 @@ directly for a specialized job.
 | [`l7-sync`](skills/l7-sync/SKILL.md) | Building or querying private, Git-bound codebase memory |
 | [`l7-cyber`](skills/l7-cyber/SKILL.md) | Running a read-only security audit or explicitly isolated active confirmation |
 | [`l7-headless`](skills/l7-headless/SKILL.md) | Planning and executing durable, approved feature waves before the release boundary |
+| [`l7-crew`](skills/l7-crew/SKILL.md) | Running independent tasks in parallel through one liaison, with serialized local merges (opt-in) |
 | [`l7-build`](skills/l7-build/SKILL.md) | Implementing one bounded feature or fix |
 | [`l7-change`](skills/l7-change/SKILL.md) | Changing a live product while preserving contracts, data, and SLOs |
 | [`l7-review`](skills/l7-review/SKILL.md) | Reviewing an existing implementation with targeted checks |
@@ -343,7 +359,7 @@ For Claude Code, replace the Codex prefix with
 
 ## Permissions, privacy, and trust
 
-Level 7 v1.0.0 contains 16 Markdown skills, a local MCP server, architecture-
+Level 7 v1.0.0 contains 17 Markdown skills, a local MCP server, architecture-
 specific Go executables, and an Apple Natural Language embedding helper. It
 does not install a service, hook, updater, telemetry client, host setting, or
 credential broker. All orchestration features remain default OFF until the
@@ -485,7 +501,7 @@ host version, operating system, architecture, command, and exact error.
 ### What is Level 7 Dev Loop?
 
 The v1.0.0 distribution is a local-first multi-host orchestration engine with
-16 workflow skills, a native CLI, and an MCP bridge. The unchanged v0.1.1
+17 workflow skills, a native CLI, and an MCP bridge. The unchanged v0.1.1
 distribution remains available as a skills-only rollback.
 
 ### Is Level 7 another coding agent?
@@ -534,7 +550,7 @@ opt into team assurance with genuinely distinct owner and reviewer identities.
 
 They are different plugin hosts with different native manifests, marketplace
 commands, executable path contracts, and skill invocation syntax. Level 7
-generates both v1 packages from the same 16 canonical skills and engine source.
+generates both v1 packages from the same 17 canonical skills and engine source.
 
 ### Is the `l7` Go CLI included?
 

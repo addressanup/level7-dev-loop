@@ -72,6 +72,7 @@ without asking the user to approve the routing decision:
 |---|---|
 | new product or incomplete foundation | `l7-greenfield` |
 | implement feature/wave | `l7-build` |
+| run independent tasks in parallel (opt-in) | `l7-crew` |
 | optional team/release audit | `l7-release` |
 | deploy | `l7-deploy` |
 | add feature to live product | `l7-change` |

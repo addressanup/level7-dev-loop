@@ -49,7 +49,7 @@ type candidateIdentity struct {
 }
 
 var canonicalSkills = []string{
-	"l7-build", "l7-change", "l7-constitution", "l7-cyber", "l7-deploy", "l7-experience", "l7-geometry", "l7-greenfield",
+	"l7-build", "l7-change", "l7-constitution", "l7-crew", "l7-cyber", "l7-deploy", "l7-experience", "l7-geometry", "l7-greenfield",
 	"l7-headless", "l7-next", "l7-onboard", "l7-ops", "l7-release", "l7-review", "l7-storybook", "l7-sync",
 }
 
@@ -957,10 +957,10 @@ func validateMCPResponses(responses []mcpEnvelope, host, expectedVersion string)
 			InputSchema map[string]any `json:"inputSchema"`
 		} `json:"tools"`
 	}
-	if string(responses[1].ID) != "2" || responses[1].Error != nil || json.Unmarshal(responses[1].Result, &listing) != nil || len(listing.Tools) != 6 {
+	if string(responses[1].ID) != "2" || responses[1].Error != nil || json.Unmarshal(responses[1].Result, &listing) != nil || len(listing.Tools) != 7 {
 		return fmt.Errorf("%s MCP tools/list contract is invalid", host)
 	}
-	want := []string{"l7_v1_cyber", "l7_v1_headless", "l7_v1_memory", "l7_v1_onboard", "l7_v1_provider_discovery", "l7_v1_route_explain"}
+	want := []string{"l7_v1_crew", "l7_v1_cyber", "l7_v1_headless", "l7_v1_memory", "l7_v1_onboard", "l7_v1_provider_discovery", "l7_v1_route_explain"}
 	observed := make([]string, 0, len(listing.Tools))
 	for _, tool := range listing.Tools {
 		if tool.Description == "" || tool.InputSchema["type"] != "object" || tool.InputSchema["additionalProperties"] != false {

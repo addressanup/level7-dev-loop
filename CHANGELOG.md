@@ -12,6 +12,18 @@ here. Host observations and support claims remain scoped by
 - Restore the original six-step `l7-greenfield` sequence with evidence-based
   completion criteria, recorded in `docs/foundation/README.md`.
 - Leave the frozen v0.1.1 rollback skills unchanged.
+- Record the six-step foundation status for this repository in
+  `docs/foundation/README.md`.
+- Add an opt-in crew, default OFF behind `features.crew`: the new `l7-crew`
+  skill, `l7 crew plan|start|status|wait|decisions|answer|resume|cancel`, and
+  the `l7_v1_crew` MCP tool. Up to four independent ship and scout tasks run in
+  parallel in their own worktrees, under one supervisor per repository, with
+  serialized local merges.
+- Return bounded verification output to the same worker session for repair
+  before failing over, and rebase, re-verify, and re-review a candidate whose
+  target moved before merging. Rebase conflicts become owner decisions.
+- Keep the crew local-only: it never pushes, opens pull requests, releases, or
+  deploys.
 
 ## 1.0.0
 

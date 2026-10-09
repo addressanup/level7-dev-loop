@@ -96,7 +96,7 @@ func orchestrationArguments(arguments []string) ([]string, bool, error) {
 
 func orchestrationCommand(command string) bool {
 	switch command {
-	case "onboard", "providers", "route", "sync", "cyber", "headless", "mcp":
+	case "onboard", "providers", "route", "sync", "cyber", "headless", "crew", "mcp":
 		return true
 	default:
 		return false
@@ -125,6 +125,8 @@ func executeOrchestration(ctx context.Context, command string, arguments []strin
 		return cyberCommand(ctx, location, arguments)
 	case "headless":
 		return headlessCommand(ctx, location, arguments)
+	case "crew":
+		return crewCommand(ctx, location, arguments)
 	default:
 		return orchestrationEnvelope{}, errors.New("unknown orchestration command")
 	}
@@ -574,6 +576,8 @@ func nextForFailure(command string) string {
 		return "repair the reported isolation or policy blocker and retry"
 	case "headless":
 		return "run l7 headless status and preserve the existing checkpoint"
+	case "crew":
+		return "run l7 crew status; crew state and worktrees are preserved"
 	default:
 		return "run l7 help"
 	}

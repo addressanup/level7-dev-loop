@@ -36,7 +36,7 @@ type packageIdentity struct {
 }
 
 var canonicalSkills = []string{
-	"l7-build", "l7-change", "l7-constitution", "l7-cyber", "l7-deploy", "l7-experience", "l7-geometry", "l7-greenfield",
+	"l7-build", "l7-change", "l7-constitution", "l7-crew", "l7-cyber", "l7-deploy", "l7-experience", "l7-geometry", "l7-greenfield",
 	"l7-headless", "l7-next", "l7-onboard", "l7-ops", "l7-release", "l7-review", "l7-storybook", "l7-sync",
 }
 
