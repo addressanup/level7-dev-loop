@@ -89,7 +89,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap bootstrap-ci bootstrap-go-check bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check outcome-eval outcome-eval-smoke cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap bootstrap-ci bootstrap-go-check bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check outcome-eval outcome-eval-smoke cli-actual-host-compile distribution distribution-check stable-release-preflight-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -182,7 +182,16 @@ v1-package-check: install
 v1-candidate: v1-inputs v1-package
 
 v1-conformance-check: v1-candidate
-	@./scripts/harness/check-v1-conformance.sh "$(GO)"
+	@set -eu; \
+	 test "$$(git -C "$(PROJECT_ROOT)" rev-parse --show-toplevel)" = "$(PROJECT_ROOT)"; \
+	 state="$$(git -C "$(PROJECT_ROOT)" status --porcelain --untracked-files=all)"; \
+	 test -z "$$state" || { echo 'v1-conformance-check: exact-head checkout must be clean' >&2; exit 1; }; \
+	 if test "$(L7_PACKAGE_CHANNEL)" = stable; then \
+	   $(MAKE) -C "$(PROJECT_ROOT)" distribution v1-package-check GO_VERSION="$(GO_VERSION)" \
+	     L7_CLI_VERSION="$(L7_CLI_VERSION)" L7_PACKAGE_CHANNEL="$(L7_PACKAGE_CHANNEL)"; \
+	 else \
+	   ./scripts/harness/check-v1-conformance.sh "$(GO)"; \
+	 fi
 
 v1-candidate-check: v1-candidate v1-conformance-check
 	@set -eu; \
@@ -217,6 +226,9 @@ distribution: install
 
 distribution-check: install
 	@./scripts/harness/check-distribution.sh "$(GO)"
+
+stable-release-preflight-check:
+	@sh "$(PROJECT_ROOT)/scripts/harness/check-stable-release-preflight.sh"
 
 build-control-check: toolchain-check
 	@"$(GO)" run -mod=readonly ./internal/harness/buildcontrol
@@ -314,7 +326,7 @@ cli-reproducible: install
 	 cmp "$$repro_root/l7-a" "$$repro_root/l7-b"; \
 	 if command -v sha256sum >/dev/null 2>&1; then sha256sum "$$repro_root/l7-a"; else shasum -a 256 "$$repro_root/l7-a"; fi
 
-technical-verify: install technical-lint typecheck cli-actual-host-compile test race-check fuzz-check reproducible cli-reproducible distribution-check
+technical-verify: install technical-lint typecheck cli-actual-host-compile test race-check fuzz-check reproducible cli-reproducible distribution-check stable-release-preflight-check
 
 verify: policy-check technical-verify
 
