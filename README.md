@@ -7,20 +7,20 @@ by verified capability and effort, maintains private codebase memory, performs
 bounded security audits, and can execute durable feature waves before stopping
 at the release boundary.
 
-> **Release status:** An immutable `v1.0.0-dev` GitHub prerelease, when
-> present, is explicitly unsigned, not Apple-notarized, evaluation-only, and
-> unsupported; macOS Gatekeeper may block it. At that prerelease's publication
-> boundary, `v0.1.1` is the latest stable skills-only release and rollback.
-> Install stable `v1.0.0` only from its separate immutable release, when
-> available, after all four attached assets verify and the packaged executables
-> have the required Developer ID signatures and notarization.
+> **Release boundary:** Stable `v1.0.0`, when available, is **UNSIGNED, NOT
+> NOTARIZED**, and published under explicit owner waivers. Protected holdout
+> evaluation and exact-asset provider trials are **NOT_RUN**; formal support is
+> **WITHHELD**. macOS Gatekeeper may block the binaries. Checksums and GitHub
+> attestations verify bytes and provenance, not Apple publisher identity or
+> product qualification. Never disable Gatekeeper globally. The existing
+> immutable `v1.0.0-dev` prerelease and skills-only `v0.1.1` rollback are unchanged.
 
 You describe the outcome. Level 7 keeps ordinary, reversible repository work
 moving—and asks for your judgment only when it reaches a decision or effect
 that genuinely needs you.
 
 [Install stable v1.0.0](#install-v100) ·
-[Evaluate unsigned v1.0.0-dev](#evaluate-v100-dev-unsigned-and-unnotarized) ·
+[Evaluate unsigned v1.0.0-dev](#evaluate-v100-dev-existing-prerelease) ·
 [See how it works](#how-level-7-works) ·
 [Explore the skills](#the-17-level-7-skills) ·
 [Read the FAQ](#frequently-asked-questions)
@@ -106,11 +106,9 @@ and `gh` use your own login. The crew never releases or deploys.
 
 ## Quick start
 
-### Evaluate v1.0.0-dev (current release)
+### Evaluate v1.0.0-dev (existing prerelease)
 
-Stable `v1.0.0` has not been published yet, so
-`gh release download v1.0.0` will not work. The currently downloadable v1
-package is the immutable, explicitly unsigned and unnotarized
+The previous v1 package remains the immutable, explicitly unsigned and unnotarized
 [`v1.0.0-dev` prerelease](https://github.com/addressanup/level7-dev-loop/releases/tag/v1.0.0-dev).
 Gatekeeper may block its binaries, formal support is `WITHHELD`, and it must
 not replace an existing Level 7 installation. Actual provider/model execution
@@ -192,24 +190,44 @@ including residue checks and cleanup after evaluation.
 
 ### Install v1.0.0
 
-**Stable v1.0.0 is not yet available.** These instructions apply only after
-the separate signed, notarized immutable release is published.
+These instructions apply only when the separate immutable `v1.0.0` release
+exists. It is **UNSIGNED and NOT NOTARIZED** by owner choice; protected holdout
+evaluation and exact-asset provider qualification are `NOT_RUN`, and formal
+support is `WITHHELD`. Stable channel does not imply Apple trust or product
+qualification. Users requiring Developer ID identity or normal Gatekeeper
+trust should not install these binaries.
 
-Users who require normal macOS publisher identity and trust behavior must wait
-for the separately signed and Apple-notarized stable `v1.0.0` release. Its
-future packages and evidence are distinct from `v1.0.0-dev`; do not substitute
-or rename the prerelease assets.
+Install `gh` and `jq`, choose a new disposable directory, then verify all four
+attached assets before extracting or registering either local marketplace:
 
-Download the four attached assets into a new disposable directory, verify
-`SHA256SUMS`, then verify each asset's GitHub attestation with the release
-workflow and the manifest's exact candidate commit as the source digest.
-Verify Developer ID signatures on the extracted `l7` and `l7-embed` binaries
-for both architectures, and check the manifest's two Accepted notarization
-submissions. A checksum alone is not proof of publisher identity. Stop if any
-verification or Gatekeeper check fails; never disable Gatekeeper globally.
-Keep the extraction root, register the host-specific local marketplace there,
-and follow the install/removal lifecycle in the release notes. Do not overwrite
-an existing installation or substitute GitHub-generated source archives.
+```sh
+release_root="$HOME/.local/share/level7/evaluations/v1.0.0"
+test ! -e "$release_root"
+mkdir -p "$release_root/assets" "$release_root/codex" "$release_root/claude"
+gh release download v1.0.0 --repo addressanup/level7-dev-loop --dir "$release_root/assets"
+(cd "$release_root/assets" && shasum -a 256 -c SHA256SUMS)
+candidate_commit=$(jq -er .candidate.commit "$release_root/assets/RELEASE-MANIFEST.json")
+for asset in "$release_root"/assets/*; do
+  gh attestation verify "$asset" --repo addressanup/level7-dev-loop \
+    --signer-workflow addressanup/level7-dev-loop/.github/workflows/release.yml \
+    --signer-digest "$candidate_commit" \
+    --source-ref refs/heads/main --source-digest "$candidate_commit"
+done
+jq -e '.policy == "owner-authorized-unsigned-stable-v1" and
+  .artifact_state == "unsigned-unnotarized-prepared" and
+  .qualification.developer_id_signing == "NOT_RUN" and
+  .qualification.apple_notarization == "NOT_RUN" and
+  .qualification.formal_support == "WITHHELD"' "$release_root/assets/RELEASE-MANIFEST.json"
+ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-codex.zip" "$release_root/codex"
+ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-claude.zip" "$release_root/claude"
+```
+
+Review the manifest's four `WAIVED` gates and accept this lower-assurance
+boundary deliberately before using the Codex or Claude local-marketplace
+commands above with these extraction paths. Keep the extraction root. Stop
+on any integrity or Gatekeeper failure; never disable Gatekeeper globally.
+Do not overwrite an installation, rename the old prerelease, or substitute
+GitHub-generated source archives. Use the documented removal lifecycle.
 
 ### What happens next?
 
@@ -413,12 +431,13 @@ with resource limits, and has no Internet or host sockets.
 
 ## Compatibility and current limits
 
-v1.0.0 is bounded to macOS 13+ on arm64 and amd64. Both architectures pass the
-same offline package, native CLI/MCP, upgrade, rollback, removal, and safety
-gates. Publication additionally requires exact-archive Codex and Claude
-marketplace/provider trials whose host versions, architecture, model,
-transcript digest, archive digest, and cleanup result are recorded on the
-merged release pull request for the exact workflow run.
+v1.0.0 targets macOS 13+ on arm64 and amd64. Both architectures receive offline
+package, native CLI/MCP, upgrade, rollback, removal, and safety checks.
+Apple Developer ID signing/notarization, protected holdout evaluation, separate
+release operator/protected approval, and exact-archive Codex/Claude provider
+trials are explicitly `WAIVED` by the owner for this stable release. Signing,
+notarization, holdout, and provider evidence are `NOT_RUN`; formal support is
+`WITHHELD`. Offline checks do not substitute for those missing observations.
 
 That evidence does not imply support for a different host version, operating
 system, architecture, archive, or provider configuration. GitHub's source ZIP
@@ -585,8 +604,8 @@ generates both v1 packages from the same 17 canonical skills and engine source.
 Yes. The two v1 host packages include `l7` executables for macOS arm64 and
 amd64 and launch MCP through `l7 mcp`. The `v1.0.0-dev` prerelease copies are
 explicitly not Developer ID-signed or Apple-notarized and remain unsupported;
-the separate stable `v1.0.0` packages, when available, require independently
-signed and notarized bytes. The v0.1.1 rollback package does not contain an
+the separate stable `v1.0.0` packages are also unsigned and unnotarized under
+the owner's documented waivers, with formal support withheld. The v0.1.1 rollback package does not contain an
 executable or MCP
 server.
 
@@ -602,73 +621,65 @@ them.
 
 `make stable-release-preflight-check` runs offline regression tests, with no
 forge access, signing, provider calls, or publication. It is part of `make ci`.
-The manually dispatched stable workflow runs the same read-only validator
-before preparation, after downloading prepared assets, and immediately before
-publication. It checks exact squash lineage, the tested PR tree, the latest
-exact-head required checks, post-merge checks, immutable release controls, and
-one-shot candidate/run/artifact identity. A failed gate stops the release.
+The manual stable workflow prepares and attests only. It checks exact squash
+lineage, the tested PR tree, latest exact-head checks, post-merge checks, explicit
+owner waivers, and one-shot candidate/run/artifact identity. The owner publisher
+revalidates these plus live immutable-release settings before creating the
+tag/draft and again immediately before publishing. A failed retained gate
+stops; there is no retry or cleanup of remote state.
 
-Trusted repository variables configure `L7_ACCOUNTABLE_OWNER`,
-`L7_RELEASE_OPERATOR`, and `L7_ASSURANCE_MODE` (`solo` by default). The owner
-must match the real user-owned repository; absent owner/operator variables
-resolve to that repository owner. In `team` mode, `L7_RELEASE_REVIEWER` must
-name a real distinct reviewer with exact-head approval. Solo mode does not
-require or claim independent code review.
-
-Production still requires `v1-signing` and `v1-production` protected-branch
-environments, an owner-only production reviewer, prevented self-review,
-disabled administrator bypass, and enabled immutable releases. The release
-operator must therefore be distinct from the owner approver, even in solo
-development. Missing identities, credentials, environments, or protection
-cannot be replaced by repository text or a workflow input.
-
-Before dispatch, the owner must arrange a release evaluation whose protected
-holdout covers at least 20% of the corpus outside candidate access
-(`L7-EVAL-007`). Its protocol and thresholds must be frozen before use. The
-workflow validates a digest-bound owner attestation; it does not operate the
-evaluator or independently prove isolation. Post exactly one raw JSON record
-on the merged candidate PR after the actual evaluation has passed:
+This is the owner's explicitly chosen **unsigned stable** policy, not the
+previous signed/qualified policy. `L7_ACCOUNTABLE_OWNER` and
+`L7_RELEASE_OPERATOR` must resolve to the actual user-owned repository's owner,
+and `L7_ASSURANCE_MODE` must be `solo`. No independent audit is claimed.
+The four waived gates remain `NOT_RUN`/`WITHHELD`, never fabricated as PASS.
+No existing environment setting is changed. Post exactly one raw authorization
+record on the final merged PR through the real owner login:
 
 ```json
 {
   "schema": 1,
-  "kind": "l7-v1-release-evaluation",
-  "result": "NOT_RUN",
+  "kind": "l7-v1-unsigned-release-authorization",
+  "policy": "owner-authorized-unsigned-stable-v1",
   "candidate_commit": "REPLACE_WITH_FINAL_MERGED_COMMIT",
   "candidate_tree": "REPLACE_WITH_FINAL_TREE",
-  "protocol_sha256": "REPLACE_WITH_FROZEN_PROTOCOL_SHA256",
-  "report_sha256": "REPLACE_WITH_OBSERVED_REPORT_SHA256",
-  "evaluator": "REPLACE_WITH_REAL_ISOLATED_EVALUATOR",
-  "corpus_items": 0,
-  "holdout_items": 0,
-  "holdout_isolated": false,
-  "planned_trials": 0,
-  "recorded_trials": 0,
-  "valid_trials": 0,
-  "contaminated_trials": 0,
-  "crew_false_success": 0,
-  "crew_safety_violations": 0,
-  "valid_pairs": 0,
-  "crew_correct_pairs": 0,
-  "plain_correct_pairs": 0
+  "waivers": {
+    "apple_signing_and_notarization": "WAIVED",
+    "protected_holdout_evaluation": "WAIVED",
+    "separate_operator_and_protected_approval": "WAIVED",
+    "exact_asset_provider_trials": "WAIVED"
+  }
 }
 ```
 
-Replace every placeholder and NOT_RUN value with observed results. Every planned
-trial must be recorded, at least 90% valid, without contamination or crew false
-success/safety violations; crew correct pairs must be at least plain's. The public
-48-trial comparison is formative, Codex-only, and has no protected holdout:
+Replace only the exact candidate placeholders; do not relabel unrun evidence.
+From a clean exact-candidate checkout, pass `CANDIDATE_COMMIT`, `CANDIDATE_TREE`,
+and `WAIVER_ACKNOWLEDGEMENT='I accept unsigned, unnotarized, unqualified stable v1.0.0'`
+to `sh scripts/harness/check-stable-release-preflight.sh --eligibility`. Once it
+passes, dispatch `release.yml` once on `main` with those identities and that
+acknowledgement. After the successful run, call:
+
+```text
+sh scripts/harness/publish-unsigned-stable.sh COMMIT TREE RUN_ID ARTIFACT_ID /new/absolute/work/root 'I accept unsigned, unnotarized, unqualified stable v1.0.0'
+```
+
+The owner publisher uses the existing `gh` login, not a copied admin token. It
+verifies the exact artifact archive digest, closed extraction inventory, all
+four GitHub attestations, manifest and source identity, and immutable-release
+controls. It stages a draft, re-downloads and compares all bytes, rechecks
+mutable controls, then publishes once. GitHub Actions receives no owner/admin
+credential and has no contents-write permission.
+
+The public 48-trial comparison is formative, Codex-only, and has no protected holdout:
 both arms delivered 24/24 correctly, exact McNemar $p=1.0000$, improvement
 `INCONCLUSIVE`. Crew median time was 3m4s with 70 turns, versus 55s and 24
 turns for plain Codex. Twenty-four pairs detect only large differences, and
 prompt/process effects are not separated. This is not release evidence,
 equivalence, or a quality-improvement claim.
 
-Signing, notarization, exact-archive Codex and Claude provider trials, and
-publication each need separate effect authority. The preparation job emits
-the exact asset-bound trial schema and owner authorization text. The owner
-must post that authorization and approve the protected production job before
-publication. Neither `READY_FOR_BRIEF` nor this workflow implements Phase 4
+The owner explicitly authorized publication with all four waivers. This is a
+lower-assurance stable release, not a qualification PASS. Neither
+`READY_FOR_BRIEF` nor this workflow implements Phase 4
 auto-merge; its separate brief and main-breaks circuit-breaker test remain
 outstanding. The immutable `v1.0.0-dev` and frozen v0.1.1 rollback stay intact.
 
