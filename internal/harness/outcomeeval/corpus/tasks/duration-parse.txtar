@@ -1,0 +1,125 @@
+Bug fix whose obvious patch misses the ordering and malformed-input rules.
+-- task.json --
+{
+  "id": "duration-parse",
+  "title": "Parse combined duration units",
+  "category": "bugfix-edge-cases",
+  "objective": "parse_duration rejects combined units: parse_duration(\"1h30m\") raises ValueError instead of returning 5400. Make it accept a duration made of number-and-unit parts with the units h, m, and s, returning the total number of seconds, while keeping single-unit behaviour and rejecting malformed input.",
+  "acceptance": [
+    "parse_duration(\"1h30m\") returns 5400 and parse_duration(\"2h5m10s\") returns 7510, as an int.",
+    "Single units still work: \"90s\" is 90, \"15m\" is 900, \"2h\" is 7200, and \"0s\" is 0.",
+    "Units must appear in the order h, m, s and each at most once; \"30m1h\" or \"1h1h\" raises ValueError.",
+    "Empty text, a number without a unit (\"1h30\"), an unknown unit (\"5x\"), a unit without a number (\"h\"), any whitespace, a sign, or a decimal point raises ValueError."
+  ],
+  "paths": ["timeparse/**", "tests/test_duration.py"],
+  "verify": [["python3", "-m", "unittest", "-q", "tests.test_duration"]],
+  "hidden": [["python3", "-m", "unittest", "-q", "_l7_hidden.test_duration"]],
+  "forbidden": {}
+}
+-- repo/.gitignore --
+__pycache__/
+*.pyc
+.pytest_cache/
+-- repo/README.md --
+# timeparse
+
+`timeparse.duration.parse_duration(text)` converts a duration such as `90s`,
+`15m`, or `2h` into a number of seconds.
+
+Run the tests with `python3 -m unittest -q tests.test_duration`.
+-- repo/timeparse/__init__.py --
+"""Duration parsing helpers."""
+-- repo/timeparse/duration.py --
+"""Parse human-readable durations."""
+
+UNITS = {"h": 3600, "m": 60, "s": 1}
+
+
+def parse_duration(text):
+    """Return the number of seconds in a duration such as "90s" or "2h"."""
+    if not text:
+        raise ValueError("empty duration")
+    unit = text[-1]
+    if unit not in UNITS:
+        raise ValueError("unknown unit in %r" % text)
+    number = text[:-1]
+    if not number.isdigit():
+        raise ValueError("invalid number in %r" % text)
+    return int(number) * UNITS[unit]
+-- repo/tests/__init__.py --
+-- repo/tests/test_duration.py --
+import unittest
+
+from timeparse.duration import parse_duration
+
+
+class ParseDurationTest(unittest.TestCase):
+    def test_single_units(self):
+        self.assertEqual(parse_duration("90s"), 90)
+        self.assertEqual(parse_duration("15m"), 900)
+        self.assertEqual(parse_duration("2h"), 7200)
+
+    def test_combined_units(self):
+        self.assertEqual(parse_duration("1h30m"), 5400)
+
+    def test_rejects_empty(self):
+        with self.assertRaises(ValueError):
+            parse_duration("")
+
+
+if __name__ == "__main__":
+    unittest.main()
+-- hidden/_l7_hidden/__init__.py --
+# l7-outcome-eval-canary-7c1e4b2a
+-- hidden/_l7_hidden/test_duration.py --
+# l7-outcome-eval-canary-7c1e4b2a
+import unittest
+
+from timeparse.duration import parse_duration
+
+
+class HiddenParseDurationTest(unittest.TestCase):
+    def test_combined(self):
+        self.assertEqual(parse_duration("1h30m"), 5400)
+        self.assertEqual(parse_duration("2h5m10s"), 7510)
+        self.assertEqual(parse_duration("10m5s"), 605)
+        self.assertEqual(parse_duration("1h1s"), 3601)
+        self.assertIsInstance(parse_duration("1h30m"), int)
+
+    def test_single(self):
+        self.assertEqual(parse_duration("90s"), 90)
+        self.assertEqual(parse_duration("15m"), 900)
+        self.assertEqual(parse_duration("2h"), 7200)
+        self.assertEqual(parse_duration("0s"), 0)
+
+    def test_order_and_repetition(self):
+        for text in ("30m1h", "1h1h", "5s2m", "1m1m"):
+            with self.assertRaises(ValueError, msg=text):
+                parse_duration(text)
+
+    def test_malformed(self):
+        for text in ("", "1h30", "5x", "h", "-5m", "+5m", "1 h", " 1h", "1h ", "1.5h"):
+            with self.assertRaises(ValueError, msg=text):
+                parse_duration(text)
+-- reference/timeparse/duration.py --
+# l7-outcome-eval-canary-7c1e4b2a
+"""Parse human-readable durations."""
+
+import re
+
+UNITS = {"h": 3600, "m": 60, "s": 1}
+_PATTERN = re.compile(r"(?:([0-9]+)h)?(?:([0-9]+)m)?(?:([0-9]+)s)?")
+
+
+def parse_duration(text):
+    """Return the number of seconds in a duration such as "1h30m" or "90s".
+
+    Units must appear in the order h, m, s, each at most once.
+    """
+    if not isinstance(text, str) or not text:
+        raise ValueError("empty duration")
+    match = _PATTERN.fullmatch(text)
+    if match is None or not any(match.groups()):
+        raise ValueError("invalid duration %r" % text)
+    hours, minutes, seconds = (int(part) if part else 0 for part in match.groups())
+    return hours * UNITS["h"] + minutes * UNITS["m"] + seconds * UNITS["s"]

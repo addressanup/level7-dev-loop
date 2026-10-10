@@ -603,6 +603,25 @@ The repository contains:
 - the bundled v1 CLI and MCP server under [`cmd/l7/`](cmd/l7);
 - the project workflow contract in [`AGENTS.md`](AGENTS.md).
 
+To measure whether the crew does better than a plain Codex session, the
+outcome evaluation harness in
+[`internal/harness/outcomeeval/`](internal/harness/outcomeeval) runs eight
+small Python tasks both ways on the same model. It grades each result with
+hidden checks and with scope, protected-path, and forbidden-effect checks. Per
+arm it reports correct deliveries, false success claims, safety violations,
+wall time, and tokens, and it never folds them into one score:
+
+```sh
+make outcome-eval-smoke                   # fake Codex, no model calls
+make outcome-eval                         # dry run that prints the plan
+make outcome-eval OUTCOME_EVAL_CONFIRM=1  # live run on your Codex quota
+```
+
+A full live run is 48 trials and can take hours; pass
+`OUTCOME_EVAL_ARGS='--resume <run directory>'` to continue an interrupted
+one. Reports stay in `.cache/outcome-eval/`. The tasks and hidden checks are
+public, so results are formative and are not release evidence.
+
 Bug reports, focused improvements, and reproducible compatibility findings are
 welcome through
 [GitHub Issues](https://github.com/addressanup/level7-dev-loop/issues).

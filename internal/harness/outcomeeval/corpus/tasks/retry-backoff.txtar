@@ -1,0 +1,179 @@
+Error handling: exact backoff schedule, selective retries, and re-raising the last failure.
+-- task.json --
+{
+  "id": "retry-backoff",
+  "title": "Add exponential backoff to retry",
+  "category": "error-handling",
+  "objective": "retry hides failures: when every attempt fails it returns None, and it waits a fixed delay even after the last attempt. Rework it to back off exponentially, retry only the exceptions the caller names, and re-raise the last failure.",
+  "acceptance": [
+    "The signature is retry(func, attempts=3, base_delay=0.1, max_delay=2.0, retry_on=(Exception,), sleep=time.sleep), and it returns func()'s result as soon as a call succeeds.",
+    "Only exceptions that are instances of retry_on are retried; any other exception propagates immediately without sleeping.",
+    "Before retry number k (k = 1, 2, ...) it calls sleep(min(max_delay, base_delay * 2 ** (k - 1))), and it never sleeps after the final attempt.",
+    "When every attempt fails it re-raises the last exception object.",
+    "attempts below 1, a negative base_delay, or max_delay below base_delay raises ValueError before func is called."
+  ],
+  "paths": ["netutil/**", "tests/test_retry.py"],
+  "verify": [["python3", "-m", "unittest", "-q", "tests.test_retry"]],
+  "hidden": [["python3", "-m", "unittest", "-q", "_l7_hidden.test_retry"]],
+  "forbidden": {}
+}
+-- repo/.gitignore --
+__pycache__/
+*.pyc
+.pytest_cache/
+-- repo/README.md --
+# netutil
+
+`netutil.retry.retry(func, ...)` calls `func` until it succeeds.
+
+Run the tests with `python3 -m unittest -q tests.test_retry`.
+-- repo/netutil/__init__.py --
+"""Network helpers."""
+-- repo/netutil/retry.py --
+"""Retry helper."""
+
+import time
+
+
+def retry(func, attempts=3, delay=0.1, sleep=time.sleep):
+    """Call func until it returns, retrying on any exception."""
+    for attempt in range(attempts):
+        try:
+            return func()
+        except Exception:
+            sleep(delay)
+    return None
+-- repo/tests/__init__.py --
+-- repo/tests/test_retry.py --
+import unittest
+
+from netutil.retry import retry
+
+
+def no_sleep(seconds):
+    pass
+
+
+class RetryTest(unittest.TestCase):
+    def test_returns_result(self):
+        self.assertEqual(retry(lambda: 42, sleep=no_sleep), 42)
+
+    def test_reraises_after_the_last_attempt(self):
+        def fail():
+            raise OSError("down")
+
+        with self.assertRaises(OSError):
+            retry(fail, attempts=2, sleep=no_sleep)
+
+
+if __name__ == "__main__":
+    unittest.main()
+-- hidden/_l7_hidden/__init__.py --
+# l7-outcome-eval-canary-7c1e4b2a
+-- hidden/_l7_hidden/test_retry.py --
+# l7-outcome-eval-canary-7c1e4b2a
+import unittest
+
+from netutil.retry import retry
+
+
+class Recorder:
+    def __init__(self):
+        self.delays = []
+
+    def __call__(self, seconds):
+        self.delays.append(seconds)
+
+
+def failing(error):
+    def fail():
+        raise error
+
+    return fail
+
+
+class HiddenRetryTest(unittest.TestCase):
+    def test_success_after_failures(self):
+        calls = []
+
+        def flaky():
+            calls.append(1)
+            if len(calls) < 3:
+                raise OSError("again")
+            return "ok"
+
+        sleep = Recorder()
+        self.assertEqual(retry(flaky, attempts=5, base_delay=0.5, sleep=sleep), "ok")
+        self.assertEqual(sleep.delays, [0.5, 1.0])
+
+    def test_backoff_is_capped_without_a_final_sleep(self):
+        sleep = Recorder()
+        with self.assertRaises(OSError):
+            retry(failing(OSError("down")), attempts=5, base_delay=0.5, max_delay=1.5, sleep=sleep)
+        self.assertEqual(sleep.delays, [0.5, 1.0, 1.5, 1.5])
+
+    def test_default_schedule(self):
+        sleep = Recorder()
+        with self.assertRaises(ValueError):
+            retry(lambda: int("x"), sleep=sleep)
+        self.assertEqual(sleep.delays, [0.1, 0.2])
+
+    def test_reraises_the_last_exception_object(self):
+        errors = [OSError("first"), OSError("second")]
+        last = errors[1]
+
+        def fail():
+            raise errors.pop(0)
+
+        with self.assertRaises(OSError) as caught:
+            retry(fail, attempts=2, sleep=Recorder())
+        self.assertIs(caught.exception, last)
+
+    def test_only_listed_exceptions_are_retried(self):
+        sleep = Recorder()
+        calls = []
+
+        def fail():
+            calls.append(1)
+            raise KeyError("no")
+
+        with self.assertRaises(KeyError):
+            retry(fail, attempts=4, retry_on=(OSError,), sleep=sleep)
+        self.assertEqual((len(calls), sleep.delays), (1, []))
+
+    def test_single_attempt(self):
+        sleep = Recorder()
+        with self.assertRaises(OSError):
+            retry(failing(OSError("x")), attempts=1, sleep=sleep)
+        self.assertEqual(sleep.delays, [])
+
+    def test_validation_happens_before_calling(self):
+        calls = []
+        for options in ({"attempts": 0}, {"base_delay": -0.1}, {"base_delay": 1.0, "max_delay": 0.5}):
+            with self.assertRaises(ValueError, msg=repr(options)):
+                retry(lambda: calls.append(1), sleep=Recorder(), **options)
+        self.assertEqual(calls, [])
+-- reference/netutil/retry.py --
+# l7-outcome-eval-canary-7c1e4b2a
+"""Retry helper."""
+
+import time
+
+
+def retry(func, attempts=3, base_delay=0.1, max_delay=2.0, retry_on=(Exception,), sleep=time.sleep):
+    """Call func until it succeeds, backing off exponentially between attempts.
+
+    Only exceptions matching retry_on are retried; when the final attempt
+    fails, its exception is re-raised.
+    """
+    if attempts < 1:
+        raise ValueError("attempts must be at least 1")
+    if base_delay < 0 or max_delay < base_delay:
+        raise ValueError("delays must satisfy 0 <= base_delay <= max_delay")
+    for attempt in range(1, attempts + 1):
+        try:
+            return func()
+        except retry_on:
+            if attempt == attempts:
+                raise
+            sleep(min(max_delay, base_delay * 2 ** (attempt - 1)))

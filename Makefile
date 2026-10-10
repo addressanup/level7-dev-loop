@@ -41,6 +41,9 @@ endif
 ifneq ($(filter environment environment override,$(origin L7_PACKAGE_CHANNEL)),)
 $(error L7_PACKAGE_CHANNEL must be an explicit make command-line variable, not ambient environment state)
 endif
+ifneq ($(filter environment environment override,$(origin OUTCOME_EVAL_CONFIRM) $(origin OUTCOME_EVAL_ARGS)),)
+$(error OUTCOME_EVAL_CONFIRM and OUTCOME_EVAL_ARGS must be explicit make command-line variables, not ambient environment state)
+endif
 L7_CLI_VERSION ?= 1.0.0-dev
 L7_PACKAGE_CHANNEL ?= development-candidate
 override CLI_PACKAGE := ./cmd/l7
@@ -86,7 +89,7 @@ export GOAMD64 GOARM64 GOPATH GOBIN GOCACHE GOMODCACHE GOTMPDIR TMPDIR GOPROXY G
 export GONOSUMDB GOINSECURE GOVCS GOAUTH TEST_TELEMETRY_DIR GIT_TERMINAL_PROMPT LC_ALL TZ
 export L7_EXPECT_GO_VERSION L7_LOG_FORMAT L7_LOG_LEVEL L7_TELEMETRY L7_NETWORK
 
-.PHONY: bootstrap bootstrap-ci bootstrap-go-check bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
+.PHONY: bootstrap bootstrap-ci bootstrap-go-check bootstrap-modules-check prepare toolchain-check install build cli-build cli-cross-build v1-inputs v1-package v1-package-check v1-candidate v1-conformance-check v1-candidate-check cli-benchmark-check outcome-eval outcome-eval-smoke cli-actual-host-compile distribution distribution-check build-control-check policy-check ready-check l7-import-closure-check import-check candidate-check format-check technical-lint lint typecheck test race-check fuzz-check reproducible cli-reproducible technical-verify verify ci
 
 bootstrap:
 	@./scripts/harness/bootstrap-go.sh "$(GO_VERSION)"
@@ -202,6 +205,12 @@ v1-candidate-check: v1-candidate v1-conformance-check
 cli-benchmark-check: toolchain-check
 	@test -n "$(L7_BENCHMARK_BASE_ROOT)" || { echo 'L7_BENCHMARK_BASE_ROOT must name a separate base checkout' >&2; exit 1; }
 	@./scripts/harness/check-cli-benchmarks.sh "$(GO)" "$(L7_BENCHMARK_BASE_ROOT)" "$(PROJECT_ROOT)"
+
+outcome-eval: cli-build
+	@"$(GO)" run -mod=readonly ./internal/harness/outcomeeval run --l7 "$(PROJECT_ROOT)/build/bin/l7" --out "$(PROJECT_ROOT)/.cache/outcome-eval" $(if $(filter 1,$(OUTCOME_EVAL_CONFIRM)),--confirm) $(OUTCOME_EVAL_ARGS)
+
+outcome-eval-smoke: cli-build
+	@"$(GO)" run -mod=readonly ./internal/harness/outcomeeval run --smoke --l7 "$(PROJECT_ROOT)/build/bin/l7" --out "$(PROJECT_ROOT)/.cache/outcome-eval"
 
 distribution: install
 	@"$(GO)" run -mod=readonly ./internal/harness/distribution --root "$(PROJECT_ROOT)" --output "$(PROJECT_ROOT)/build/distributions"

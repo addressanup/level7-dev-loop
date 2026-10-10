@@ -137,3 +137,7 @@ transitive	internal/harness/v1candidate	internal/l7	BND-703
 transitive	internal/harness/v1candidate	internal/evaluator	BND-703
 transitive	internal/harness/v1candidate	internal/render	BND-703
 effect	internal/harness/v1candidate	net	BND-704
+transitive	internal/harness/outcomeeval	internal/l7	BND-705
+transitive	internal/harness/outcomeeval	internal/evaluator	BND-705
+transitive	internal/harness/outcomeeval	internal/render	BND-705
+effect	internal/harness/outcomeeval	net	BND-706

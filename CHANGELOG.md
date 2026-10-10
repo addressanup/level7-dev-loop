@@ -43,6 +43,13 @@ here. Host observations and support claims remain scoped by
   median paired slowdown exceeds 10% and at least eight pairs are slower, so
   runner drift no longer fails pull requests whose benchmarked code is
   unchanged.
+- Add a maintainer-only outcome evaluation harness (`make outcome-eval`,
+  `make outcome-eval-smoke`). It runs eight frozen tasks through `l7 crew` and
+  through one plain `codex exec` session on the same model, then grades both
+  with hidden checks and with scope, protected-path, and forbidden-effect
+  checks. It meters turns and tokens and reports a pre-registered Phase 4 gate
+  and an exact McNemar test of the improvement claim. It ships in no package
+  and never runs models in CI.
 
 ## 1.0.0
 
