@@ -190,12 +190,26 @@ refuses a binary, stop; never disable Gatekeeper globally. Follow the complete
 [`v1.0.0-dev` verification, evaluation, and removal instructions](https://github.com/addressanup/level7-dev-loop/blob/v1.0.0-dev/docs/releases/v1.0.0-dev.md),
 including residue checks and cleanup after evaluation.
 
-### Stable v1.0.0 (not yet available)
+### Install v1.0.0
+
+**Stable v1.0.0 is not yet available.** These instructions apply only after
+the separate signed, notarized immutable release is published.
 
 Users who require normal macOS publisher identity and trust behavior must wait
 for the separately signed and Apple-notarized stable `v1.0.0` release. Its
 future packages and evidence are distinct from `v1.0.0-dev`; do not substitute
 or rename the prerelease assets.
+
+Download the four attached assets into a new disposable directory, verify
+`SHA256SUMS`, then verify each asset's GitHub attestation with the release
+workflow and the manifest's exact candidate commit as the source digest.
+Verify Developer ID signatures on the extracted `l7` and `l7-embed` binaries
+for both architectures, and check the manifest's two Accepted notarization
+submissions. A checksum alone is not proof of publisher identity. Stop if any
+verification or Gatekeeper check fails; never disable Gatekeeper globally.
+Keep the extraction root, register the host-specific local marketplace there,
+and follow the install/removal lifecycle in the release notes. Do not overwrite
+an existing installation or substitute GitHub-generated source archives.
 
 ### What happens next?
 
@@ -583,6 +597,75 @@ boundaries, so Level 7 requires specific authority before the host performs
 them.
 
 ## Development and contributing
+
+### Stable release preparation
+
+`make stable-release-preflight-check` runs offline regression tests, with no
+forge access, signing, provider calls, or publication. It is part of `make ci`.
+The manually dispatched stable workflow runs the same read-only validator
+before preparation, after downloading prepared assets, and immediately before
+publication. It checks exact squash lineage, the tested PR tree, the latest
+exact-head required checks, post-merge checks, immutable release controls, and
+one-shot candidate/run/artifact identity. A failed gate stops the release.
+
+Trusted repository variables configure `L7_ACCOUNTABLE_OWNER`,
+`L7_RELEASE_OPERATOR`, and `L7_ASSURANCE_MODE` (`solo` by default). The owner
+must match the real user-owned repository; absent owner/operator variables
+resolve to that repository owner. In `team` mode, `L7_RELEASE_REVIEWER` must
+name a real distinct reviewer with exact-head approval. Solo mode does not
+require or claim independent code review.
+
+Production still requires `v1-signing` and `v1-production` protected-branch
+environments, an owner-only production reviewer, prevented self-review,
+disabled administrator bypass, and enabled immutable releases. The release
+operator must therefore be distinct from the owner approver, even in solo
+development. Missing identities, credentials, environments, or protection
+cannot be replaced by repository text or a workflow input.
+
+Before dispatch, the owner must arrange a release evaluation whose protected
+holdout covers at least 20% of the corpus outside candidate access
+(`L7-EVAL-007`). Its protocol and thresholds must be frozen before use. The
+workflow validates a digest-bound owner attestation; it does not operate the
+evaluator or independently prove isolation. Post exactly one raw JSON record
+on the merged candidate PR after the actual evaluation has passed:
+
+```json
+{
+  "schema": 1,
+  "kind": "l7-v1-release-evaluation",
+  "result": "NOT_RUN",
+  "candidate_commit": "REPLACE_WITH_FINAL_MERGED_COMMIT",
+  "candidate_tree": "REPLACE_WITH_FINAL_TREE",
+  "protocol_sha256": "REPLACE_WITH_FROZEN_PROTOCOL_SHA256",
+  "report_sha256": "REPLACE_WITH_OBSERVED_REPORT_SHA256",
+  "evaluator": "REPLACE_WITH_REAL_ISOLATED_EVALUATOR",
+  "corpus_items": 0,
+  "holdout_items": 0,
+  "holdout_isolated": false,
+  "planned_trials": 0,
+  "recorded_trials": 0,
+  "valid_trials": 0,
+  "contaminated_trials": 0,
+  "crew_false_success": 0,
+  "crew_safety_violations": 0
+}
+```
+
+Replace every placeholder and NOT_RUN value with observed results. The public
+48-trial comparison is formative, Codex-only, and has no protected holdout:
+both arms delivered 24/24 correctly, exact McNemar $p=1.0000$, improvement
+`INCONCLUSIVE`. Crew median time was 3m4s with 70 turns, versus 55s and 24
+turns for plain Codex. Twenty-four pairs detect only large differences, and
+prompt/process effects are not separated. This is not release evidence,
+equivalence, or a quality-improvement claim.
+
+Signing, notarization, exact-archive Codex and Claude provider trials, and
+publication each need separate effect authority. The preparation job emits
+the exact asset-bound trial schema and owner authorization text. The owner
+must post that authorization and approve the protected production job before
+publication. Neither `READY_FOR_BRIEF` nor this workflow implements Phase 4
+auto-merge; its separate brief and main-breaks circuit-breaker test remain
+outstanding. The immutable `v1.0.0-dev` and frozen v0.1.1 rollback stay intact.
 
 Plugin users do not need the Go toolchain. Maintainers can verify the repository
 and build deterministic host packages with:

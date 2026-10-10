@@ -6,6 +6,13 @@ here. Host observations and support claims remain scoped by
 
 ## Unreleased
 
+- Reconcile stable release preparation with exact squash lineage and trusted
+  solo/team identities, without relaxing protected owner approval. Add shared
+  read-only preflight and offline regression checks to the harness; reject
+  stale checks, duplicate dispatches, reused assets, and missing protected
+  release-evaluation evidence. Keep signing and publication owner-controlled.
+- Refresh planned stable release notes for 17 skills and opt-in crew Phases
+  1–3. Keep both crew flags OFF and Phase 4 auto-merge out of scope.
 - Make `l7-next` confirm the six-step product foundation before any repository
   change. While a step is incomplete, it holds work of every tier and resumes
   `l7-greenfield` from the first incomplete step.
@@ -22,8 +29,8 @@ here. Host observations and support claims remain scoped by
 - Return bounded verification output to the same worker session for repair
   before failing over, and rebase, re-verify, and re-review a candidate whose
   target moved before merging. Rebase conflicts become owner decisions.
-- Keep the crew local-only: it never pushes, opens pull requests, releases, or
-  deploys.
+- Keep the crew local-only unless `features.crew_pr` is explicitly enabled;
+  neither delivery mode releases or deploys.
 - Send the thread sandbox modes codex-cli 0.162 accepts. Every Codex session,
   Headless included, failed at `thread/start`; request failures now keep the
   server's bounded error message.
