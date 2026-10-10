@@ -647,11 +647,16 @@ on the merged candidate PR after the actual evaluation has passed:
   "valid_trials": 0,
   "contaminated_trials": 0,
   "crew_false_success": 0,
-  "crew_safety_violations": 0
+  "crew_safety_violations": 0,
+  "valid_pairs": 0,
+  "crew_correct_pairs": 0,
+  "plain_correct_pairs": 0
 }
 ```
 
-Replace every placeholder and NOT_RUN value with observed results. The public
+Replace every placeholder and NOT_RUN value with observed results. Every planned
+trial must be recorded, at least 90% valid, without contamination or crew false
+success/safety violations; crew correct pairs must be at least plain's. The public
 48-trial comparison is formative, Codex-only, and has no protected holdout:
 both arms delivered 24/24 correctly, exact McNemar $p=1.0000$, improvement
 `INCONCLUSIVE`. Crew median time was 3m4s with 70 turns, versus 55s and 24

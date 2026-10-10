@@ -94,6 +94,10 @@ def evaluation(comments, owner, commit, tree):
             "release evaluation is incomplete or has insufficient valid trials")
     for key in ("contaminated_trials", "crew_false_success", "crew_safety_violations"):
         require(type(record.get(key)) is int and record[key] == 0, "release evaluation fails " + key)
+    pairs, crew, plain = (record.get(key) for key in ("valid_pairs", "crew_correct_pairs", "plain_correct_pairs"))
+    require(integer(pairs, 1) and pairs * 2 <= valid
+            and integer(crew) and integer(plain) and plain <= crew <= pairs,
+            "release evaluation lacks valid pairs or crew correct pairs are fewer than plain")
     return {"report": record["report_sha256"], "protocol": record["protocol_sha256"]}
 
 
@@ -271,7 +275,8 @@ def fixture():
               "report_sha256": "f" * 64, "evaluator": "isolated-evaluation-service",
               "corpus_items": 10, "holdout_items": 2, "holdout_isolated": True,
               "planned_trials": 60, "recorded_trials": 60, "valid_trials": 60,
-              "contaminated_trials": 0, "crew_false_success": 0, "crew_safety_violations": 0}
+              "contaminated_trials": 0, "crew_false_success": 0, "crew_safety_violations": 0,
+              "valid_pairs": 30, "crew_correct_pairs": 30, "plain_correct_pairs": 30}
     def checks(sha, names):
         return [{"name": name, "id": index, "head_sha": sha, "app": {"slug": "github-actions"},
                  "status": "completed", "conclusion": "success", "started_at": "2026-10-10T00:00:00Z"}
@@ -374,7 +379,8 @@ class PreflightTests(unittest.TestCase):
         for key, value in (("holdout_items", 1), ("holdout_isolated", False), ("valid_trials", 53),
                            ("recorded_trials", 59), ("result", "NOT_RUN"), ("contaminated_trials", 1),
                            ("crew_false_success", 1), ("crew_safety_violations", 1),
-                           ("protocol_sha256", "unknown"), ("evaluator", "self-review")):
+                           ("protocol_sha256", "unknown"), ("evaluator", "self-review"),
+                           ("crew_correct_pairs", 29), ("valid_pairs", 31)):
             def mutate(s):
                 record = json.loads(s["comments"][0]["body"])
                 record[key] = value
@@ -400,6 +406,14 @@ class PreflightTests(unittest.TestCase):
         self.assertNotIn("apbusinessidentity-tech", document)
         self.assertLess(document.index("check-stable-release-preflight.sh --prepare"), document.index("security create-keychain"))
         self.assertLess(document.index("check-stable-release-preflight.sh --publish"), document.index('gh api --method POST'))
+
+    def test_stable_conformance_uses_selected_identity(self):
+        document = (ROOT / "Makefile").read_text()
+        target = document.split("v1-conformance-check: v1-candidate\n", 1)[1].split("\nv1-candidate-check:", 1)[0]
+        self.assertIn('test "$(L7_PACKAGE_CHANNEL)" = stable', target)
+        self.assertIn("distribution v1-package-check", target)
+        self.assertIn('L7_CLI_VERSION="$(L7_CLI_VERSION)" L7_PACKAGE_CHANNEL="$(L7_PACKAGE_CHANNEL)"', target)
+        self.assertIn("exact-head checkout must be clean", target)
 
     def test_read_only_collection_and_pagination(self):
         state = self.state

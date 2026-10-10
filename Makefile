@@ -182,7 +182,16 @@ v1-package-check: install
 v1-candidate: v1-inputs v1-package
 
 v1-conformance-check: v1-candidate
-	@./scripts/harness/check-v1-conformance.sh "$(GO)"
+	@set -eu; \
+	 test "$$(git -C "$(PROJECT_ROOT)" rev-parse --show-toplevel)" = "$(PROJECT_ROOT)"; \
+	 state="$$(git -C "$(PROJECT_ROOT)" status --porcelain --untracked-files=all)"; \
+	 test -z "$$state" || { echo 'v1-conformance-check: exact-head checkout must be clean' >&2; exit 1; }; \
+	 if test "$(L7_PACKAGE_CHANNEL)" = stable; then \
+	   $(MAKE) -C "$(PROJECT_ROOT)" distribution v1-package-check GO_VERSION="$(GO_VERSION)" \
+	     L7_CLI_VERSION="$(L7_CLI_VERSION)" L7_PACKAGE_CHANNEL="$(L7_PACKAGE_CHANNEL)"; \
+	 else \
+	   ./scripts/harness/check-v1-conformance.sh "$(GO)"; \
+	 fi
 
 v1-candidate-check: v1-candidate v1-conformance-check
 	@set -eu; \

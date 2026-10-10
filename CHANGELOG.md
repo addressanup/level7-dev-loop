@@ -11,6 +11,9 @@ here. Host observations and support claims remain scoped by
   read-only preflight and offline regression checks to the harness; reject
   stale checks, duplicate dispatches, reused assets, and missing protected
   release-evaluation evidence. Keep signing and publication owner-controlled.
+- Make stable candidate conformance validate the explicitly selected stable
+  archives, rather than silently checking predecessor development archives,
+  and build the frozen rollback packages before that lifecycle check.
 - Refresh planned stable release notes for 17 skills and opt-in crew Phases
   1–3. Keep both crew flags OFF and Phase 4 auto-merge out of scope.
 - Make `l7-next` confirm the six-step product foundation before any repository
