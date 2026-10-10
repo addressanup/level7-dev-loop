@@ -65,6 +65,7 @@ var protectedPrefixes = []string{
 	"internal/auth/",
 	"internal/authorization/",
 	"internal/harness/buildcontrol/",
+	"internal/harness/outcomeeval/",
 	"internal/security/",
 	"scripts/harness/",
 	"skills/",

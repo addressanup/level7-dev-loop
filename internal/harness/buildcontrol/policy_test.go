@@ -83,6 +83,18 @@ func TestSensitiveUnprotectedLookingPathCannotUseTierOne(t *testing.T) {
 	}
 }
 
+func TestOutcomeEvaluatorControlsRequireTier3(t *testing.T) {
+	repository := newTestRepository(t)
+	base := repository.rev("HEAD")
+	repository.write("docs/artifacts/changes/eval-tune.md", briefDocument("eval-tune", tierProduct, base, "internal/harness/outcomeeval/corpus/protocol.json"))
+	repository.write("internal/harness/outcomeeval/corpus/protocol.json", "{\"max_crew_false_success\": 5}\n")
+	repository.commit("feat: relax the outcome gate")
+	_, findings := runController(controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "eval-tune"})
+	if rules(findings)["RISK-003"] == 0 {
+		t.Fatalf("a Tier 2 change edited the outcome evaluator's controls: %+v", findings)
+	}
+}
+
 func TestTier3SoloFastPathNeedsNoSeparateOwnerOrAudit(t *testing.T) {
 	repository, _ := tierThreeImplementation(t)
 	options := controllerOptions{Root: repository.root, HeadRef: "HEAD", ChangeID: "controller"}

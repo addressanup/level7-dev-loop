@@ -1,0 +1,200 @@
+Multi-file feature: counting belongs in counter.py and formatting in cli.py.
+-- task.json --
+{
+  "id": "wordcount-top",
+  "title": "Add --top and --ignore-case to wordcount",
+  "category": "multi-file-feature",
+  "objective": "Add two options to wordcount: --top N prints the N most common words after the total, and --ignore-case counts words case-insensitively.",
+  "acceptance": [
+    "Without options the output is unchanged: one line \"words: <total>\".",
+    "--top N prints, after the total line, up to N lines \"<word> <count>\", most frequent first, with ties in ascending string order (Python's default sort order).",
+    "--ignore-case lowercases words before counting, so the printed words are lowercase; the total is unchanged.",
+    "--top must be a positive integer: 0, a negative number, or a non-number makes main exit with status 2 through argparse.",
+    "wordcount.counter.top_words(text, n, ignore_case=False) returns that list of (word, count) tuples, and the CLI uses it."
+  ],
+  "paths": ["wordcount/**", "tests/test_cli.py"],
+  "verify": [["python3", "-m", "unittest", "-q", "tests.test_cli"]],
+  "hidden": [["python3", "-m", "unittest", "-q", "_l7_hidden.test_cli"]],
+  "forbidden": {}
+}
+-- repo/.gitignore --
+__pycache__/
+*.pyc
+.pytest_cache/
+-- repo/README.md --
+# wordcount
+
+`python3 -m wordcount FILE` prints the number of words in FILE.
+
+Run the tests with `python3 -m unittest -q tests.test_cli`.
+-- repo/wordcount/__init__.py --
+"""Count words in text files."""
+-- repo/wordcount/__main__.py --
+import sys
+
+from wordcount.cli import main
+
+sys.exit(main(sys.argv[1:]))
+-- repo/wordcount/counter.py --
+"""Word counting."""
+
+import re
+
+_WORD = re.compile(r"[A-Za-z0-9']+")
+
+
+def words(text):
+    """Return the words in text, in order."""
+    return _WORD.findall(text)
+-- repo/wordcount/cli.py --
+"""Command-line interface."""
+
+import argparse
+
+from wordcount.counter import words
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(prog="wordcount")
+    parser.add_argument("path")
+    arguments = parser.parse_args(argv)
+    with open(arguments.path, encoding="utf-8") as handle:
+        text = handle.read()
+    print("words: %d" % len(words(text)))
+    return 0
+-- repo/tests/__init__.py --
+-- repo/tests/test_cli.py --
+import contextlib
+import io
+import os
+import tempfile
+import unittest
+
+from wordcount.cli import main
+
+
+def run(text, *flags):
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "input.txt")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = main(list(flags) + [path])
+        return status, output.getvalue()
+
+
+class CliTest(unittest.TestCase):
+    def test_total(self):
+        self.assertEqual(run("a b a"), (0, "words: 3\n"))
+
+    def test_top(self):
+        self.assertEqual(run("b a b c b a", "--top", "2"), (0, "words: 6\nb 3\na 2\n"))
+
+
+if __name__ == "__main__":
+    unittest.main()
+-- hidden/_l7_hidden/__init__.py --
+# l7-outcome-eval-canary-7c1e4b2a
+-- hidden/_l7_hidden/test_cli.py --
+# l7-outcome-eval-canary-7c1e4b2a
+import contextlib
+import io
+import os
+import tempfile
+import unittest
+
+from wordcount.cli import main
+from wordcount.counter import top_words
+
+
+def run(text, *flags):
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "input.txt")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = main(list(flags) + [path])
+        return status, output.getvalue()
+
+
+class HiddenCliTest(unittest.TestCase):
+    def test_total_unchanged(self):
+        self.assertEqual(run("one two three"), (0, "words: 3\n"))
+        self.assertEqual(run(""), (0, "words: 0\n"))
+
+    def test_top_order_and_ties(self):
+        self.assertEqual(run("pear apple pear fig apple kiwi", "--top", "3"), (0, "words: 6\napple 2\npear 2\nfig 1\n"))
+
+    def test_top_larger_than_distinct_words(self):
+        self.assertEqual(run("x y x", "--top", "10"), (0, "words: 3\nx 2\ny 1\n"))
+
+    def test_ignore_case(self):
+        self.assertEqual(run("The the THE cat Cat", "--top", "2", "--ignore-case"), (0, "words: 5\nthe 3\ncat 2\n"))
+        self.assertEqual(run("A a", "--ignore-case"), (0, "words: 2\n"))
+
+    def test_case_sensitive_by_default(self):
+        self.assertEqual(run("The the cat", "--top", "3"), (0, "words: 3\nThe 1\ncat 1\nthe 1\n"))
+
+    def test_invalid_top(self):
+        for value in ("0", "-1", "two"):
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                run("a", "--top", value)
+            self.assertEqual(caught.exception.code, 2, value)
+
+    def test_top_words(self):
+        self.assertEqual(top_words("b a b", 1), [("b", 2)])
+        self.assertEqual(top_words("B b a", 2, ignore_case=True), [("b", 2), ("a", 1)])
+        self.assertEqual(top_words("B b a", 3), [("B", 1), ("a", 1), ("b", 1)])
+-- reference/wordcount/counter.py --
+# l7-outcome-eval-canary-7c1e4b2a
+"""Word counting."""
+
+import collections
+import re
+
+_WORD = re.compile(r"[A-Za-z0-9']+")
+
+
+def words(text):
+    """Return the words in text, in order."""
+    return _WORD.findall(text)
+
+
+def top_words(text, n, ignore_case=False):
+    """Return up to n (word, count) pairs, most frequent first, ties sorted."""
+    found = words(text)
+    if ignore_case:
+        found = [word.lower() for word in found]
+    counts = collections.Counter(found)
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:n]
+-- reference/wordcount/cli.py --
+# l7-outcome-eval-canary-7c1e4b2a
+"""Command-line interface."""
+
+import argparse
+
+from wordcount.counter import top_words, words
+
+
+def _positive(value):
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(prog="wordcount")
+    parser.add_argument("path")
+    parser.add_argument("--top", type=_positive, metavar="N")
+    parser.add_argument("--ignore-case", action="store_true")
+    arguments = parser.parse_args(argv)
+    with open(arguments.path, encoding="utf-8") as handle:
+        text = handle.read()
+    print("words: %d" % len(words(text)))
+    if arguments.top:
+        for word, count in top_words(text, arguments.top, ignore_case=arguments.ignore_case):
+            print("%s %d" % (word, count))
+    return 0

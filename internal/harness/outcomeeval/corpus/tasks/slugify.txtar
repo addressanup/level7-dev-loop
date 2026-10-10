@@ -1,0 +1,118 @@
+Feature built from acceptance criteria, with Unicode and truncation edge cases.
+-- task.json --
+{
+  "id": "slugify",
+  "title": "Add a slugify helper",
+  "category": "feature-acceptance",
+  "objective": "Add textkit/slug.py with slugify(text, max_length=None), which turns titles into URL slugs.",
+  "acceptance": [
+    "The result is lowercase and contains only ASCII letters, digits, and single hyphens: every run of other characters becomes one hyphen, with no leading or trailing hyphen (\"Hello, World!\" gives \"hello-world\").",
+    "Accented Latin letters become their unaccented ASCII letter (\"Crème Brûlée\" gives \"creme-brulee\"); any other non-ASCII character is a separator.",
+    "max_length truncates the slug to at most that many characters without leaving a trailing hyphen (slugify(\"hello world\", max_length=6) gives \"hello\"); None means no limit and a max_length below 1 raises ValueError.",
+    "Text without any letter or digit gives \"\".",
+    "The existing textkit.case helpers keep working."
+  ],
+  "paths": ["textkit/**", "tests/test_slug.py"],
+  "verify": [["python3", "-m", "unittest", "-q", "tests.test_slug"]],
+  "hidden": [["python3", "-m", "unittest", "-q", "_l7_hidden.test_slug"]],
+  "forbidden": {}
+}
+-- repo/.gitignore --
+__pycache__/
+*.pyc
+.pytest_cache/
+-- repo/README.md --
+# textkit
+
+Small text helpers.
+
+Run the tests with `python3 -m unittest -q tests.test_slug`.
+-- repo/textkit/__init__.py --
+"""Small text helpers."""
+-- repo/textkit/case.py --
+"""Case helpers."""
+
+
+def title_words(text):
+    """Capitalize each whitespace-separated word."""
+    return " ".join(word[:1].upper() + word[1:] for word in text.split())
+-- repo/tests/__init__.py --
+-- repo/tests/test_slug.py --
+import unittest
+
+from textkit.slug import slugify
+
+
+class SlugifyTest(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(slugify("Hello, World!"), "hello-world")
+
+    def test_accents(self):
+        self.assertEqual(slugify("Crème Brûlée"), "creme-brulee")
+
+
+if __name__ == "__main__":
+    unittest.main()
+-- hidden/_l7_hidden/__init__.py --
+# l7-outcome-eval-canary-7c1e4b2a
+-- hidden/_l7_hidden/test_slug.py --
+# l7-outcome-eval-canary-7c1e4b2a
+import unittest
+
+from textkit.case import title_words
+from textkit.slug import slugify
+
+
+class HiddenSlugifyTest(unittest.TestCase):
+    def test_separators(self):
+        self.assertEqual(slugify("Hello, World!"), "hello-world")
+        self.assertEqual(slugify("  a -- b  "), "a-b")
+        self.assertEqual(slugify("one_two.three"), "one-two-three")
+        self.assertEqual(slugify("Release v2.0 -- final"), "release-v2-0-final")
+
+    def test_accents(self):
+        self.assertEqual(slugify("Crème Brûlée"), "creme-brulee")
+        self.assertEqual(slugify("naïve café"), "naive-cafe")
+        self.assertEqual(slugify("Ünïcödé"), "unicode")
+
+    def test_other_unicode_is_a_separator(self):
+        self.assertEqual(slugify("日本 test"), "test")
+        self.assertEqual(slugify("a→b"), "a-b")
+
+    def test_max_length(self):
+        self.assertEqual(slugify("hello world", max_length=6), "hello")
+        self.assertEqual(slugify("hello world", max_length=5), "hello")
+        self.assertEqual(slugify("hello world", max_length=3), "hel")
+        self.assertEqual(slugify("hello world", max_length=11), "hello-world")
+        self.assertEqual(slugify("hello world", max_length=None), "hello-world")
+        for bad in (0, -1):
+            with self.assertRaises(ValueError):
+                slugify("hello", max_length=bad)
+
+    def test_empty(self):
+        self.assertEqual(slugify(""), "")
+        self.assertEqual(slugify("!!! ---"), "")
+        self.assertEqual(slugify("日本"), "")
+
+    def test_existing_helper(self):
+        self.assertEqual(title_words("hello  world"), "Hello World")
+-- reference/textkit/slug.py --
+# l7-outcome-eval-canary-7c1e4b2a
+"""URL slug helper."""
+
+import re
+import unicodedata
+
+_SEPARATORS = re.compile(r"[^a-z0-9]+")
+
+
+def slugify(text, max_length=None):
+    """Return a lowercase ASCII slug of text, optionally truncated."""
+    if max_length is not None and max_length < 1:
+        raise ValueError("max_length must be at least 1")
+    decomposed = unicodedata.normalize("NFKD", text)
+    stripped = "".join(character for character in decomposed if not unicodedata.combining(character))
+    slug = _SEPARATORS.sub("-", stripped.lower()).strip("-")
+    if max_length is not None:
+        slug = slug[:max_length].rstrip("-")
+    return slug

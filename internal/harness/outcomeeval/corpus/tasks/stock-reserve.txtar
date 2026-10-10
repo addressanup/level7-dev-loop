@@ -1,0 +1,216 @@
+New behaviour that must preserve documented errors, validation, and listing.
+-- task.json --
+{
+  "id": "stock-reserve",
+  "title": "Reserve stock without breaking removals",
+  "category": "preserve-behaviour",
+  "objective": "Orders need to hold units before they ship. Add reserve(sku, qty) and release(sku, qty) to Stock. Reserved units are not available and cannot be removed until they are released. Keep every behaviour documented in README.md unchanged.",
+  "acceptance": [
+    "reserve(sku, qty) holds qty available units, so available(sku) drops by qty; it raises ValueError(\"insufficient stock for <sku>\") when fewer than qty units are available.",
+    "release(sku, qty) returns held units to available; releasing more than is reserved raises ValueError.",
+    "reserved(sku) returns the reserved quantity, or 0.",
+    "remove(sku, qty) takes only unreserved units and otherwise raises the documented error.",
+    "reserve and release validate qty exactly like add, and every failed call leaves the stock unchanged.",
+    "skus() keeps listing a SKU while it has reserved units, and every behaviour documented in README.md is unchanged."
+  ],
+  "paths": ["inventory/**", "tests/test_stock.py", "README.md"],
+  "verify": [["python3", "-m", "unittest", "-q", "tests.test_stock"]],
+  "hidden": [["python3", "-m", "unittest", "-q", "_l7_hidden.test_stock"]],
+  "forbidden": {}
+}
+-- repo/.gitignore --
+__pycache__/
+*.pyc
+.pytest_cache/
+-- repo/README.md --
+# inventory
+
+`inventory.stock.Stock` tracks units on hand per SKU.
+
+Behaviour that callers rely on:
+
+- `add(sku, qty)` and `remove(sku, qty)` require a positive integer `qty`;
+  anything else, including `True`, raises `ValueError`.
+- `remove` raises `ValueError("insufficient stock for <sku>")` when fewer
+  than `qty` units are available, and then leaves the stock unchanged.
+- `available(sku)` is `0` for an unknown SKU.
+- `skus()` lists, sorted, the SKUs that have at least one unit on hand.
+
+Run the tests with `python3 -m unittest -q tests.test_stock`.
+-- repo/inventory/__init__.py --
+"""Stock tracking."""
+-- repo/inventory/stock.py --
+"""In-memory stock levels."""
+
+
+def _check_quantity(qty):
+    if isinstance(qty, bool) or not isinstance(qty, int) or qty <= 0:
+        raise ValueError("quantity must be a positive integer")
+
+
+class Stock:
+    """Units on hand per SKU."""
+
+    def __init__(self):
+        self._units = {}
+
+    def add(self, sku, qty):
+        _check_quantity(qty)
+        self._units[sku] = self._units.get(sku, 0) + qty
+
+    def remove(self, sku, qty):
+        _check_quantity(qty)
+        if self.available(sku) < qty:
+            raise ValueError("insufficient stock for %s" % sku)
+        self._units[sku] -= qty
+        if self._units[sku] == 0:
+            del self._units[sku]
+
+    def available(self, sku):
+        return self._units.get(sku, 0)
+
+    def skus(self):
+        return sorted(sku for sku, units in self._units.items() if units > 0)
+-- repo/tests/__init__.py --
+-- repo/tests/test_stock.py --
+import unittest
+
+from inventory.stock import Stock
+
+
+class StockTest(unittest.TestCase):
+    def test_add_and_remove(self):
+        stock = Stock()
+        stock.add("apple", 5)
+        stock.remove("apple", 2)
+        self.assertEqual(stock.available("apple"), 3)
+
+    def test_reserve_reduces_available(self):
+        stock = Stock()
+        stock.add("apple", 5)
+        stock.reserve("apple", 2)
+        self.assertEqual(stock.available("apple"), 3)
+
+
+if __name__ == "__main__":
+    unittest.main()
+-- hidden/_l7_hidden/__init__.py --
+# l7-outcome-eval-canary-7c1e4b2a
+-- hidden/_l7_hidden/test_stock.py --
+# l7-outcome-eval-canary-7c1e4b2a
+import unittest
+
+from inventory.stock import Stock
+
+
+class HiddenStockTest(unittest.TestCase):
+    def setUp(self):
+        self.stock = Stock()
+        self.stock.add("apple", 5)
+
+    def test_reserve_and_release(self):
+        self.stock.reserve("apple", 2)
+        self.assertEqual(self.stock.available("apple"), 3)
+        self.assertEqual(self.stock.reserved("apple"), 2)
+        self.stock.release("apple", 1)
+        self.assertEqual(self.stock.available("apple"), 4)
+        self.assertEqual(self.stock.reserved("apple"), 1)
+
+    def test_reserve_insufficient(self):
+        with self.assertRaises(ValueError) as caught:
+            self.stock.reserve("apple", 6)
+        self.assertEqual(str(caught.exception), "insufficient stock for apple")
+        self.assertEqual((self.stock.available("apple"), self.stock.reserved("apple")), (5, 0))
+
+    def test_release_more_than_reserved(self):
+        self.stock.reserve("apple", 2)
+        with self.assertRaises(ValueError):
+            self.stock.release("apple", 3)
+        with self.assertRaises(ValueError):
+            self.stock.release("pear", 1)
+        self.assertEqual((self.stock.available("apple"), self.stock.reserved("apple")), (3, 2))
+
+    def test_remove_skips_reserved(self):
+        self.stock.reserve("apple", 4)
+        with self.assertRaises(ValueError) as caught:
+            self.stock.remove("apple", 2)
+        self.assertEqual(str(caught.exception), "insufficient stock for apple")
+        self.assertEqual(self.stock.available("apple"), 1)
+        self.stock.remove("apple", 1)
+        self.assertEqual((self.stock.available("apple"), self.stock.reserved("apple")), (0, 4))
+
+    def test_quantity_validation(self):
+        for method in (self.stock.add, self.stock.remove, self.stock.reserve, self.stock.release):
+            for bad in (0, -1, 1.5, "2", True):
+                with self.assertRaises(ValueError, msg="%s %r" % (method.__name__, bad)):
+                    method("apple", bad)
+        self.assertEqual((self.stock.available("apple"), self.stock.reserved("apple")), (5, 0))
+
+    def test_documented_behaviour(self):
+        self.assertEqual(self.stock.available("pear"), 0)
+        self.assertEqual(self.stock.reserved("pear"), 0)
+        with self.assertRaises(ValueError) as caught:
+            self.stock.remove("pear", 1)
+        self.assertEqual(str(caught.exception), "insufficient stock for pear")
+        self.stock.add("banana", 1)
+        self.assertEqual(self.stock.skus(), ["apple", "banana"])
+        self.stock.remove("banana", 1)
+        self.assertEqual(self.stock.skus(), ["apple"])
+
+    def test_fully_reserved_sku_is_listed(self):
+        self.stock.reserve("apple", 5)
+        self.assertEqual(self.stock.available("apple"), 0)
+        self.assertEqual(self.stock.skus(), ["apple"])
+        self.stock.release("apple", 5)
+        self.assertEqual((self.stock.available("apple"), self.stock.reserved("apple")), (5, 0))
+-- reference/inventory/stock.py --
+# l7-outcome-eval-canary-7c1e4b2a
+"""In-memory stock levels."""
+
+
+def _check_quantity(qty):
+    if isinstance(qty, bool) or not isinstance(qty, int) or qty <= 0:
+        raise ValueError("quantity must be a positive integer")
+
+
+class Stock:
+    """Units on hand per SKU, some of which may be reserved."""
+
+    def __init__(self):
+        self._units = {}
+        self._reserved = {}
+
+    def add(self, sku, qty):
+        _check_quantity(qty)
+        self._units[sku] = self._units.get(sku, 0) + qty
+
+    def remove(self, sku, qty):
+        _check_quantity(qty)
+        if self.available(sku) < qty:
+            raise ValueError("insufficient stock for %s" % sku)
+        self._units[sku] -= qty
+        if self._units[sku] == 0:
+            del self._units[sku]
+
+    def reserve(self, sku, qty):
+        _check_quantity(qty)
+        if self.available(sku) < qty:
+            raise ValueError("insufficient stock for %s" % sku)
+        self._reserved[sku] = self._reserved.get(sku, 0) + qty
+
+    def release(self, sku, qty):
+        _check_quantity(qty)
+        if self.reserved(sku) < qty:
+            raise ValueError("cannot release more than is reserved for %s" % sku)
+        self._reserved[sku] -= qty
+        if self._reserved[sku] == 0:
+            del self._reserved[sku]
+
+    def available(self, sku):
+        return self._units.get(sku, 0) - self._reserved.get(sku, 0)
+
+    def reserved(self, sku):
+        return self._reserved.get(sku, 0)
+
+    def skus(self):
+        return sorted(sku for sku, units in self._units.items() if units > 0)

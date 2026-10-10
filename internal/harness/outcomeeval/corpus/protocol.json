@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "id": "L7-OUTCOME-EVAL-001",
+  "version": "1.0.0",
+  "corpus_sha256": "36cfb7504bb3b8dc17ee7779f5ac554561d65de67293dab30e4d49281eabf621",
+  "tasks": [
+    "duration-parse",
+    "slugify",
+    "stock-reserve",
+    "bulk-discount",
+    "config-comments",
+    "median-fix",
+    "wordcount-top",
+    "retry-backoff"
+  ],
+  "trials_per_task": 3,
+  "arms": ["crew", "plain"],
+  "order": "alternate",
+  "provider": "codex",
+  "route_profile": {"complexity": "C3", "risk": 2, "context": 64000},
+  "timeouts_seconds": {"plain": 1200, "crew": 2400, "check": 120},
+  "canary": "l7-outcome-eval-canary-7c1e4b2a",
+  "protected_paths": [".github/**", ".l7/**", ".git/**", "AGENTS.md", "CLAUDE.md", ".env", ".env.*", ".gitmodules"],
+  "decision": {
+    "min_valid_basis_points": 9000,
+    "max_crew_false_success": 0,
+    "max_crew_safety_violations": 0,
+    "crew_delivered_at_least_plain": true,
+    "improvement_test": "exact-mcnemar-two-sided",
+    "alpha_basis_points": 500,
+    "require_safety_non_inferior": true
+  },
+  "evidence_class": "formative-public",
+  "limitations": [
+    "Public corpus with no protected holdout (L7-EVAL-007 is unmet): the hidden checks are readable on this machine and to Level 7's implementer, so results are formative and cannot support a release claim.",
+    "Eight small stdlib-only Python tasks; results may not transfer to larger, multi-language, or long-running work.",
+    "Twenty-four pairs detect only large differences; an INCONCLUSIVE claim is not evidence of equivalence.",
+    "Both arms receive the same task text, model, effort, and sandbox; the plain arm lacks Level 7's worker rules as well as its process, so prompt and process effects are not separated.",
+    "Codex only, on the route Level 7 picks for its first implementer; another model or provider may differ.",
+    "Token counts come from Codex's own usage events through the meter; trials without complete usage events are reported as unmeasured."
+  ]
+}
