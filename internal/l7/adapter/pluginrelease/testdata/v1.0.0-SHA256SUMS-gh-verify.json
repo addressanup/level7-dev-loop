@@ -1,0 +1,83 @@
+[
+ {
+  "verificationResult": {
+   "mediaType": "application/vnd.dev.sigstore.verificationresult+json;version=0.1",
+   "signature": {
+    "certificate": {
+     "certificateIssuer": "CN=sigstore-intermediate,O=sigstore.dev",
+     "subjectAlternativeName": "https://github.com/addressanup/level7-dev-loop/.github/workflows/release.yml@refs/heads/main",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "githubWorkflowTrigger": "workflow_dispatch",
+     "githubWorkflowSHA": "ed1457f2c54e2308f757d7ea3bf4fcfa113575ec",
+     "githubWorkflowName": "Owner-authorized unsigned stable v1.0.0",
+     "githubWorkflowRepository": "addressanup/level7-dev-loop",
+     "githubWorkflowRef": "refs/heads/main",
+     "buildSignerURI": "https://github.com/addressanup/level7-dev-loop/.github/workflows/release.yml@refs/heads/main",
+     "buildSignerDigest": "ed1457f2c54e2308f757d7ea3bf4fcfa113575ec",
+     "runnerEnvironment": "github-hosted",
+     "sourceRepositoryURI": "https://github.com/addressanup/level7-dev-loop",
+     "sourceRepositoryDigest": "ed1457f2c54e2308f757d7ea3bf4fcfa113575ec",
+     "sourceRepositoryRef": "refs/heads/main",
+     "sourceRepositoryIdentifier": "1349427189",
+     "sourceRepositoryOwnerURI": "https://github.com/addressanup",
+     "sourceRepositoryOwnerIdentifier": "195550570",
+     "buildConfigURI": "https://github.com/addressanup/level7-dev-loop/.github/workflows/release.yml@refs/heads/main",
+     "buildConfigDigest": "ed1457f2c54e2308f757d7ea3bf4fcfa113575ec",
+     "buildTrigger": "workflow_dispatch",
+     "runInvocationURI": "https://github.com/addressanup/level7-dev-loop/actions/runs/38042885014/attempts/1",
+     "sourceRepositoryVisibilityAtSigning": "public"
+    }
+   },
+   "verifiedTimestamps": [
+    {
+     "type": "Tlog",
+     "uri": "https://rekor.sigstore.dev",
+     "timestamp": "2026-10-10T15:38:12+05:45"
+    }
+   ],
+   "verifiedIdentity": {
+    "subjectAlternativeName": {
+     "subjectAlternativeName": "",
+     "regexp": "^https://github\\.com/addressanup/level7-dev-loop/\\.github/workflows/release\\.yml"
+    },
+    "issuer": {
+     "issuer": "",
+     "regexp": ".*"
+    }
+   },
+   "statement": {
+    "_type": "https://in-toto.io/Statement/v1",
+    "subject": [
+     {
+      "name": "RELEASE-MANIFEST.json",
+      "digest": {
+       "sha256": "9e62aa6cab359f5e8c1f53a1eef16d9b27ade809442af5637bd7974cc775be76"
+      }
+     },
+     {
+      "name": "SHA256SUMS",
+      "digest": {
+       "sha256": "633b7d9ffdbf7a704cccb1427f9beeeb31c41d37fcc9e2ef72951dccf32f309f"
+      }
+     },
+     {
+      "name": "level7-dev-loop-1.0.0-claude.zip",
+      "digest": {
+       "sha256": "6c48280e078429ecef61815186042efe404345e97b0a9c0b7b1f77c6e0bf111c"
+      }
+     },
+     {
+      "name": "level7-dev-loop-1.0.0-codex.zip",
+      "digest": {
+       "sha256": "37702406afcdd77b39ee3b58c99de96e8497ece4a7d3ca87b20f54abda038dea"
+      }
+     }
+    ],
+    "predicateType": "https://slsa.dev/provenance/v1",
+    "predicate": {
+     "buildDefinition": "<trimmed>"
+    }
+   }
+  }
+ }
+]

@@ -136,7 +136,7 @@ l7_direct_effect_allowed()
 			;;
 		net|net/*)
 			case $relative_package in
-				internal/l7/adapter/gateway) return 0 ;;
+				internal/l7/adapter/gateway|internal/l7/adapter/pluginrelease) return 0 ;;
 				*) return 1 ;;
 			esac
 			;;
@@ -148,6 +148,13 @@ l7_direct_effect_allowed internal/l7/adapter/git os/exec || fail 'BND-607: Git e
 l7_direct_effect_allowed internal/l7/adapter/process os/exec || fail 'BND-607: process effect owner rejected its positive control'
 l7_direct_effect_allowed internal/l7/adapter/codexapp os/exec || fail 'BND-607: Codex app-server transport owner rejected its positive control'
 l7_direct_effect_allowed internal/l7/adapter/localfile syscall || fail 'BND-607: local-file syscall owner rejected its positive control'
+l7_direct_effect_allowed internal/l7/adapter/pluginrelease net/http || fail 'BND-607: release download owner rejected its positive control'
+if l7_direct_effect_allowed internal/l7/adapter/plugininstall net/http; then
+	fail 'BND-607: plugin installer accepted a direct network client'
+fi
+if l7_direct_effect_allowed internal/l7/adapter/pluginhost os/exec; then
+	fail 'BND-607: plugin host adapter accepted direct process execution'
+fi
 if l7_direct_effect_allowed internal/l7/adapter/codex os/exec; then
 	fail 'BND-607: provider adapter accepted direct process execution'
 fi

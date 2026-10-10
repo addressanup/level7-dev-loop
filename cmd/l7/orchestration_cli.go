@@ -68,6 +68,9 @@ func runOrchestrationCommand(ctx context.Context, arguments []string, cwd string
 	if command == "crew" && len(filtered) > 1 && filtered[1] == "watch" {
 		return true, runCrewWatch(ctx, filtered[2:], cwd, stdout, stderr, jsonOutput)
 	}
+	if command == "plugin" {
+		return true, runPluginCommand(ctx, filtered[1:], input, stdout, stderr, jsonOutput)
+	}
 	envelope, runErr := executeOrchestration(ctx, command, filtered[1:], cwd)
 	if runErr != nil {
 		envelope = failedEnvelope(command, "L7-ORCH-002", "failed", runErr.Error(), nextForFailure(command))
@@ -99,7 +102,7 @@ func orchestrationArguments(arguments []string) ([]string, bool, error) {
 
 func orchestrationCommand(command string) bool {
 	switch command {
-	case "onboard", "providers", "route", "sync", "cyber", "headless", "crew", "mcp":
+	case "onboard", "providers", "route", "sync", "cyber", "headless", "crew", "mcp", "plugin":
 		return true
 	default:
 		return false
@@ -581,6 +584,8 @@ func nextForFailure(command string) string {
 		return "run l7 headless status and preserve the existing checkpoint"
 	case "crew":
 		return "run l7 crew status; crew state and worktrees are preserved"
+	case "plugin":
+		return "run l7 plugin status; installed versions are preserved"
 	default:
 		return "run l7 help"
 	}
