@@ -6,11 +6,13 @@ here. Host observations and support claims remain scoped by
 
 ## Unreleased
 
-- Reconcile stable release preparation with exact squash lineage and trusted
-  solo/team identities, without relaxing protected owner approval. Add shared
-  read-only preflight and offline regression checks to the harness; reject
-  stale checks, duplicate dispatches, reused assets, and missing protected
-  release-evaluation evidence. Keep signing and publication owner-controlled.
+- Publish stable v1.0.0 under the owner's explicit unsigned release decision:
+  waive Apple signing/notarization, protected holdout evaluation, separate
+  operator/protected approval, and exact-asset provider trials. Disclose all
+  waivers, keep their evidence NOT_RUN and formal support WITHHELD, and preserve
+  exact squash lineage, successful CI, reproducibility, provenance, and
+  immutable assets. Actions prepares only; the existing owner login publishes
+  without copying credentials or changing hosted protection settings.
 - Make stable candidate conformance validate the explicitly selected stable
   archives, rather than silently checking predecessor development archives,
   and build the frozen rollback packages before that lifecycle check.
@@ -70,14 +72,15 @@ here. Host observations and support claims remain scoped by
 - Validate stable and development archives through the same closed inventory,
   checksums, SPDX SBOM, offline native CLI/MCP, upgrade, rollback, removal,
   path-safety, and disposable-root boundaries.
-- Add a manual-only release workflow that compares clean unsigned inputs before
-  signing, verifies four Developer ID signatures, requires two accepted Apple
-  notarization submissions, and attests the exact prepared assets.
-- Require fresh exact-head checks and reviews, exact-archive provider trials,
-  a hosted digest-bound owner authorization, and a protected production
-  approval before creating the absent annotated tag and immutable release.
-- Document signed-asset verification, local marketplace installation,
-  permissions, compatibility limits, update, uninstall, and v0.1.1 rollback.
+- Add a manual-only, owner-dispatched preparation workflow that reproduces
+  clean unsigned inputs and attests exactly two ZIPs, checksums, and manifest.
+- Require fresh exact-head checks, real exact-candidate owner waiver
+  authorization, artifact/source attestation verification, and live immutable
+  controls before creating the absent annotated tag and immutable release.
+- Explicitly label the stable assets UNSIGNED and NOT NOTARIZED; protected
+  evaluation/provider trials are NOT_RUN and formal support is WITHHELD.
+- Document integrity/provenance verification, the Gatekeeper boundary, local
+  marketplace installation, update/removal, and the v0.1.1 rollback.
 
 ## 1.0.0-dev
 
