@@ -46,6 +46,7 @@ Modify:
 - `CHANGELOG.md`
 - `README.md`
 - `cmd/l7pack/main.go`
+- `cmd/l7pack/main_test.go`
 - `internal/harness/v1candidate/main.go`
 - `internal/harness/v1candidate/main_test.go`
 - `scripts/harness/check-stable-release-preflight.py`
