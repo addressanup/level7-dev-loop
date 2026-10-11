@@ -232,6 +232,8 @@ def collect(phase):
                 "invalid workflow context")
     elif phase != "eligibility":
         require(env.get("RELEASE_RUN_ID", "").isdigit(), "invalid preparation run ID")
+    if phase == "finalize":
+        require(env.get("RELEASE_DRAFT_ID", "").isdigit(), "invalid staged draft release ID")
     prefix = "repos/" + REPOSITORY + "/"
 
     def api(path, paginate=False):
@@ -270,7 +272,9 @@ def collect(phase):
         "tag_absent": command(["gh", "api", prefix + "git/ref/tags/" + TAG], absent=True) if phase != "finalize" else False,
         "release_absent": command(["gh", "api", prefix + "releases/tags/" + TAG], absent=True) if phase != "finalize" else False,
         "tag_ref": tag_ref, "tag": api("git/tags/" + tag_sha) if phase == "finalize" else {},
-        "release": api("releases/tags/" + TAG) if phase == "finalize" else {},
+        # GitHub does not resolve a draft by tag name, so the staged draft is
+        # read by the ID the publisher created; validate() still binds it to TAG.
+        "release": api("releases/" + env.get("RELEASE_DRAFT_ID", "")) if phase == "finalize" else {},
         "run": api("actions/runs/" + run_id) if phase != "eligibility" else {},
         "runs": items("actions/workflows/release.yml/runs?event=workflow_dispatch&head_sha=" + commit, "workflow_runs"),
         "artifacts": artifacts,
@@ -794,8 +798,11 @@ elif a[0] == "api":
         result = s.get("tag_ref")
     elif tail.startswith("git/tags/"):
         result = s.get("tag")
+    elif tail.startswith("releases/tags/"):
+        # Like GitHub: a draft is not served by tag name.
+        result = s.get("release") if s.get("release") and not s["release"].get("draft") else None
     elif tail.startswith("releases/"):
-        result = s.get("release")
+        result = s.get("release") if str((s.get("release") or {}).get("id")) == tail.split("/", 1)[1] else None
     else:
         raise RuntimeError("unexpected fake read " + tail)
     if result is None:
