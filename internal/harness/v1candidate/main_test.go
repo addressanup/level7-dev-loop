@@ -89,7 +89,7 @@ func TestCandidateMarketplaceBindsOneLocalHostPackage(t *testing.T) {
     "name": "level7-dev-loop",
     "source": ".",
     "description": "Default-off multi-host orchestration.",
-    "version": "1.0.0",
+    "version": "` + releaseVersion + `",
     "license": "MIT",
     "category": "Development Tools",
     "strict": true
@@ -111,7 +111,7 @@ func TestCandidateProvenanceCannotAssertReleaseAuthority(t *testing.T) {
 	identity := candidateIdentity{Version: releaseVersion, Channel: releaseChannel}
 	valid := []byte(`{
   "schema": 2,
-  "version": "1.0.0",
+  "version": "` + releaseVersion + `",
   "host": "codex",
   "channel": "stable",
   "artifact_state": "package-input",

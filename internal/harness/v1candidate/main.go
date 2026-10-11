@@ -31,7 +31,7 @@ import (
 const (
 	stableVersion      = "0.1.1"
 	candidateVersion   = "1.0.0-dev"
-	releaseVersion     = "1.0.0"
+	releaseVersion     = "1.1.0"
 	candidateChannel   = "development-candidate"
 	releaseChannel     = "stable"
 	v1MarketplaceName  = "level7-engineering-v1"
@@ -110,7 +110,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	identity, err := validateCandidateIdentity(*candidateVersionFlag, *candidateChannelFlag)
 	if err != nil {
-		fmt.Fprintln(stderr, "v1candidate: candidate identity must be exactly 1.0.0-dev/development-candidate or 1.0.0/stable")
+		fmt.Fprintln(stderr, "v1candidate: candidate identity must be exactly "+candidateVersion+"/"+candidateChannel+" or "+releaseVersion+"/"+releaseChannel)
 		return 2
 	}
 	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm64" && runtime.GOARCH != "amd64") {
