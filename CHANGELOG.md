@@ -6,6 +6,19 @@ here. Host observations and support claims remain scoped by
 
 ## Unreleased
 
+- Add `l7 plugin install|update|status|rollback|uninstall` and a reviewable
+  one-time bootstrap script (`scripts/l7-bootstrap.sh`). Installs and updates
+  download one release of the fixed repository over HTTPS, verify SHA-256
+  digests and GitHub artifact attestations with `gh attestation verify
+  --bundle` (no GitHub login), validate the closed package inventory, extract
+  into a new immutable versioned directory under `~/.local/share/level7`, and
+  register it through the hosts' own marketplace and plugin commands under a
+  lock and a journal that restores the previous registration on failure.
+  Stable is the default channel; prereleases, exact versions, downgrades,
+  unsigned binaries, and withheld-support releases each need their own flag.
+  `status`, `rollback`, and `uninstall` work offline; the previous verified
+  version is retained for rollback. The v1.0.0 and v1.0.0-dev manifests are
+  consumed as published; no release asset changes.
 - Publish stable v1.0.0 under the owner's explicit unsigned release decision:
   waive Apple signing/notarization, protected holdout evaluation, separate
   operator/protected approval, and exact-asset provider trials. Disclose all

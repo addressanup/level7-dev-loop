@@ -19,8 +19,9 @@ You describe the outcome. Level 7 keeps ordinary, reversible repository work
 moving—and asks for your judgment only when it reaches a decision or effect
 that genuinely needs you.
 
-[Install stable v1.0.0](#install-v100) ·
-[Evaluate unsigned v1.0.0-dev](#evaluate-v100-dev-existing-prerelease) ·
+[Install Level 7](#install-level-7) ·
+[Update, inspect, roll back, remove](#update-inspect-roll-back-or-remove) ·
+[Manual verification](#manual-verification-and-installation) ·
 [See how it works](#how-level-7-works) ·
 [Explore the skills](#the-17-level-7-skills) ·
 [Read the FAQ](#frequently-asked-questions)
@@ -51,6 +52,7 @@ l7 cyber [--active] [--export markdown|json]
 l7 cyber remediate --report <id>
 l7 headless plan|start|status|resume|cancel
 l7 crew plan|start|status|wait|watch|view|decisions|answer|attach|release|merge|resume|cancel
+l7 plugin install|update|status|rollback|uninstall
 l7 mcp
 ```
 
@@ -105,6 +107,53 @@ new commit. Nothing merges until you run `l7 crew merge --task <id> --head
 and `gh` use your own login. The crew never releases or deploys.
 
 ## Quick start
+
+### Install Level 7
+
+Prerequisites: macOS 13+ on Apple Silicon or Intel, the Codex CLI and/or
+Claude Code you already use, and `curl`, `unzip`, `jq`, and the GitHub CLI
+(`gh` 2.67.0 or newer; no GitHub login is needed). Nothing installs hosts,
+package managers, or dependencies for you.
+
+Download the one-time bootstrap script, read it, then run it for the hosts you
+use. It installs a verified `l7` into `~/.local/share/level7` with a link at
+`~/.local/bin/l7`, then that same `l7` installs the plugin:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/addressanup/level7-dev-loop/main/scripts/l7-bootstrap.sh
+less l7-bootstrap.sh
+sh l7-bootstrap.sh --host codex --host claude --accept-unsigned --accept-unqualified
+```
+
+Every byte is verified before it is executed or registered: the release
+manifest, `SHA256SUMS`, the host archive, and the extracted CLI are bound by
+SHA-256 and by GitHub artifact attestations (`gh attestation verify --bundle`)
+to `addressanup/level7-dev-loop`, its release workflow, `refs/heads/main`, and
+the exact source commit. The two `--accept-*` flags are required because
+`v1.0.0` is unsigned, not notarized, and formally unsupported; the script and
+the CLI name them when they are missing and never waive them for `--yes`.
+No `sudo`, shell startup edits, Gatekeeper changes, telemetry, or background
+process are involved. Start a new Codex task or Claude Code session (or run
+`/reload-plugins`) before using the plugin.
+
+### Update, inspect, roll back, or remove
+
+```sh
+l7 plugin update --all --accept-unsigned --accept-unqualified
+l7 plugin status            # offline
+l7 plugin status --check    # also queries the newest releases
+l7 plugin rollback --host claude
+l7 plugin uninstall --host codex --yes
+```
+
+`update --all` updates only hosts you installed into earlier, skips pinned
+hosts, and is a no-op when a host is already current. Each release lands in a
+new immutable directory under `~/.local/share/level7/plugin/versions/`; the
+previous verified version is retained, so `rollback` needs no network. Stable
+is the default channel: prereleases need `--channel prerelease`, an exact
+version needs `--version`, and a downgrade needs `--allow-downgrade`. Set
+`L7_HOME` or `L7_BIN_DIR` before the bootstrap to change the prefix. Run
+`l7 plugin --help` for every option.
 
 ### Evaluate v1.0.0-dev (existing prerelease)
 
@@ -188,17 +237,17 @@ refuses a binary, stop; never disable Gatekeeper globally. Follow the complete
 [`v1.0.0-dev` verification, evaluation, and removal instructions](https://github.com/addressanup/level7-dev-loop/blob/v1.0.0-dev/docs/releases/v1.0.0-dev.md),
 including residue checks and cleanup after evaluation.
 
-### Install v1.0.0
+### Manual verification and installation
 
-These instructions apply only when the separate immutable `v1.0.0` release
-exists. It is **UNSIGNED and NOT NOTARIZED** by owner choice; protected holdout
-evaluation and exact-asset provider qualification are `NOT_RUN`, and formal
-support is `WITHHELD`. Stable channel does not imply Apple trust or product
-qualification. Users requiring Developer ID identity or normal Gatekeeper
-trust should not install these binaries.
+The immutable `v1.0.0` release is **UNSIGNED and NOT NOTARIZED** by owner
+choice; protected holdout evaluation and exact-asset provider qualification are
+`NOT_RUN`, and formal support is `WITHHELD`. Stable channel does not imply Apple
+trust or product qualification. Users requiring Developer ID identity or normal
+Gatekeeper trust should not install these binaries.
 
-Install `gh` and `jq`, choose a new disposable directory, then verify all four
-attached assets before extracting or registering either local marketplace:
+If you prefer not to use `l7 plugin`, install `gh` and `jq`, choose a new
+disposable directory, then verify all four attached assets by hand before
+extracting or registering either local marketplace:
 
 ```sh
 release_root="$HOME/.local/share/level7/evaluations/v1.0.0"
@@ -407,9 +456,12 @@ For Claude Code, replace the Codex prefix with
 
 Level 7 v1.0.0 contains 17 Markdown skills, a local MCP server, architecture-
 specific Go executables, and an Apple Natural Language embedding helper. It
-does not install a service, hook, updater, telemetry client, host setting, or
-credential broker. All orchestration features remain default OFF until the
-tracked `.l7/orchestration.json` policy explicitly enables them.
+does not install a service, hook, background updater, telemetry client, host
+setting, or credential broker; the network is used only when you run
+`l7 plugin install`, `l7 plugin update`, or `l7 plugin status --check`, and
+only against `github.com` over direct HTTPS (proxy settings are not used). All
+orchestration features remain default OFF until
+the tracked `.l7/orchestration.json` policy explicitly enables them.
 
 Level 7 does not grant host permissions. Codex or Claude Code still controls
 the available filesystem, Git, network, tool, model, and provider authority.
@@ -461,10 +513,17 @@ recorded separately in
 
 ## Update or roll back Level 7
 
-Each v1 marketplace resolves to one retained, verified extraction root. Before
-changing versions, remove the installed plugin and its marketplace, verify and
-extract the replacement into a new versioned root, then reinstall. Never
-overwrite an existing extraction or substitute GitHub source archives.
+`l7 plugin update --all` and `l7 plugin rollback --host <host>` perform the
+steps below for you, under a lock and a journal that restores the previous
+registration if anything fails; see
+[Update, inspect, roll back, or remove](#update-inspect-roll-back-or-remove).
+If you installed by hand instead, `l7 plugin install --host <host>` adopts
+that registration without deleting the extraction you made.
+
+Each v1 marketplace resolves to one retained, verified extraction root. When
+changing versions by hand, remove the installed plugin and its marketplace,
+verify and extract the replacement into a new versioned root, then reinstall.
+Never overwrite an existing extraction or substitute GitHub source archives.
 
 ### Codex
 
@@ -501,6 +560,11 @@ claude plugin install level7-dev-loop@level7-engineering --scope user
 
 ## Uninstall
 
+`l7 plugin uninstall --host <host> --yes` removes that host's registration and
+the installation files no other host still references; the `l7` CLI, its
+link, and `~/.local/share/level7` stay until you delete them. The equivalent
+host commands are:
+
 ### Codex
 
 ```sh
@@ -522,6 +586,30 @@ v1 state, when present, is under the repository's Git common directory at
 repository, credentials, provider configuration, or unrelated host state.
 
 ## Troubleshooting
+
+### `l7 plugin install` says the release requires explicit acceptance
+
+Every current release is unsigned, not notarized, and formally unsupported.
+Read the release notes, then rerun with `--accept-unsigned --accept-unqualified`.
+`--yes` never stands in for those flags.
+
+### `l7 plugin install` says gh is required or too old
+
+Attestations are verified with the GitHub CLI: install `gh` 2.67.0 or newer
+from <https://cli.github.com>. No GitHub login is needed; the bundles are
+fetched from the public API and verified offline with `--bundle`.
+
+### macOS refused to run the extracted `l7`
+
+Stop. The binaries are unsigned and Gatekeeper may block them. Never disable
+Gatekeeper globally or strip quarantine attributes; the installer registers
+nothing when the executable does not run.
+
+### `l7 plugin status` reports an incomplete transaction
+
+An install or update was interrupted. The next `install`, `update`, `rollback`,
+or `uninstall` first restores the previous verified registration, then
+continues. Nothing is deleted while a transaction is journaled.
 
 ### The marketplace was added, but the plugin is not found
 
@@ -602,7 +690,9 @@ generates both v1 packages from the same 17 canonical skills and engine source.
 ### Is the `l7` Go CLI included?
 
 Yes. The two v1 host packages include `l7` executables for macOS arm64 and
-amd64 and launch MCP through `l7 mcp`. The `v1.0.0-dev` prerelease copies are
+amd64 and launch MCP through `l7 mcp`; the bootstrap script places the same
+verified executable on your PATH so `l7 plugin` can manage both hosts. The
+`v1.0.0-dev` prerelease copies are
 explicitly not Developer ID-signed or Apple-notarized and remain unsupported;
 the separate stable `v1.0.0` packages are also unsigned and unnotarized under
 the owner's documented waivers, with formal support withheld. The v0.1.1 rollback package does not contain an

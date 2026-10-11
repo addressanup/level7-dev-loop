@@ -1,0 +1,88 @@
+{
+  "artifact_state": "unsigned-unnotarized-prepared",
+  "artifacts": [
+    {
+      "developer_id_signature": "NOT_RUN",
+      "name": "level7-dev-loop-1.0.0-claude.zip",
+      "notarization": {
+        "id": null,
+        "status": "NOT_RUN"
+      },
+      "sha256": "6c48280e078429ecef61815186042efe404345e97b0a9c0b7b1f77c6e0bf111c",
+      "size": 22735243
+    },
+    {
+      "developer_id_signature": "NOT_RUN",
+      "name": "level7-dev-loop-1.0.0-codex.zip",
+      "notarization": {
+        "id": null,
+        "status": "NOT_RUN"
+      },
+      "sha256": "37702406afcdd77b39ee3b58c99de96e8497ece4a7d3ca87b20f54abda038dea",
+      "size": 22735431
+    }
+  ],
+  "assurance": {
+    "mode": "solo",
+    "operator": "addressanup",
+    "owner": "addressanup"
+  },
+  "authorization": "https://github.com/addressanup/level7-dev-loop/pull/27#issuecomment-6096196687",
+  "candidate": {
+    "base": "2432079234724a3f3a61ca73229305fc8a330f43",
+    "commit": "ed1457f2c54e2308f757d7ea3bf4fcfa113575ec",
+    "pull_request": 27,
+    "tree": "cb596fe99648ec545bb924258896434bc1c87e73"
+  },
+  "change_id": "unsigned-stable-release",
+  "checksums": {
+    "name": "SHA256SUMS",
+    "sha256": "633b7d9ffdbf7a704cccb1427f9beeeb31c41d37fcc9e2ef72951dccf32f309f",
+    "size": 197
+  },
+  "gatekeeper": "MAY_BLOCK; NEVER_DISABLE_GLOBALLY",
+  "policy": "owner-authorized-unsigned-stable-v1",
+  "publication_blocked": true,
+  "qualification": {
+    "apple_notarization": "NOT_RUN",
+    "developer_id_signing": "NOT_RUN",
+    "exact_asset_provider_trials": "NOT_RUN",
+    "formal_support": "WITHHELD",
+    "independent_code_audit": "NOT_RUN",
+    "protected_holdout_evaluation": "NOT_RUN"
+  },
+  "release_channel": "stable",
+  "release_notes": {
+    "path": "docs/releases/v1.0.0.md",
+    "sha256": "045aaec56073438e816a82dedc2db43121e4c669144ad697d1974ae6cf252410"
+  },
+  "reproducibility": {
+    "result": "PASS",
+    "toolchain": "go1.26.7"
+  },
+  "schema": 1,
+  "tag": "v1.0.0",
+  "unsigned_inputs": {
+    "darwin-amd64/l7": "340ef8fbdf82f242773f2f1799e333a704ca7aae6689f8055c37752e10f83329",
+    "darwin-amd64/l7-embed": "f9ce8dfd57dffcd1d2471b284859bcf4322816cf6886a5f938b30f994bcff7fd",
+    "darwin-arm64/l7": "6148c531f6fdd397a0d2891770573af7b5e3d53d134deee8878ecb1cdc47f572",
+    "darwin-arm64/l7-embed": "51470c9ace2c89088c9f10700e1505c05cca88d7a7b42c894e1a4fc35239769a"
+  },
+  "unsigned_packages": {
+    "level7-dev-loop-1.0.0-claude.zip": "6c48280e078429ecef61815186042efe404345e97b0a9c0b7b1f77c6e0bf111c",
+    "level7-dev-loop-1.0.0-codex.zip": "37702406afcdd77b39ee3b58c99de96e8497ece4a7d3ca87b20f54abda038dea"
+  },
+  "version": "1.0.0",
+  "waivers": {
+    "apple_signing_and_notarization": "WAIVED",
+    "exact_asset_provider_trials": "WAIVED",
+    "protected_holdout_evaluation": "WAIVED",
+    "separate_operator_and_protected_approval": "WAIVED"
+  },
+  "workflow": {
+    "path": ".github/workflows/release.yml",
+    "repository": "addressanup/level7-dev-loop",
+    "run_attempt": "1",
+    "run_id": "38042885014"
+  }
+}
