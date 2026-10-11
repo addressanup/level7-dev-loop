@@ -39,7 +39,8 @@ cleanup()
 trap cleanup EXIT HUP INT TERM
 
 arch=arm64
-case $(uname -m) in x86_64|amd64) arch=amd64 ;; esac
+machine=arm64
+case $(uname -m) in x86_64|amd64) arch=amd64; machine=x86_64 ;; esac
 version=1.0.0
 tag=v$version
 commit=ed1457f2c54e2308f757d7ea3bf4fcfa113575ec
@@ -75,6 +76,17 @@ jq -n --arg version "$version" --arg tag "$tag" --arg commit "$commit" --arg arc
 	 artifacts: [{name: ("level7-dev-loop-" + $version + "-claude.zip"), sha256: $claude}, {name: ("level7-dev-loop-" + $version + "-codex.zip"), sha256: $codex}],
 	 checksums: {name: "SHA256SUMS", sha256: $sums, size: $sums_size}}' >"$fixtures/RELEASE-MANIFEST.json"
 jq -n --arg tag "$tag" '{tag_name: $tag, draft: false, prerelease: false, assets: [{name: "RELEASE-MANIFEST.json"}, {name: "SHA256SUMS"}, {name: "level7-dev-loop-1.0.0-codex.zip"}, {name: "level7-dev-loop-1.0.0-claude.zip"}]}' >"$fixtures/release.json"
+
+# Fake uname: the bootstrap targets macOS, and this check also runs on Linux
+# CI, so the fixture PATH reports Darwin with the real machine architecture.
+cat >"$scratch/bin/uname" <<UNAME
+#!/bin/sh
+case "\${1:-}" in
+	-m) printf '%s\n' '$machine' ;;
+	*) printf 'Darwin\n' ;;
+esac
+UNAME
+chmod 0755 "$scratch/bin/uname"
 
 # Fake curl: serves fixture assets by URL path and reports the effective URL
 # the way the real bootstrap expects. CONTROL=missing-attestation drops the
@@ -129,7 +141,7 @@ while [ "\$#" -gt 0 ]; do
 	esac
 done
 test -n "\$GH_TOKEN" && { printf 'token must not be forwarded\n' >&2; exit 9; }
-digest=\$(shasum -a 256 "\$file" 2>/dev/null | awk '{ print \$1 }' || sha256sum "\$file" | awk '{ print \$1 }')
+if command -v shasum >/dev/null 2>&1; then digest=\$(shasum -a 256 "\$file" | awk '{ print \$1 }'); else digest=\$(sha256sum "\$file" | awk '{ print \$1 }'); fi
 expected=\$(jq -r '.l7test.sha256' "\$bundle" | head -n 1)
 expected_commit=\$(jq -r '.l7test.commit' "\$bundle" | head -n 1)
 test "\$digest" = "\$expected" && test "\$source_digest" = "\$expected_commit" || { printf 'verification failed\n' >&2; exit 1; }
