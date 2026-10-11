@@ -141,9 +141,10 @@ process are involved. Start a new Codex task or Claude Code session (or run
 
 ```sh
 l7 plugin update --all --accept-unsigned --accept-unqualified
-l7 plugin status            # offline
-l7 plugin status --check    # also queries the newest releases
-l7 plugin rollback --host claude
+l7 plugin update --host codex    # or update just one host
+l7 plugin status                 # offline
+l7 plugin status --check         # also queries the newest releases
+l7 plugin rollback --host claude # offline; restores the retained version
 l7 plugin uninstall --host codex --yes
 ```
 
@@ -153,8 +154,23 @@ new immutable directory under `~/.local/share/level7/plugin/versions/`; the
 previous verified version is retained, so `rollback` needs no network. Stable
 is the default channel: prereleases need `--channel prerelease`, an exact
 version needs `--version`, and a downgrade needs `--allow-downgrade`. Set
-`L7_HOME` or `L7_BIN_DIR` before the bootstrap to change the prefix. Run
-`l7 plugin --help` for every option.
+`L7_HOME` or `L7_BIN_DIR` before the bootstrap to change the prefix.
+
+| Option | Commands | Effect |
+|---|---|---|
+| `--host codex\|claude` | install, update, rollback, uninstall | select the host (`update` also accepts `--all`) |
+| `--channel prerelease` | install, update | opt out of the default stable channel |
+| `--version X.Y.Z` | install, update | pin an exact version |
+| `--unpin` | update | drop a pinned version |
+| `--allow-downgrade` | update | permit moving to an older version |
+| `--accept-unsigned` | install, update | accept unsigned, unnotarized binaries |
+| `--accept-unqualified` | install, update | accept a release whose support is withheld |
+| `--dry-run` | install, update, rollback, uninstall | verify and report without changing anything |
+| `--yes` | uninstall | skip the confirmation prompt |
+| `--check` | status | also query the newest releases over the network |
+| `--json` | every command | machine-readable output |
+
+Run `l7 plugin --help` for the complete contract.
 
 ### Evaluate v1.0.0-dev (existing prerelease)
 
