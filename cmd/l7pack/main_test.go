@@ -159,7 +159,7 @@ func TestSBOMUsesSPDXFilesRelationshipsAndPinnedParserDependency(t *testing.T) {
 	packages, _ := document["packages"].([]any)
 	files, _ := document["files"].([]any)
 	relationships, _ := document["relationships"].([]any)
-	if len(packages) != 2 || len(files) != 1 || len(relationships) != 3 || !bytes.Contains(data, []byte("gotreesitter@v0.24.0")) || document["name"] != "level7-dev-loop-1.0.0-codex" {
+	if len(packages) != 2 || len(files) != 1 || len(relationships) != 3 || !bytes.Contains(data, []byte("gotreesitter@v0.24.0")) || document["name"] != "level7-dev-loop-"+releaseVersion+"-codex" {
 		t.Fatalf("incomplete SPDX document: %s", data)
 	}
 	if bytes.Contains(data, []byte(`"externalRefs": [{"path"`)) {

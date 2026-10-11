@@ -7,13 +7,14 @@ by verified capability and effort, maintains private codebase memory, performs
 bounded security audits, and can execute durable feature waves before stopping
 at the release boundary.
 
-> **Release boundary:** Stable `v1.0.0`, when available, is **UNSIGNED, NOT
-> NOTARIZED**, and published under explicit owner waivers. Protected holdout
-> evaluation and exact-asset provider trials are **NOT_RUN**; formal support is
-> **WITHHELD**. macOS Gatekeeper may block the binaries. Checksums and GitHub
-> attestations verify bytes and provenance, not Apple publisher identity or
-> product qualification. Never disable Gatekeeper globally. The existing
-> immutable `v1.0.0-dev` prerelease and skills-only `v0.1.1` rollback are unchanged.
+> **Release boundary:** Stable `v1.1.0` (like `v1.0.0` before it) is
+> **UNSIGNED, NOT NOTARIZED**, and published under explicit owner waivers made
+> again for this version. Protected holdout evaluation and exact-asset provider
+> trials are **NOT_RUN**; formal support is **WITHHELD**. macOS Gatekeeper may
+> block the binaries. Checksums and GitHub attestations verify bytes and
+> provenance, not Apple publisher identity or product qualification. Never
+> disable Gatekeeper globally. The immutable `v1.0.0` release, `v1.0.0-dev`
+> prerelease, and skills-only `v0.1.1` rollback are unchanged.
 
 You describe the outcome. Level 7 keeps ordinary, reversible repository work
 moving—and asks for your judgment only when it reaches a decision or effect
@@ -130,7 +131,7 @@ manifest, `SHA256SUMS`, the host archive, and the extracted CLI are bound by
 SHA-256 and by GitHub artifact attestations (`gh attestation verify --bundle`)
 to `addressanup/level7-dev-loop`, its release workflow, `refs/heads/main`, and
 the exact source commit. The two `--accept-*` flags are required because
-`v1.0.0` is unsigned, not notarized, and formally unsupported; the script and
+every current release is unsigned, not notarized, and formally unsupported; the script and
 the CLI name them when they are missing and never waive them for `--yes`.
 No `sudo`, shell startup edits, Gatekeeper changes, telemetry, or background
 process are involved. Start a new Codex task or Claude Code session (or run
@@ -239,7 +240,7 @@ including residue checks and cleanup after evaluation.
 
 ### Manual verification and installation
 
-The immutable `v1.0.0` release is **UNSIGNED and NOT NOTARIZED** by owner
+The immutable `v1.1.0` release is **UNSIGNED and NOT NOTARIZED** by owner
 choice; protected holdout evaluation and exact-asset provider qualification are
 `NOT_RUN`, and formal support is `WITHHELD`. Stable channel does not imply Apple
 trust or product qualification. Users requiring Developer ID identity or normal
@@ -250,10 +251,10 @@ disposable directory, then verify all four attached assets by hand before
 extracting or registering either local marketplace:
 
 ```sh
-release_root="$HOME/.local/share/level7/evaluations/v1.0.0"
+release_root="$HOME/.local/share/level7/evaluations/v1.1.0"
 test ! -e "$release_root"
 mkdir -p "$release_root/assets" "$release_root/codex" "$release_root/claude"
-gh release download v1.0.0 --repo addressanup/level7-dev-loop --dir "$release_root/assets"
+gh release download v1.1.0 --repo addressanup/level7-dev-loop --dir "$release_root/assets"
 (cd "$release_root/assets" && shasum -a 256 -c SHA256SUMS)
 candidate_commit=$(jq -er .candidate.commit "$release_root/assets/RELEASE-MANIFEST.json")
 for asset in "$release_root"/assets/*; do
@@ -267,8 +268,8 @@ jq -e '.policy == "owner-authorized-unsigned-stable-v1" and
   .qualification.developer_id_signing == "NOT_RUN" and
   .qualification.apple_notarization == "NOT_RUN" and
   .qualification.formal_support == "WITHHELD"' "$release_root/assets/RELEASE-MANIFEST.json"
-ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-codex.zip" "$release_root/codex"
-ditto -x -k "$release_root/assets/level7-dev-loop-1.0.0-claude.zip" "$release_root/claude"
+ditto -x -k "$release_root/assets/level7-dev-loop-1.1.0-codex.zip" "$release_root/codex"
+ditto -x -k "$release_root/assets/level7-dev-loop-1.1.0-claude.zip" "$release_root/claude"
 ```
 
 Review the manifest's four `WAIVED` gates and accept this lower-assurance
@@ -454,7 +455,7 @@ For Claude Code, replace the Codex prefix with
 
 ## Permissions, privacy, and trust
 
-Level 7 v1.0.0 contains 17 Markdown skills, a local MCP server, architecture-
+Level 7 v1.1.0 contains 17 Markdown skills, a local MCP server, architecture-
 specific Go executables, and an Apple Natural Language embedding helper. It
 does not install a service, hook, background updater, telemetry client, host
 setting, or credential broker; the network is used only when you run
@@ -483,7 +484,7 @@ with resource limits, and has no Internet or host sockets.
 
 ## Compatibility and current limits
 
-v1.0.0 targets macOS 13+ on arm64 and amd64. Both architectures receive offline
+v1.1.0 (and v1.0.0) targets macOS 13+ on arm64 and amd64. Both architectures receive offline
 package, native CLI/MCP, upgrade, rollback, removal, and safety checks.
 Apple Developer ID signing/notarization, protected holdout evaluation, separate
 release operator/protected approval, and exact-archive Codex/Claude provider
@@ -635,7 +636,7 @@ host version, operating system, architecture, command, and exact error.
 
 ### What is Level 7 Dev Loop?
 
-The v1.0.0 distribution is a local-first multi-host orchestration engine with
+The v1.1.0 distribution is a local-first multi-host orchestration engine with
 17 workflow skills, a native CLI, and an MCP bridge. The unchanged v0.1.1
 distribution remains available as a skills-only rollback.
 
@@ -694,7 +695,7 @@ amd64 and launch MCP through `l7 mcp`; the bootstrap script places the same
 verified executable on your PATH so `l7 plugin` can manage both hosts. The
 `v1.0.0-dev` prerelease copies are
 explicitly not Developer ID-signed or Apple-notarized and remain unsupported;
-the separate stable `v1.0.0` packages are also unsigned and unnotarized under
+the stable `v1.1.0` and `v1.0.0` packages are also unsigned and unnotarized under
 the owner's documented waivers, with formal support withheld. The v0.1.1 rollback package does not contain an
 executable or MCP
 server.
@@ -744,13 +745,13 @@ record on the final merged PR through the real owner login:
 
 Replace only the exact candidate placeholders; do not relabel unrun evidence.
 From a clean exact-candidate checkout, pass `CANDIDATE_COMMIT`, `CANDIDATE_TREE`,
-and `WAIVER_ACKNOWLEDGEMENT='I accept unsigned, unnotarized, unqualified stable v1.0.0'`
+and `WAIVER_ACKNOWLEDGEMENT='I accept unsigned, unnotarized, unqualified stable v1.1.0'`
 to `sh scripts/harness/check-stable-release-preflight.sh --eligibility`. Once it
 passes, dispatch `release.yml` once on `main` with those identities and that
 acknowledgement. After the successful run, call:
 
 ```text
-sh scripts/harness/publish-unsigned-stable.sh COMMIT TREE RUN_ID ARTIFACT_ID /new/absolute/work/root 'I accept unsigned, unnotarized, unqualified stable v1.0.0'
+sh scripts/harness/publish-unsigned-stable.sh COMMIT TREE RUN_ID ARTIFACT_ID /new/absolute/work/root 'I accept unsigned, unnotarized, unqualified stable v1.1.0'
 ```
 
 The owner publisher uses the existing `gh` login, not a copied admin token. It

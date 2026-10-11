@@ -19,7 +19,11 @@ ROOT = Path(sys.argv[1])
 REPOSITORY = "addressanup/level7-dev-loop"
 WORKFLOW = ".github/workflows/release.yml"
 POLICY = "owner-authorized-unsigned-stable-v1"
-ACKNOWLEDGEMENT = "I accept unsigned, unnotarized, unqualified stable v1.0.0"
+VERSION = "1.1.0"
+TAG = "v" + VERSION
+NOTES = "docs/releases/" + TAG + ".md"
+ARTIFACT_PREFIX = TAG + "-prepared-"
+ACKNOWLEDGEMENT = "I accept unsigned, unnotarized, unqualified stable " + TAG
 CHECKS = (
     "Go 1.26.7 (baseline)", "Go 1.27.0 (shadow)",
     "CLI macOS 15 (arm64)", "CLI macOS 15 (amd64)",
@@ -39,7 +43,7 @@ QUALIFICATION = {
     "independent_code_audit": "NOT_RUN",
     "formal_support": "WITHHELD",
 }
-ARCHIVES = tuple("level7-dev-loop-1.0.0-" + host + ".zip" for host in ("claude", "codex"))
+ARCHIVES = tuple("level7-dev-loop-" + VERSION + "-" + host + ".zip" for host in ("claude", "codex"))
 ASSETS = set(ARCHIVES) | {"SHA256SUMS", "RELEASE-MANIFEST.json"}
 INPUTS = {arch + "/" + binary for arch in ("darwin-arm64", "darwin-amd64")
           for binary in ("l7", "l7-embed")}
@@ -167,13 +171,13 @@ def validate(state, phase, artifact_id=None):
         tag_sha = env.get("RELEASE_TAG_OBJECT")
         require(digest(tag_sha) and state["tag_ref"].get("object") == {"type": "tag", "sha": tag_sha,
                 "url": "https://api.github.com/repos/" + REPOSITORY + "/git/tags/" + tag_sha}
-                and tag.get("sha") == tag_sha and tag.get("tag") == "v1.0.0"
+                and tag.get("sha") == tag_sha and tag.get("tag") == TAG
                 and tag.get("object", {}).get("type") == "commit" and tag["object"].get("sha") == commit,
                 "created annotated tag drift")
         require(str(release.get("id")) == env.get("RELEASE_DRAFT_ID") and release.get("draft") is True
-                and release.get("prerelease") is False and release.get("tag_name") == "v1.0.0"
+                and release.get("prerelease") is False and release.get("tag_name") == TAG
                 and release.get("target_commitish") == commit
-                and release.get("body") == (ROOT / "docs/releases/v1.0.0.md").read_text(),
+                and release.get("body") == (ROOT / NOTES).read_text(),
                 "created draft release drift")
     else:
         require(state["tag_absent"] and state["release_absent"], "tag or release already exists")
@@ -197,7 +201,7 @@ def validate(state, phase, artifact_id=None):
         else:
             artifacts = state["artifacts"]
             require(len(artifacts) == 1 and str(artifacts[0].get("id")) == artifact_id
-                    and artifacts[0].get("name") == "v1.0.0-prepared-" + commit
+                    and artifacts[0].get("name") == ARTIFACT_PREFIX + commit
                     and artifacts[0].get("expired") is False
                     and isinstance(artifacts[0].get("digest"), str)
                     and re.fullmatch("sha256:[0-9a-f]{64}", artifacts[0]["digest"]) is not None
@@ -245,8 +249,8 @@ def collect(phase):
     variables = ([{"name": key, "value": env.get(key, "")}
                   for key in ("L7_ACCOUNTABLE_OWNER", "L7_RELEASE_OPERATOR", "L7_ASSURANCE_MODE")]
                  if phase == "prepare" else items("actions/variables", "variables"))
-    artifacts = items("actions/artifacts?name=v1.0.0-prepared-" + commit, "artifacts")
-    tag_ref = api("git/ref/tags/v1.0.0") if phase == "finalize" else {}
+    artifacts = items("actions/artifacts?name=" + ARTIFACT_PREFIX + commit, "artifacts")
+    tag_ref = api("git/ref/tags/" + TAG) if phase == "finalize" else {}
     tag_sha = tag_ref.get("object", {}).get("sha")
     require(phase != "finalize" or digest(tag_sha), "invalid created tag identity")
     run_id = env.get("GITHUB_RUN_ID") if phase == "prepare" else env.get("RELEASE_RUN_ID")
@@ -263,10 +267,10 @@ def collect(phase):
         "main_checks": items("commits/" + commit + "/check-runs", "check_runs"),
         "comments": items("issues/" + str(pull["number"]) + "/comments"),
         "immutable": api("immutable-releases") if phase != "prepare" else None,
-        "tag_absent": command(["gh", "api", prefix + "git/ref/tags/v1.0.0"], absent=True) if phase != "finalize" else False,
-        "release_absent": command(["gh", "api", prefix + "releases/tags/v1.0.0"], absent=True) if phase != "finalize" else False,
+        "tag_absent": command(["gh", "api", prefix + "git/ref/tags/" + TAG], absent=True) if phase != "finalize" else False,
+        "release_absent": command(["gh", "api", prefix + "releases/tags/" + TAG], absent=True) if phase != "finalize" else False,
         "tag_ref": tag_ref, "tag": api("git/tags/" + tag_sha) if phase == "finalize" else {},
-        "release": api("releases/tags/v1.0.0") if phase == "finalize" else {},
+        "release": api("releases/tags/" + TAG) if phase == "finalize" else {},
         "run": api("actions/runs/" + run_id) if phase != "eligibility" else {},
         "runs": items("actions/workflows/release.yml/runs?event=workflow_dispatch&head_sha=" + commit, "workflow_runs"),
         "artifacts": artifacts,
@@ -297,7 +301,7 @@ def validate_assets(directory, env):
     require(all(digest(value) for value in (commit, tree, base)), "invalid expected candidate")
     require(type(manifest.get("schema")) is int and manifest["schema"] == 1
             and manifest.get("change_id") == "unsigned-stable-release"
-            and manifest.get("version") == "1.0.0" and manifest.get("tag") == "v1.0.0"
+            and manifest.get("version") == VERSION and manifest.get("tag") == TAG
             and manifest.get("release_channel") == "stable"
             and manifest.get("artifact_state") == "unsigned-unnotarized-prepared"
             and manifest.get("policy") == POLICY and manifest.get("waivers") == WAIVERS
@@ -343,8 +347,8 @@ def validate_assets(directory, env):
     require(checksums.read_text() == expected_checksums
             and manifest.get("checksums") == {"name": "SHA256SUMS", "sha256": file_digest(checksums),
                                             "size": checksums.stat().st_size}, "checksum evidence differs")
-    notes = ROOT / "docs/releases/v1.0.0.md"
-    require(manifest.get("release_notes") == {"path": "docs/releases/v1.0.0.md", "sha256": file_digest(notes)},
+    notes = ROOT / NOTES
+    require(manifest.get("release_notes") == {"path": NOTES, "sha256": file_digest(notes)},
             "release notes changed")
     text = notes.read_text()
     require(all(word in text for word in ("UNSIGNED", "NOT NOTARIZED", "WITHHELD", "WAIVED", "NOT_RUN")),
@@ -481,7 +485,7 @@ class PreflightTests(unittest.TestCase):
 
     @staticmethod
     def artifact():
-        return [{"id": 789, "name": "v1.0.0-prepared-" + "a" * 40, "expired": False,
+        return [{"id": 789, "name": ARTIFACT_PREFIX + "a" * 40, "expired": False,
                  "digest": "sha256:" + "e" * 64, "workflow_run": {"id": 123, "head_sha": "a" * 40}}]
 
     def test_publish_exact_artifact(self):
@@ -499,9 +503,9 @@ class PreflightTests(unittest.TestCase):
         self.state.update(
             tag_ref={"object": {"type": "tag", "sha": "e" * 40,
                                "url": "https://api.github.com/repos/" + REPOSITORY + "/git/tags/" + "e" * 40}},
-            tag={"sha": "e" * 40, "tag": "v1.0.0", "object": {"type": "commit", "sha": "a" * 40}},
-            release={"id": 987, "draft": True, "prerelease": False, "tag_name": "v1.0.0",
-                     "target_commitish": "a" * 40, "body": (ROOT / "docs/releases/v1.0.0.md").read_text()})
+            tag={"sha": "e" * 40, "tag": TAG, "object": {"type": "commit", "sha": "a" * 40}},
+            release={"id": 987, "draft": True, "prerelease": False, "tag_name": TAG,
+                     "target_commitish": "a" * 40, "body": (ROOT / NOTES).read_text()})
         validate(self.state, "finalize", "789")
         self.reject(lambda state: state["tag"]["object"].update(sha="0" * 40), "finalize")
         self.reject(lambda state: state["release"].update(draft=False), "finalize")
@@ -555,7 +559,7 @@ class PreflightTests(unittest.TestCase):
             prefix + "/commits/" + "a" * 40 + "/pulls?per_page=100": [state["pulls"]],
             prefix + "/actions/variables?per_page=100": [
                 {"variables": [{"name": key, "value": value} for key, value in state["variables"].items()]}],
-            prefix + "/actions/artifacts?name=v1.0.0-prepared-" + "a" * 40 + "&per_page=100": [{"artifacts": []}],
+            prefix + "/actions/artifacts?name=" + ARTIFACT_PREFIX + "a" * 40 + "&per_page=100": [{"artifacts": []}],
             prefix + "/git/ref/heads/main": state["main"],
             prefix + "/git/commits/" + "a" * 40: state["commit"],
             prefix + "/git/commits/" + "d" * 40: state["pr_commit"],
@@ -602,7 +606,7 @@ class AssetTests(unittest.TestCase):
                     "L7_RELEASE_BASE": "c" * 40, "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1",
                     "AUTHORIZATION_REFERENCE": "https://github.com/" + REPOSITORY + "/pull/27#issuecomment-456"}
         self.manifest = {
-            "schema": 1, "change_id": "unsigned-stable-release", "version": "1.0.0", "tag": "v1.0.0",
+            "schema": 1, "change_id": "unsigned-stable-release", "version": VERSION, "tag": TAG,
             "release_channel": "stable", "artifact_state": "unsigned-unnotarized-prepared", "policy": POLICY,
             "waivers": WAIVERS, "qualification": QUALIFICATION, "publication_blocked": True,
             "gatekeeper": "MAY_BLOCK; NEVER_DISABLE_GLOBALLY",
@@ -619,7 +623,7 @@ class AssetTests(unittest.TestCase):
                           for name in ARCHIVES],
             "checksums": {"name": "SHA256SUMS", "sha256": file_digest(self.directory / "SHA256SUMS"),
                           "size": (self.directory / "SHA256SUMS").stat().st_size},
-            "release_notes": {"path": "docs/releases/v1.0.0.md", "sha256": file_digest(ROOT / "docs/releases/v1.0.0.md")},
+            "release_notes": {"path": NOTES, "sha256": file_digest(ROOT / NOTES)},
         }
         self.write()
 
@@ -705,7 +709,7 @@ class AssetTests(unittest.TestCase):
         state["artifacts"][0]["digest"] = "sha256:" + file_digest(bundle)
         state["bundle"] = str(bundle)
         state["source_assets"] = str(self.directory)
-        state["notes"] = (ROOT / "docs/releases/v1.0.0.md").read_text()
+        state["notes"] = (ROOT / NOTES).read_text()
         state["calls"] = []
         state["fault"] = ""
         state_path = self.directory / "forge.json"
@@ -716,6 +720,8 @@ class AssetTests(unittest.TestCase):
         gh = fake_bin / "gh"
         gh.write_text("""#!/usr/bin/python3
 import json, os, pathlib, shutil, sys
+TAG = """ + repr(TAG) + """
+ARCHIVES = """ + repr(ARCHIVES) + """
 p = pathlib.Path(os.environ["FAKE_FORGE"])
 s = json.loads(p.read_text())
 a = sys.argv[1:]
@@ -727,12 +733,12 @@ if a[:2] == ["attestation", "verify"]:
         p.write_text(json.dumps(s)); sys.exit(1)
 elif a[:2] == ["release", "upload"]:
     s["release"]["assets"] = [{"name": name, "state": "uploaded", "size": 1} for name in
-        ("level7-dev-loop-1.0.0-claude.zip", "level7-dev-loop-1.0.0-codex.zip", "SHA256SUMS", "RELEASE-MANIFEST.json")]
+        (ARCHIVES[0], ARCHIVES[1], "SHA256SUMS", "RELEASE-MANIFEST.json")]
     if s["fault"] == "late-authority":
         s["comments"] = []
 elif a[:2] == ["release", "download"]:
     target = pathlib.Path(a[a.index("--dir") + 1])
-    for name in ("level7-dev-loop-1.0.0-claude.zip", "level7-dev-loop-1.0.0-codex.zip", "SHA256SUMS", "RELEASE-MANIFEST.json"):
+    for name in (ARCHIVES[0], ARCHIVES[1], "SHA256SUMS", "RELEASE-MANIFEST.json"):
         shutil.copyfile(pathlib.Path(s["source_assets"]) / name, target / name)
 elif a[0] == "api":
     method = a[a.index("--method") + 1] if "--method" in a else "GET"
@@ -741,12 +747,12 @@ elif a[0] == "api":
     tail = path[len(prefix)+1:] if path.startswith(prefix + "/") else path
     if method == "POST":
         if tail == "git/tags":
-            s["tag"] = {"sha": "e"*40, "tag": "v1.0.0", "object": {"type": "commit", "sha": "a"*40}}
+            s["tag"] = {"sha": "e"*40, "tag": TAG, "object": {"type": "commit", "sha": "a"*40}}
             result = s["tag"]
         elif tail == "git/refs":
             s["tag_ref"] = {"object": {"type":"tag", "sha":"e"*40, "url":"https://api.github.com/" + prefix + "/git/tags/" + "e"*40}}
         elif tail == "releases":
-            s["release"] = {"id":987, "draft":True, "prerelease":False, "tag_name":"v1.0.0",
+            s["release"] = {"id":987, "draft":True, "prerelease":False, "tag_name":TAG,
                             "target_commitish":"a"*40, "body":s["notes"], "assets":[]}
             result = s["release"]
         else:

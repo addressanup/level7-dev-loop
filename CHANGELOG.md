@@ -6,6 +6,13 @@ here. Host observations and support claims remain scoped by
 
 ## Unreleased
 
+## 1.1.0
+
+- Re-pin the owner-authorized unsigned stable release path to `1.1.0`: the
+  exact package identity, preparation workflow, preflight, and publisher now
+  derive every name from one version value, and the owner re-waived all four
+  gates for this version. Evidence stays NOT_RUN and support WITHHELD; the
+  immutable v1.0.0, v1.0.0-dev, and v0.1.1 releases are unchanged.
 - Add `l7 plugin install|update|status|rollback|uninstall` and a reviewable
   one-time bootstrap script (`scripts/l7-bootstrap.sh`). Installs and updates
   download one release of the fixed repository over HTTPS, verify SHA-256

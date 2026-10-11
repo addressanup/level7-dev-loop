@@ -1,5 +1,5 @@
-name: Owner-authorized unsigned stable v1.0.0
-run-name: L7 unsigned stable v1.0.0 commit=${{ inputs.candidate_commit }} tree=${{ inputs.candidate_tree }}
+name: Owner-authorized unsigned stable v1.1.0
+run-name: L7 unsigned stable v1.1.0 commit=${{ inputs.candidate_commit }} tree=${{ inputs.candidate_tree }}
 
 on:
   workflow_dispatch:
@@ -17,21 +17,21 @@ on:
         required: true
         type: choice
         options:
-          - I accept unsigned, unnotarized, unqualified stable v1.0.0
+          - I accept unsigned, unnotarized, unqualified stable v1.1.0
 
 permissions: {}
 
 concurrency:
-  group: stable-release-v1.0.0
+  group: stable-release-v1.1.0
   cancel-in-progress: false
 
 env:
   L7_ACCOUNTABLE_OWNER: ${{ vars.L7_ACCOUNTABLE_OWNER || github.repository_owner }}
   L7_RELEASE_OPERATOR: ${{ vars.L7_RELEASE_OPERATOR || github.repository_owner }}
   L7_ASSURANCE_MODE: ${{ vars.L7_ASSURANCE_MODE || 'solo' }}
-  L7_RELEASE_VERSION: 1.0.0
+  L7_RELEASE_VERSION: 1.1.0
   L7_RELEASE_CHANNEL: stable
-  L7_RELEASE_TAG: v1.0.0
+  L7_RELEASE_TAG: v1.1.0
 
 jobs:
   prepare:
@@ -66,7 +66,7 @@ jobs:
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_SHA" = "$CANDIDATE_COMMIT"
           test "$GITHUB_RUN_ATTEMPT" = 1
-          test "$WAIVER_ACKNOWLEDGEMENT" = 'I accept unsigned, unnotarized, unqualified stable v1.0.0'
+          test "$WAIVER_ACKNOWLEDGEMENT" = "I accept unsigned, unnotarized, unqualified stable $L7_RELEASE_TAG"
           [[ "$CANDIDATE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CANDIDATE_TREE" =~ ^[0-9a-f]{40}$ ]]
 
@@ -99,7 +99,7 @@ jobs:
           CANDIDATE_COMMIT: ${{ inputs.candidate_commit }}
         run: |
           set -euo pipefail
-          source_root="$RUNNER_TEMP/l7-v1.0.0-source"
+          source_root="$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-source"
           test ! -e "$source_root"
           mkdir -m 0700 "$source_root"
           git -C candidate archive --format=tar "$CANDIDATE_COMMIT" | tar -xf - -C "$source_root"
@@ -110,8 +110,8 @@ jobs:
       - name: Reproduce and qualify clean unsigned stable packages
         run: |
           set -euo pipefail
-          source_root="$RUNNER_TEMP/l7-v1.0.0-source"
-          first="$RUNNER_TEMP/l7-v1.0.0-first"
+          source_root="$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-source"
+          first="$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-first"
           test ! -e "$first"
           mkdir -m 0700 "$first"
           make -C "$source_root" distribution GO_VERSION=1.26.7
@@ -155,12 +155,13 @@ jobs:
             --arg amd64_l7 "$(shasum -a 256 "$first/darwin-amd64/l7" | awk '{print $1}')" \
             --arg amd64_embed "$(shasum -a 256 "$first/darwin-amd64/l7-embed" | awk '{print $1}')" \
             '{"darwin-amd64/l7":$amd64_l7,"darwin-amd64/l7-embed":$amd64_embed,"darwin-arm64/l7":$arm64_l7,"darwin-arm64/l7-embed":$arm64_embed}' \
-            > "$RUNNER_TEMP/l7-v1.0.0-unsigned-inputs.json"
+            > "$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-unsigned-inputs.json"
           jq -n --sort-keys \
-            --arg claude "$(shasum -a 256 "$first/packages/level7-dev-loop-1.0.0-claude.zip" | awk '{print $1}')" \
-            --arg codex "$(shasum -a 256 "$first/packages/level7-dev-loop-1.0.0-codex.zip" | awk '{print $1}')" \
-            '{"level7-dev-loop-1.0.0-claude.zip":$claude,"level7-dev-loop-1.0.0-codex.zip":$codex}' \
-            > "$RUNNER_TEMP/l7-v1.0.0-unsigned-packages.json"
+            --arg claude "$(shasum -a 256 "$first/packages/level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" | awk '{print $1}')" \
+            --arg codex "$(shasum -a 256 "$first/packages/level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" | awk '{print $1}')" \
+            --arg claude_name "level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" --arg codex_name "level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" \
+            '{($claude_name):$claude,($codex_name):$codex}' \
+            > "$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-unsigned-packages.json"
 
       - name: Freeze assets with explicit waivers and withheld qualification
         env:
@@ -171,29 +172,31 @@ jobs:
           AUTHORIZATION_REFERENCE: ${{ steps.preflight.outputs.authorization }}
         run: |
           set -euo pipefail
-          source_root="$RUNNER_TEMP/l7-v1.0.0-source"
-          assets="$RUNNER_TEMP/l7-v1.0.0-release-assets"
+          source_root="$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-source"
+          assets="$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-release-assets"
           test ! -e "$assets"
           mkdir -m 0700 "$assets"
           for host in claude codex
           do
-            cp "$source_root/build/v1-candidate/level7-dev-loop-1.0.0-${host}.zip" "$assets/"
+            cp "$source_root/build/v1-candidate/level7-dev-loop-${L7_RELEASE_VERSION}-${host}.zip" "$assets/"
           done
-          (cd "$assets" && shasum -a 256 level7-dev-loop-1.0.0-claude.zip level7-dev-loop-1.0.0-codex.zip > SHA256SUMS)
+          (cd "$assets" && shasum -a 256 "level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" "level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" > SHA256SUMS)
           jq -n --sort-keys \
             --arg base "$L7_RELEASE_BASE" --arg commit "$CANDIDATE_COMMIT" --arg tree "$CANDIDATE_TREE" \
             --argjson pull_request "$PULL_REQUEST" --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
             --arg authorization "$AUTHORIZATION_REFERENCE" --arg owner "$L7_ACCOUNTABLE_OWNER" \
-            --arg claude_sha "$(shasum -a 256 "$assets/level7-dev-loop-1.0.0-claude.zip" | awk '{print $1}')" \
-            --argjson claude_size "$(stat -f %z "$assets/level7-dev-loop-1.0.0-claude.zip")" \
-            --arg codex_sha "$(shasum -a 256 "$assets/level7-dev-loop-1.0.0-codex.zip" | awk '{print $1}')" \
-            --argjson codex_size "$(stat -f %z "$assets/level7-dev-loop-1.0.0-codex.zip")" \
+            --arg version "$L7_RELEASE_VERSION" --arg tag "$L7_RELEASE_TAG" \
+            --arg claude_name "level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" --arg codex_name "level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" \
+            --arg claude_sha "$(shasum -a 256 "$assets/level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip" | awk '{print $1}')" \
+            --argjson claude_size "$(stat -f %z "$assets/level7-dev-loop-${L7_RELEASE_VERSION}-claude.zip")" \
+            --arg codex_sha "$(shasum -a 256 "$assets/level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip" | awk '{print $1}')" \
+            --argjson codex_size "$(stat -f %z "$assets/level7-dev-loop-${L7_RELEASE_VERSION}-codex.zip")" \
             --arg sums_sha "$(shasum -a 256 "$assets/SHA256SUMS" | awk '{print $1}')" \
             --argjson sums_size "$(stat -f %z "$assets/SHA256SUMS")" \
-            --arg notes_sha "$(shasum -a 256 "$source_root/docs/releases/v1.0.0.md" | awk '{print $1}')" \
-            --slurpfile inputs "$RUNNER_TEMP/l7-v1.0.0-unsigned-inputs.json" \
-            --slurpfile packages "$RUNNER_TEMP/l7-v1.0.0-unsigned-packages.json" '
-            {schema:1,change_id:"unsigned-stable-release",version:"1.0.0",tag:"v1.0.0",release_channel:"stable",
+            --arg notes_path "docs/releases/${L7_RELEASE_TAG}.md" --arg notes_sha "$(shasum -a 256 "$source_root/docs/releases/${L7_RELEASE_TAG}.md" | awk '{print $1}')" \
+            --slurpfile inputs "$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-unsigned-inputs.json" \
+            --slurpfile packages "$RUNNER_TEMP/l7-${L7_RELEASE_TAG}-unsigned-packages.json" '
+            {schema:1,change_id:"unsigned-stable-release",version:$version,tag:$tag,release_channel:"stable",
              policy:"owner-authorized-unsigned-stable-v1",artifact_state:"unsigned-unnotarized-prepared",
              publication_blocked:true,gatekeeper:"MAY_BLOCK; NEVER_DISABLE_GLOBALLY",
              candidate:{base:$base,commit:$commit,tree:$tree,pull_request:$pull_request},
@@ -202,24 +205,24 @@ jobs:
              waivers:{apple_signing_and_notarization:"WAIVED",protected_holdout_evaluation:"WAIVED",separate_operator_and_protected_approval:"WAIVED",exact_asset_provider_trials:"WAIVED"},
              qualification:{developer_id_signing:"NOT_RUN",apple_notarization:"NOT_RUN",protected_holdout_evaluation:"NOT_RUN",exact_asset_provider_trials:"NOT_RUN",independent_code_audit:"NOT_RUN",formal_support:"WITHHELD"},
              reproducibility:{result:"PASS",toolchain:"go1.26.7"},unsigned_inputs:$inputs[0],unsigned_packages:$packages[0],
-             artifacts:[{name:"level7-dev-loop-1.0.0-claude.zip",sha256:$claude_sha,size:$claude_size,developer_id_signature:"NOT_RUN",notarization:{status:"NOT_RUN",id:null}},
-                        {name:"level7-dev-loop-1.0.0-codex.zip",sha256:$codex_sha,size:$codex_size,developer_id_signature:"NOT_RUN",notarization:{status:"NOT_RUN",id:null}}],
+             artifacts:[{name:$claude_name,sha256:$claude_sha,size:$claude_size,developer_id_signature:"NOT_RUN",notarization:{status:"NOT_RUN",id:null}},
+                        {name:$codex_name,sha256:$codex_sha,size:$codex_size,developer_id_signature:"NOT_RUN",notarization:{status:"NOT_RUN",id:null}}],
              checksums:{name:"SHA256SUMS",sha256:$sums_sha,size:$sums_size},
-             release_notes:{path:"docs/releases/v1.0.0.md",sha256:$notes_sha}}' \
+             release_notes:{path:$notes_path,sha256:$notes_sha}}' \
             > "$assets/RELEASE-MANIFEST.json"
           sh candidate/scripts/harness/check-stable-release-preflight.sh --verify-assets "$assets"
 
       - name: Attest exact unsigned prepared assets
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: ${{ runner.temp }}/l7-v1.0.0-release-assets/*
+          subject-path: ${{ runner.temp }}/l7-v1.1.0-release-assets/*
 
       - name: Upload exact immutable prepared artifact
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: v1.0.0-prepared-${{ inputs.candidate_commit }}
-          path: ${{ runner.temp }}/l7-v1.0.0-release-assets/*
+          name: v1.1.0-prepared-${{ inputs.candidate_commit }}
+          path: ${{ runner.temp }}/l7-v1.1.0-release-assets/*
           if-no-files-found: error
           compression-level: 0
           overwrite: false
@@ -227,4 +230,4 @@ jobs:
 
       - name: Report explicit publication boundary
         run: |
-          printf '%s\n' 'Unsigned stable v1.0.0: all four owner-authorized gates are WAIVED; their evidence is NOT_RUN and formal support is WITHHELD. This workflow prepares and attests assets only. The real owner must run publish-unsigned-stable.sh after this run succeeds; that path reads live administrative controls with the existing owner login and verifies the exact artifact before publication. No admin token is copied to Actions, and no release setting or protected environment is modified.' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' 'Unsigned stable v1.1.0: all four owner-authorized gates are WAIVED; their evidence is NOT_RUN and formal support is WITHHELD. This workflow prepares and attests assets only. The real owner must run publish-unsigned-stable.sh after this run succeeds; that path reads live administrative controls with the existing owner login and verifies the exact artifact before publication. No admin token is copied to Actions, and no release setting or protected environment is modified.' >> "$GITHUB_STEP_SUMMARY"
