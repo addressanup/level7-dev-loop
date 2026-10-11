@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -53,8 +54,24 @@ func newTestEnv(t *testing.T, versions ...string) *testEnv {
 		}
 	}
 	writeFakes(t, env.fakeBin)
+	// PATH holds only the fakes and explicitly linked system tools, so a real
+	// gh, codex, or claude on the machine can never be resolved by a test.
+	tools := filepath.Join(base, "tools")
+	if err := os.Mkdir(tools, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range []string{"sh", "jq", "awk", "sed", "head", "mv", "rm", "cat", "printf", "shasum", "sha256sum", "uname", "dirname", "basename", "tr", "wc", "grep", "env", "cp", "mktemp"} {
+		if located, err := exec.LookPath(tool); err == nil {
+			if err := os.Symlink(located, filepath.Join(tools, tool)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(tools, "jq")); err != nil {
+		t.Skip("jq is required for the fake host executables")
+	}
 	t.Setenv("HOME", env.home)
-	t.Setenv("PATH", env.fakeBin+string(os.PathListSeparator)+"/usr/bin"+string(os.PathListSeparator)+"/bin")
+	t.Setenv("PATH", env.fakeBin+string(os.PathListSeparator)+tools)
 	for _, key := range []string{"CODEX_HOME", "CLAUDE_CONFIG_DIR", "XDG_CONFIG_HOME", "GH_CONFIG_DIR"} {
 		t.Setenv(key, "")
 		_ = os.Unsetenv(key)
