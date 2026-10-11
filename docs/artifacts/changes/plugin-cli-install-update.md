@@ -4,11 +4,11 @@
 |---|---|
 | Change ID | `plugin-cli-install-update` |
 | Risk tier | `3` — installer, updater, and distribution trust boundary; mutates user-local host plugin registrations |
-| Status | implemented locally; review-ready, not published |
+| Status | implemented; pull request #28 open for exact-head CI and trusted policy; no release published |
 | Base commit | `ed1457f2c54e2308f757d7ea3bf4fcfa113575ec` |
 | Accountable owner | `addressanup` |
 | Assurance | `solo`; truthful self-review, no independent audit claimed |
-| Authority | repository-local implementation and disposable tests only; no push, PR, release, hosted-setting change, or real-user installation |
+| Authority | repository-local implementation and disposable tests, then branch push and pull request on the owner's explicit instruction; no release, hosted-setting change, or real-user installation |
 
 ## Problem
 
@@ -49,6 +49,57 @@ release manifests are consumed as-is; no new release is published.
 Declared boundary change: `internal/l7/adapter/pluginrelease` becomes the
 second allowed `net/http` owner under `BND-607`, with positive controls in
 `scripts/harness/check-import-boundaries.sh`.
+
+## Exact implementation file set
+
+Add:
+
+- `cmd/l7/plugin_cli.go`
+- `cmd/l7/plugin_cli_test.go`
+- `docs/artifacts/changes/plugin-cli-install-update.md`
+- `internal/l7/adapter/pluginhost/host.go`
+- `internal/l7/adapter/pluginhost/host_test.go`
+- `internal/l7/adapter/plugininstall/actual_host_test.go`
+- `internal/l7/adapter/plugininstall/cli.go`
+- `internal/l7/adapter/plugininstall/failure_test.go`
+- `internal/l7/adapter/plugininstall/fakes_test.go`
+- `internal/l7/adapter/plugininstall/fixtures_test.go`
+- `internal/l7/adapter/plugininstall/harness_test.go`
+- `internal/l7/adapter/plugininstall/install_test.go`
+- `internal/l7/adapter/plugininstall/lifecycle_test.go`
+- `internal/l7/adapter/plugininstall/manager.go`
+- `internal/l7/adapter/plugininstall/operations.go`
+- `internal/l7/adapter/plugininstall/state.go`
+- `internal/l7/adapter/plugininstall/status.go`
+- `internal/l7/adapter/pluginpackage/package.go`
+- `internal/l7/adapter/pluginpackage/package_test.go`
+- `internal/l7/adapter/pluginrelease/attest.go`
+- `internal/l7/adapter/pluginrelease/client.go`
+- `internal/l7/adapter/pluginrelease/client_test.go`
+- `internal/l7/adapter/pluginrelease/contract.go`
+- `internal/l7/adapter/pluginrelease/contract_test.go`
+- `internal/l7/adapter/pluginrelease/resolve.go`
+- `internal/l7/adapter/pluginrelease/testdata/v1.0.0-RELEASE-MANIFEST.json`
+- `internal/l7/adapter/pluginrelease/testdata/v1.0.0-SHA256SUMS`
+- `internal/l7/adapter/pluginrelease/testdata/v1.0.0-SHA256SUMS-gh-verify.json`
+- `internal/l7/adapter/pluginrelease/testdata/v1.0.0-dev-UNSIGNED-PRERELEASE-MANIFEST.json`
+- `internal/l7/adapter/pluginrelease/version.go`
+- `scripts/harness/check-l7-bootstrap.sh`
+- `scripts/l7-bootstrap.sh`
+
+Modify:
+
+- `.env.example`
+- `CHANGELOG.md`
+- `Makefile`
+- `README.md`
+- `cmd/l7/orchestration_cli.go`
+- `internal/l7/app/app.go`
+- `scripts/harness/check-import-boundaries.sh`
+
+Delete: none. The immutable release assets, the frozen v0.1.1 Git marketplace
+payload, historical records, and the user's untracked foundation audit are
+untouched.
 
 ## Acceptance criteria
 
